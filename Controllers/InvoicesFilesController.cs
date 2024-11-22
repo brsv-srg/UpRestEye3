@@ -1,12 +1,13 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using EyeRestWAs.Data;
-using EyeRestWAs.Models;
+using UpRestEye3.Data;
+using UpRestEye3.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 
-namespace EyeRestWAs.Controllers
+namespace UpRestEye3.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -25,8 +26,21 @@ namespace EyeRestWAs.Controllers
                 await file.CopyToAsync(stream);
             }
 
-            // Process the file as needed
-            // For example, parse the file and save data to the database
+            // Process the file to recognize QR code and fill Invoice
+            var fileProcessor = new FileProcessor();
+            var invoice = await fileProcessor.ProcessFileAsync(filePath);
+            
+            if (invoice == null)
+            {
+                return BadRequest("Failed to recognize QR code or invalid data.");
+            }
+
+            // Save the invoice to the database or perform other actions as needed
+            using (var context = new ApplicationDbContext(new DbContextOptions<ApplicationDbContext>()))
+            {
+                context.Invoices.Add(invoice);
+                await context.SaveChangesAsync();
+            }
 
             return Ok(new { filePath });
         }

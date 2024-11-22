@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using EyeRestWAs.Models;
+using UpRestEye3.Models;
 using System;
 using System.Linq;
 
-namespace EyeRestWAs.Data
+namespace UpRestEye3.Data
 {
     public static class SeedData
     {

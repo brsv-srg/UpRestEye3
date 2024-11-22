@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using ZXing.QrCode.Internal;
 
-namespace EyeRestWAs.Models
+namespace UpRestEye3.Models
 {
     public class Invoice
     {
@@ -15,7 +16,27 @@ namespace EyeRestWAs.Models
         public decimal TotalAmountExclTaxes { get; set; }
         public List<TaxCategory> TaxCategories { get; set; } = new();
         public List<Product> Products { get; set; } = new();
-        public string ?FilePath { get; set; } 
+        public string ?FilePath { get; set; }
+
+        // Default constructor
+        public Invoice()
+        {
+        }
+
+        // Constructor from QRCodeData
+        public Invoice(QRCodeData qrcode)
+        {
+            SupplierName = qrcode.SupplierTaxNumber;
+            SupplierTaxNumber = qrcode.SupplierTaxNumber;
+            InvoiceNumber = qrcode.DocNumber;
+            InvoiceDate = DateTime.ParseExact(qrcode.DocDate, "yyyyMMdd", null);
+
+            TotalAmountInclTaxes = decimal.Parse(qrcode.TotalAmount);
+            TotalAmountExclTaxes = decimal.Parse(qrcode.NetAmount);
+            TaxCategories.Add(new TaxCategory { Id=1, Category = "13%", Amount = decimal.Parse(qrcode.I6) });
+            TaxCategories.Add(new TaxCategory { Id=2, Category = "23%", Amount = decimal.Parse(qrcode.N) });
+
+        }
     }
 
     public class TaxCategory

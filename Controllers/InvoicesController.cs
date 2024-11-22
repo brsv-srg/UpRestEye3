@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using EyeRestWAs.Data;
-using EyeRestWAs.Models;
+using UpRestEye3.Data;
+using UpRestEye3.Models;
 
 namespace EyeRestWAs.Controllers
 {

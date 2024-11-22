@@ -1,7 +1,7 @@
 ﻿using UpRestEye3.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http.Features; 
-using EyeRestWAs.Data;
+using UpRestEye3.Data;
 
 
 var builder = WebApplication.CreateBuilder(args);

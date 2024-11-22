@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using EyeRestWAs.Models;
+using UpRestEye3.Models;
 
-namespace EyeRestWAs.Data
+namespace UpRestEye3.Data
 {
     public class ApplicationDbContext : DbContext
     {
+        
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
         public DbSet<Invoice> Invoices { get; set; }
