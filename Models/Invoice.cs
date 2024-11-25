@@ -33,8 +33,8 @@ namespace UpRestEye3.Models
 
             TotalAmountInclTaxes = decimal.Parse(qrcode.TotalAmount);
             TotalAmountExclTaxes = decimal.Parse(qrcode.NetAmount);
-            TaxCategories.Add(new TaxCategory { Id=1, Category = "13%", Amount = decimal.Parse(qrcode.I6) });
-            TaxCategories.Add(new TaxCategory { Id=2, Category = "23%", Amount = decimal.Parse(qrcode.N) });
+            TaxCategories.Add(new TaxCategory { Category = "13%", Amount = decimal.Parse(qrcode.I6) });
+            TaxCategories.Add(new TaxCategory { Category = "23%", Amount = decimal.Parse(qrcode.N) });
 
         }
     }

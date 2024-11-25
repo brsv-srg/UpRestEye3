@@ -36,7 +36,7 @@ namespace UpRestEye3.Data
                             TotalAmountExclTaxes = 1000.00m,
                             TaxCategories = new List<TaxCategory>
                             {
-                                new TaxCategory { Category = "VAT", Amount = 200.00m }
+                                new TaxCategory { Category = "13%", Amount = 2.00m }
                             },
                             Products = new List<Product>
                             {
@@ -70,7 +70,7 @@ namespace UpRestEye3.Data
                             TotalAmountExclTaxes = 2000.00m,
                             TaxCategories = new List<TaxCategory>
                             {
-                                new TaxCategory { Category = "VAT", Amount = 400.00m }
+                                new TaxCategory { Category = "23%", Amount = 4.00m }
                             },
                             Products = new List<Product>
                             {
