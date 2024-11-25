@@ -5,6 +5,10 @@ using Microsoft.EntityFrameworkCore;
 using UpRestEye3.Data;
 using UpRestEye3.Models;
 using Microsoft.Extensions.DependencyInjection;
+using System;
+using UpRestEye3.Controllers;
+using UpRestEye3.Components.Pages;
+using UpRestEye3.Services;
 
 
 namespace UpRestEye3.Controllers
@@ -13,6 +17,13 @@ namespace UpRestEye3.Controllers
     [ApiController]
     public class InvoicesFilesController : ControllerBase
     {
+        private readonly IInvoiceService _invoiceService;
+
+        public InvoicesFilesController(IInvoiceService invoiceService)
+        {
+            _invoiceService = invoiceService;
+        }
+
         [HttpPost("upload")]
         public async Task<IActionResult> Upload(IFormFile file)
         {
@@ -28,19 +39,16 @@ namespace UpRestEye3.Controllers
 
             // Process the file to recognize QR code and fill Invoice
             var fileProcessor = new FileProcessor();
-            var invoice = await fileProcessor.ProcessFileAsync(filePath);
+            var qrInvoice = await fileProcessor.ProcessFileAsync(filePath);
             
-            if (invoice == null)
+            if (qrInvoice == null)
             {
                 return BadRequest("Failed to recognize QR code or invalid data.");
             }
 
-            // Save the invoice to the database or perform other actions as needed
-            using (var context = new ApplicationDbContext(new DbContextOptions<ApplicationDbContext>()))
-            {
-                context.Invoices.Add(invoice);
-                await context.SaveChangesAsync();
-            }
+            var invoice = new Invoice(qrInvoice);
+
+            await _invoiceService.SaveInvoiceAsync(invoice);
 
             return Ok(new { filePath });
         }

@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http.Features; 
 using UpRestEye3.Data;
+using UpRestEye3.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,8 +19,8 @@ builder.Services.AddSignalR();
 
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(connectionString));
+builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connectionString));
+builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 
 // Настройка параметров формы для обработки больших файлов
 builder.Services.Configure<FormOptions>(options =>
