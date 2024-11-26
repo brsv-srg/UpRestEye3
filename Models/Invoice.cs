@@ -17,6 +17,7 @@ namespace UpRestEye3.Models
         public List<TaxCategory> TaxCategories { get; set; } = new();
         public List<Product> Products { get; set; } = new();
         public string ?FilePath { get; set; }
+        public DateTime UploadTime { get; set; } = DateTime.Now;
 
         // Default constructor
         public Invoice()

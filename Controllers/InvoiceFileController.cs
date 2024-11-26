@@ -19,6 +19,7 @@ namespace UpRestEye3.Controllers
     {
         private readonly IInvoiceService _invoiceService;
 
+
         public InvoicesFilesController(IInvoiceService invoiceService)
         {
             _invoiceService = invoiceService;
@@ -39,7 +40,9 @@ namespace UpRestEye3.Controllers
 
             // Process the file to recognize QR code and fill Invoice
             var fileProcessor = new FileProcessor();
-            var qrInvoice = await fileProcessor.ProcessFileAsync(filePath);
+            //var qrInvoice = await fileProcessor.ProcessFileAsync(filePath);
+            var qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode(filePath);
+
             
             if (qrInvoice == null)
             {
@@ -47,6 +50,7 @@ namespace UpRestEye3.Controllers
             }
 
             var invoice = new Invoice(qrInvoice);
+            invoice.FilePath = filePath;
 
             await _invoiceService.SaveInvoiceAsync(invoice);
 

@@ -6,11 +6,9 @@
 
 @using UpRestEye3.Models
 
-
 <PageTitle>Invoices</PageTitle>
 
 <h1>Invoices</h1>
-
 
 @if (invoices == null)
 {
@@ -18,41 +16,54 @@
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Supplier Name</th>
-                <th>Invoice Number</th>
-                <th>Invoice Date</th>
-                <th>Total Amount (incl. taxes)</th>
-                <th>Total Amount (excl. taxes)</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var invoice in invoices)
-            {
+    <div style="overflow-y: auto; max-height: 70vh;">
+        <table class="table">
+            <thead style="position: sticky; top: 0; background-color: white; z-index: 1;">
                 <tr>
-                    <td>@invoice.SupplierName</td>
-                    <td>@invoice.InvoiceNumber</td>
-                    <td>@invoice.InvoiceDate.ToShortDateString()</td>
-                    <td>@invoice.TotalAmountInclTaxes</td>
-                    <td>@invoice.TotalAmountExclTaxes</td>
+                    <th>Upload Time</th> 
+                    <th>Supplier Name</th>
+                    <th>Invoice Number</th>
+                    <th>Invoice Date</th>
+                    <th>Total Amount (incl. taxes)</th>
+                    <th>Total Amount (excl. taxes)</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var invoice in invoices.OrderByDescending(i => i.UploadTime))
+                {
+                    <tr>
+                        <td>@invoice.UploadTime.ToString("g")</td> 
+                        <td>@invoice.SupplierName</td>
+                        <td>@invoice.InvoiceNumber</td>
+                        <td>@invoice.InvoiceDate.ToShortDateString()</td>
+                        <td>@invoice.TotalAmountInclTaxes</td>
+                        <td>@invoice.TotalAmountExclTaxes</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
 
-<!-- Элементы интерфейса для выбора и загрузки файлов -->
-<InputFile OnChange="HandleFileSelected" />
-<button @onclick="UploadFile">Upload File</button>
+<div class="d-flex justify-content-between align-items-center p-2 bg-white shadow-sm">
+    <InputFile OnChange="HandleFileSelected" class="form-control-file" />
+    <button @onclick="UploadFile" class="btn btn-primary">Upload File</button>
+</div>
 
+@if (!string.IsNullOrEmpty(uploadMessage))
+{
+    <div class="alert @uploadMessageClass" role="alert" style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
+        @uploadMessage
+    </div>
+}
 
 
 @code {
-
     private Invoice[]? invoices;
     private IBrowserFile? selectedFile;
+    private string? uploadMessage;
+    private string? uploadMessageClass;
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -64,38 +75,20 @@ else
         invoices = await Http.GetFromJsonAsync<Invoice[]>($"{baseUri}/api/invoices");
     }
 
-
     private void HandleFileSelected(InputFileChangeEventArgs e)
     {
         selectedFile = e.File;
         Console.WriteLine("File selected: " + selectedFile.Name);
-
     }
-
-
 
     private async Task UploadFile()
     {
         if (selectedFile != null)
         {
             Console.WriteLine("Uploading file: " + selectedFile.Name);
-            /*
-            using var content = new MultipartFormDataContent();
-            var fileContent = new StreamContent(selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)); // 10 MB limit
-            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(selectedFile.ContentType);
-            content.Add(fileContent, "file", selectedFile.Name);
-
-            var response = await Http.PostAsync("api/invoicesfiles/upload", content);
-            */
-
-            /////
             
-             var content = new MultipartFormDataContent(); 
-             content.Add(new StreamContent(selectedFile.OpenReadStream()), "file", selectedFile.Name);
-            
-
-
-            //var content = new StringContent("This is the content", System.Text.Encoding.UTF8, "text/plain");
+            var content = new MultipartFormDataContent(); 
+            content.Add(new StreamContent(selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)), "file", selectedFile.Name);
 
             var baseUri = Navigation.BaseUri;
             if (baseUri.EndsWith('/'))
@@ -105,22 +98,35 @@ else
 
             var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/upload", content);
 
+
             if (response.IsSuccessStatusCode) 
             {
                 Console.WriteLine("File uploaded successfully.");
+                uploadMessage = "File uploaded successfully.";
+                uploadMessageClass = "alert-success";
                 invoices = await Http.GetFromJsonAsync<Invoice[]>($"{baseUri}/api/invoices");
             } 
             else 
             { 
                 Console.WriteLine("File upload failed.");
+                uploadMessage = "File upload failed.";
+                uploadMessageClass = "alert-danger";
+                
             }
         }
         else
         {
             Console.WriteLine("No file selected.");
+            uploadMessage = "No file selected.";
+            uploadMessageClass = "alert-danger";
+            
         }
-
+        
+        StateHasChanged();
+        // Hide the message after 5 seconds
+        await Task.Delay(5000);
+        uploadMessage = null;
+        uploadMessageClass = null;
+        StateHasChanged();
     }
-
 }
-
