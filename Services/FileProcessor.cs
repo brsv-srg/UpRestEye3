@@ -21,6 +21,7 @@ using System.Text.RegularExpressions;
 using System.Reflection.PortableExecutable;
 using OpenCvSharp.XImgProc;
 using ImageMagick;
+using AForge.Imaging;
 
 
 namespace UpRestEye3.Services
@@ -55,7 +56,7 @@ public class FileProcessor
 
                 Bitmap preprocessedBitmap = binaryFilter.Apply(contrastFilter.Apply(grayFilter.Apply(originalBitmap)));
 
-                string processedFilePath = Path.Combine(Path.GetDirectoryName(filePath), "processed", Path.GetFileName(filePath));
+                string processedFilePath = Path.Combine(Path.GetDirectoryName(filePath), "processed0", Path.GetFileName(filePath));
                 Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
                 preprocessedBitmap.Save(processedFilePath, ImageFormat.Png);
 
@@ -92,7 +93,7 @@ public class FileProcessor
 
             using var preprocessedBitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(sharpened);
 
-            string processedFilePath = Path.Combine(Path.GetDirectoryName(filePath), "processed_alternative", Path.GetFileName(filePath));
+            string processedFilePath = Path.Combine(Path.GetDirectoryName(filePath), "processed01", Path.GetFileName(filePath));
             Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
             preprocessedBitmap.Save(processedFilePath, ImageFormat.Png);
 
@@ -130,9 +131,7 @@ public class FileProcessor
                 string? directoryName = Path.GetDirectoryName(filePath);
                 if (directoryName != null)
                 {
-                    string unrecognizedDir = Path.Combine(directoryName, "unrecognized");
-                    Directory.CreateDirectory(unrecognizedDir);
-                    string destinationPath = Path.Combine(unrecognizedDir, Path.GetFileName(filePath));
+                    string destinationPath = Path.Combine(directoryName, $"NOTrecognazed{Path.GetFileName(filePath)}");
                     File.Move(filePath, destinationPath, true);
                 }
             });
@@ -144,8 +143,8 @@ public class FileProcessor
             QRCodeData? qrCodeData = null;
             
             // Удаление директории 
-            string deletedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed");
-            Directory.Delete(Path.GetDirectoryName(deletedFilePath), true);
+            //string deletedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed1");
+            //Directory.Delete(Path.GetDirectoryName(deletedFilePath), true);
 
             // Чтение изображения
             Mat original = Cv2.ImRead(imagePath, ImreadModes.Color);
@@ -156,7 +155,7 @@ public class FileProcessor
 
             // Список параметров для итераций
             double[] clipLimits = { 1.1, 1.2, 1.5, 2.0, 2.5, 3.0 }; // Для CLAHE
-            int[] blurKernels = {1, 3 };         // Для медианного фильтра
+            int[] Kernels = {1, 3 };         // Для медианного фильтра
             double[] sharpWeights = { 1.1, 1.2, 1.3, 1.5, 1.7, 2.0 }; // Для усиления резкости
 
             //double[] clipLimits = { 1.5, 2.0, 3.0 }; // Для CLAHE
@@ -184,7 +183,7 @@ public class FileProcessor
                 Mat enhanced = new Mat();
                 clahe.Apply(gray, enhanced);
 
-                foreach (var kernel in blurKernels)
+                foreach (var kernel in Kernels)
                 {
                     // Устранение шумов
                     Mat denoised = new Mat();
@@ -220,14 +219,14 @@ public class FileProcessor
                             }
 
                             // сохранить все в директорию в распознанными файлами
-                            string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"processed-{Path.GetFileNameWithoutExtension(imagePath)}-clipLimit{clipLimit}-kernel{kernel}-sharpWeight{sharpWeight}{Path.GetExtension(imagePath)}");
+                            string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed1", $"processed-{Path.GetFileNameWithoutExtension(imagePath)}-clipLimit{clipLimit}-kernel{kernel}-sharpWeight{sharpWeight}{Path.GetExtension(imagePath)}");
                             Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
                             bitmap.Save(processedFilePath, ImageFormat.Png);
                             return qrCodeData;
                         }
                         else
                         {
-                            string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"NOTprocessed-{Path.GetFileNameWithoutExtension(imagePath)}-clipLimit{clipLimit}-kernel{kernel}-sharpWeight{sharpWeight}{Path.GetExtension(imagePath)}");
+                            string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed1", $"NOTprocessed-{Path.GetFileNameWithoutExtension(imagePath)}-clipLimit{clipLimit}-kernel{kernel}-sharpWeight{sharpWeight}{Path.GetExtension(imagePath)}");
                             Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
                             bitmap.Save(processedFilePath, ImageFormat.Png);
                         }
@@ -245,8 +244,8 @@ public class FileProcessor
             QRCodeData? qrCodeData = null;
 
             // Удаление директории 
-            string deletedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed");
-            Directory.Delete(Path.GetDirectoryName(deletedFilePath), true);
+            //string deletedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed2");
+            //Directory.Delete(Path.GetDirectoryName(deletedFilePath), true);
 
             // Чтение изображения
             Mat original = Cv2.ImRead(imagePath, ImreadModes.Color);
@@ -256,10 +255,12 @@ public class FileProcessor
             Cv2.CvtColor(original, gray, ColorConversionCodes.BGR2GRAY);
 
             // Список параметров для итераций
-            double[] clipLimits = { 1.1, 1.2, 1.5, 2.0, 2.5, 3.0 };     // Для CLAHE
+            double[] clipLimits = { 1.1, 2.0, 3.0 };     // Для CLAHE
             int[] kernels = { 1, 3 };                                   // Для медианного фильтра
-            double[] sharpWeights = { 1.1, 1.2, 1.3, 1.5, 1.7, 2.0 };   // Для усиления резкости
-            int[] thrBlocks = { 9, 11, 13 };                           // Для адаптивной бинаризации
+            double[] sharpWeights = { 1.2, 1.5, 2.0 };   // Для усиления резкости
+            int[] thrBlocks = { 11, 15, 19 };                           // Для адаптивной бинаризации
+            OpenCvSharp.Size[] blurKernels = { new OpenCvSharp.Size(3, 3), new OpenCvSharp.Size(5, 5), new OpenCvSharp.Size(9, 9) };
+
 
             //double[] clipLimits = { 1.0, 2.0, 3.0 };                  // Для CLAHE
             //int[] kernels = { 3, 5, 7 };                              // Для медианного фильтра
@@ -302,44 +303,47 @@ public class FileProcessor
 
                         foreach (var sharpWeight in sharpWeights)
                         {
-                            // Усиление резкости через Unsharp Masking
-                            Mat edges = new Mat();
-                            Cv2.GaussianBlur(binary, edges, new OpenCvSharp.Size(9, 9), 0);
-
-                            Mat sharpened = new Mat();
-                            Cv2.AddWeighted(binary, sharpWeight, edges, -0.5, 0, sharpened);
-
-                            // Конвертация изображения в Bitmap для ZXing
-                            using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(sharpened);
-
-                            // Попытка распознать QR-коды
-                            var results = barcodeReader.DecodeMultiple(bitmap);
-                            if (results != null && results.Length > 0)
+                            foreach (var blurKernel in blurKernels)
                             {
-                                // Успешно распознано
-                                Console.WriteLine("QR codes have been found:");
+                                // Усиление резкости через Unsharp Masking
+                                Mat edges = new Mat();
+                                Cv2.GaussianBlur(binary, edges, blurKernel, 0);
 
-                                foreach (var result in results)
+                                Mat sharpened = new Mat();
+                                Cv2.AddWeighted(binary, sharpWeight, edges, -0.5, 0, sharpened);
+
+                                // Конвертация изображения в Bitmap для ZXing
+                                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(sharpened);
+
+                                // Попытка распознать QR-коды
+                                var results = barcodeReader.DecodeMultiple(bitmap);
+                                if (results != null && results.Length > 0)
                                 {
-                                    Console.WriteLine($"Contents: {result.Text}");
-                                    if (IsMatchingATQRCode(result.Text))
-                                    {
-                                        qrCodeData = new QRCodeData(result.Text);
-                                    }
-                                }
+                                    // Успешно распознано
+                                    Console.WriteLine("QR codes have been found:");
 
-                                
-                                // сохранить все в директорию в распознанными файлами
-                                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"processed-{Path.GetFileNameWithoutExtension(imagePath)}-clipLimit{clipLimit}-kernel{kernel}-sharpWeight{sharpWeight}-thrBlock{blockSize}{Path.GetExtension(imagePath)}");
-                                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
-                                bitmap.Save(processedFilePath, ImageFormat.Png);
-                                return qrCodeData;
-                            }
-                            else
-                            {
-                                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"NOTprocessed-{Path.GetFileNameWithoutExtension(imagePath)}-clipLimit{clipLimit}-kernel{kernel}-sharpWeight{sharpWeight}-thrBlock{blockSize}{Path.GetExtension(imagePath)}");
-                                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
-                                bitmap.Save(processedFilePath, ImageFormat.Png);
+                                    foreach (var result in results)
+                                    {
+                                        Console.WriteLine($"Contents: {result.Text}");
+                                        if (IsMatchingATQRCode(result.Text))
+                                        {
+                                            qrCodeData = new QRCodeData(result.Text);
+                                        }
+                                    }
+
+
+                                    // сохранить все в директорию в распознанными файлами
+                                    string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed2", $"processed-{Path.GetFileNameWithoutExtension(imagePath)}-clipLimit{clipLimit}-kernel{kernel}-sharpWeight{sharpWeight}-thrBlock{blockSize}-blurKernel{blurKernel}{Path.GetExtension(imagePath)}");
+                                    Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                                    bitmap.Save(processedFilePath, ImageFormat.Png);
+                                    return qrCodeData;
+                                }
+                                else
+                                {
+                                    string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed2", $"NOTprocessed-{Path.GetFileNameWithoutExtension(imagePath)}-clipLimit{clipLimit}-kernel{kernel}-sharpWeight{sharpWeight}-thrBlock{blockSize}-blurKernel{blurKernel}{Path.GetExtension(imagePath)}");
+                                    Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                                    bitmap.Save(processedFilePath, ImageFormat.Png);
+                                }
                             }
                         }
                     }
@@ -363,8 +367,8 @@ public class FileProcessor
             QRCodeData? qrCodeData = null;
 
             // Удаление директории 
-            string deletedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed");
-            Directory.Delete(Path.GetDirectoryName(deletedFilePath), true);
+            //string deletedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed3");
+            //Directory.Delete(Path.GetDirectoryName(deletedFilePath), true);
 
             // Чтение изображения
             Mat original = Cv2.ImRead(imagePath, ImreadModes.Color);
@@ -374,12 +378,12 @@ public class FileProcessor
             Cv2.CvtColor(original, gray, ColorConversionCodes.BGR2GRAY);
 
             // Список параметров для итераций
-            double[] clipLimits = { 1.1, 1.2, 1.5, 2.0, 2.5, 3.0 };     // Для CLAHE
+            double[] clipLimits = { 1.0, 2.0, 3.0 };     // Для CLAHE
             int[] kernels = { 1, 3 };                                   // Для медианного фильтра
-            double[] sharpWeights = { 1.1, 1.2, 1.3, 1.5, 1.7, 2.0 };   // Для усиления резкости
-            int[] thrBlocks = { 9, 11, 13 };                           // Для адаптивной бинаризации
+            double[] sharpWeights = { 1.2, 1.5, 2.0 };   // Для усиления резкости
+            int[] thrBlocks = { 11, 15, 19 };                           // Для адаптивной бинаризации
             int[] houghThresholds = { 30, 50, 70 };        // Для порога Хафа
-            OpenCvSharp.Size[] blurKernels = { new OpenCvSharp.Size(3, 3), new OpenCvSharp.Size(5, 5), new OpenCvSharp.Size(7, 7), new OpenCvSharp.Size(9, 9) };
+            OpenCvSharp.Size[] blurKernels = { new OpenCvSharp.Size(3, 3), new OpenCvSharp.Size(5, 5), new OpenCvSharp.Size(9, 9) };
 
 
             // Списки параметров для динамического перебора
@@ -430,8 +434,9 @@ public class FileProcessor
                         {
                             // Преобразование Хафа для обнаружения линий
                             Mat edges = new Mat();
+                            //!!!!!!!!!!!!!!!!!!!!!!1 отличие от 1 й
                             Cv2.Canny(binary, edges, 50, 150);
-
+                            //!!!!!!!!!!!!!!!!!!!!!!1 отличие от 1 й
                             LineSegmentPoint[] lines = Cv2.HoughLinesP(edges, 1, Math.PI / 180, houghThreshold, minLineLength: 50, maxLineGap: 10);
 
                             // Наложение найденных линий на изображение
@@ -473,14 +478,14 @@ public class FileProcessor
 
 
                                         // сохранить все в директорию в распознанными файлами
-                                        string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"processed-{Path.GetFileNameWithoutExtension(imagePath)}-clipLimit{clipLimit}-kernel{kernel}-sharpWeight{sharpWeight}-thrBlock{blockSize}-houghThreshold{houghThreshold}-blurKernel{blurKernel}{Path.GetExtension(imagePath)}");
+                                        string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed3", $"processed-{Path.GetFileNameWithoutExtension(imagePath)}-clipLimit{clipLimit}-kernel{kernel}-sharpWeight{sharpWeight}-thrBlock{blockSize}-houghThreshold{houghThreshold}-blurKernel{blurKernel}{Path.GetExtension(imagePath)}");
                                         Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
                                         bitmap.Save(processedFilePath, ImageFormat.Png);
                                         return qrCodeData;
                                     }
                                     else
                                     {
-                                        string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"NOTprocessed-{Path.GetFileNameWithoutExtension(imagePath)}-clipLimit{clipLimit}-kernel{kernel}-sharpWeight{sharpWeight}-thrBlock{blockSize}-houghThreshold{houghThreshold}-blurKernel{blurKernel}{Path.GetExtension(imagePath)}");
+                                        string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed3", $"NOTprocessed-{Path.GetFileNameWithoutExtension(imagePath)}-clipLimit{clipLimit}-kernel{kernel}-sharpWeight{sharpWeight}-thrBlock{blockSize}-houghThreshold{houghThreshold}-blurKernel{blurKernel}{Path.GetExtension(imagePath)}");
                                         Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
                                         bitmap.Save(processedFilePath, ImageFormat.Png);
                                     }
@@ -490,13 +495,195 @@ public class FileProcessor
                     }
                 }
             }
-
-
-
             // Если не удалось распознать
             Console.WriteLine("Failed to find QR codes after all attempts.");
             return null;
         }
+
+
+        [SupportedOSPlatform("windows")]
+        public async Task<QRCodeData> AutoProcessAndDecodeQRCode4(string imagePath)
+        {
+            QRCodeData? qrCodeData = null;
+
+            // Чтение изображения
+            Mat original = Cv2.ImRead(imagePath, ImreadModes.Color);
+
+            // Конвертация в оттенки серого
+            Mat gray = new Mat();
+            Cv2.CvtColor(original, gray, ColorConversionCodes.BGR2GRAY);
+
+
+            // Создаем детектор QR-кодов
+            QRCodeDetector qrDetector = new QRCodeDetector();
+
+            // Распознаем и декодируем QR-код
+            Point2f[] points;
+            bool isDetected = qrDetector.DetectMulti(gray, out points);
+            string[] results;
+            qrDetector.DecodeMulti(gray, points, out results);
+
+            //string result = qrDetector.DetectAndDecode(gray, out points);
+
+            foreach (var result in results)
+            {
+                if (IsMatchingATQRCode(result))
+                {
+                    // Успешно распознано
+                    Console.WriteLine("QR codes have been found:");
+                    Console.WriteLine($"Contents: {result}");
+
+                    qrCodeData = new QRCodeData(result);
+
+                    // сохранить все в директорию в распознанными файлами
+                    string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed4", $"processed-{Path.GetFileNameWithoutExtension(imagePath)}{Path.GetExtension(imagePath)}");
+                    Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                    // Конвертация изображения в Bitmap 
+                    using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(gray);
+                    bitmap.Save(processedFilePath, ImageFormat.Png);
+                    return qrCodeData;
+                }
+            }
+            if (qrCodeData == null)
+            {
+                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed4", $"NOTprocessed-{Path.GetFileNameWithoutExtension(imagePath)}{Path.GetExtension(imagePath)}");
+                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                // Конвертация изображения в Bitmap
+                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(gray);
+                bitmap.Save(processedFilePath, ImageFormat.Png);
+            }
+            return qrCodeData;
+        }
+
+
+        [SupportedOSPlatform("windows")]
+        public async Task<QRCodeData> AutoProcessAndDecodeQRCode5(string imagePath)
+        {
+            QRCodeData? qrCodeData = null;
+
+            // Чтение изображения
+            Mat original = Cv2.ImRead(imagePath, ImreadModes.Color);
+            if (original.Empty())
+            {
+                Console.WriteLine("Failed to load the image.");
+                return qrCodeData;
+            }
+
+            // Создаем детектор QR-кодов
+            QRCodeDetector qrDetector = new QRCodeDetector();
+
+            // Шаг 1: Попытка прямого распознавания
+            Point2f[] points;
+            string result = qrDetector.DetectAndDecode(original, out points);
+            if (!string.IsNullOrEmpty(result) && IsMatchingATQRCode(result))
+            {
+                // Успешно распознано
+                Console.WriteLine("QR codes have been found:");
+                Console.WriteLine($"Contents: {result}");
+
+                qrCodeData = new QRCodeData(result);
+
+                DrawQRCodeBounds(original, points);
+                // сохранить все в директорию в распознанными файлами
+                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed5", $"processed-{Path.GetFileNameWithoutExtension(imagePath)}{Path.GetExtension(imagePath)}");
+                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                // Конвертация изображения в Bitmap 
+                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(original);
+                bitmap.Save(processedFilePath, ImageFormat.Png);
+                return qrCodeData;
+            }
+            if (qrCodeData == null)
+            {
+                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed5", $"NOTprocessed-{Path.GetFileNameWithoutExtension(imagePath)}{Path.GetExtension(imagePath)}");
+                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                // Конвертация изображения в Bitmap
+                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(original);
+                bitmap.Save(processedFilePath, ImageFormat.Png);
+            }
+            
+
+            // Шаг 2: Преобразование в оттенки серого
+            Console.WriteLine("Pre-treatment attempt...");
+            Mat grayImage = new Mat();
+            Cv2.CvtColor(original, grayImage, ColorConversionCodes.BGR2GRAY);
+
+            // Шаг 3: Применение адаптивной фильтрации
+            Mat enhancedImage = EnhanceImage(grayImage);
+
+            // Шаг 4: Повторное распознавание после обработки
+            result = qrDetector.DetectAndDecode(enhancedImage, out points);
+            if (!string.IsNullOrEmpty(result) && IsMatchingATQRCode(result))
+            {
+                // Успешно распознано
+                Console.WriteLine("QR codes have been found:");
+                Console.WriteLine($"Contents: {result}");
+
+                qrCodeData = new QRCodeData(result);
+
+                DrawQRCodeBounds(original, points);
+                // сохранить все в директорию в распознанными файлами
+                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed5", $"processed-{Path.GetFileNameWithoutExtension(imagePath)}{Path.GetExtension(imagePath)}");
+                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                // Конвертация изображения в Bitmap 
+                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(enhancedImage);
+                bitmap.Save(processedFilePath, ImageFormat.Png);
+                return qrCodeData;
+            }
+            if (qrCodeData == null)
+            {
+                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed5", $"NOTprocessed-{Path.GetFileNameWithoutExtension(imagePath)}{Path.GetExtension(imagePath)}");
+                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                // Конвертация изображения в Bitmap
+                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(enhancedImage);
+                bitmap.Save(processedFilePath, ImageFormat.Png);
+            }
+            return qrCodeData;
+        }  
+
+        /// <summary>
+        /// Улучшает качество изображения для распознавания QR-кодов.
+        /// </summary>
+        static Mat EnhanceImage(Mat grayImage)
+        {
+            Mat enhancedImage = new Mat();
+
+            // Применяем размытие для устранения шумов
+            Cv2.GaussianBlur(grayImage, enhancedImage, new OpenCvSharp.Size(5, 5), 0);
+
+            // Увеличиваем контрастность и резкость
+            Cv2.EqualizeHist(enhancedImage, enhancedImage);
+
+            // Применяем адаптивный порог
+            Cv2.AdaptiveThreshold(
+                enhancedImage,
+                enhancedImage,
+                255,
+                AdaptiveThresholdTypes.MeanC,
+                ThresholdTypes.Binary,
+                11,
+                2
+            );
+
+            return enhancedImage;
+        }
+
+        /// <summary>
+        /// Рисует границы вокруг обнаруженного QR-кода.
+        /// </summary>
+        static void DrawQRCodeBounds(Mat image, Point2f[] points)
+        {
+            if (points != null && points.Length > 0)
+            {
+                for (int i = 0; i < points.Length; i++)
+                {
+                    Point2f start = points[i];
+                    Point2f end = points[(i + 1) % points.Length];
+                    Cv2.Line(image, (int)start.X, (int)start.Y, (int)end.X, (int)end.Y, Scalar.Green, 2);
+                }
+            }
+            
+        }
+
         public bool IsMatchingATQRCode(string input)
         {
             string pattern = @"^A:.*\*B:.*\*C:.*\*D:.*\*E:.*\*F:.*\*G:.*\*H:.*$";
