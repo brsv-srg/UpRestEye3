@@ -41,13 +41,16 @@ namespace UpRestEye3.Controllers
             // Process the file to recognize QR code and fill Invoice
             var fileProcessor = new FileProcessor();
             QRCodeData //qrInvoice = await fileProcessor.ProcessFileAsync(filePath);
-            //if (qrInvoice == null)
+            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode1(filePath);
+            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode2(filePath);
+            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode3(filePath);
+            qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode4(filePath);
             qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode5(filePath);
+            
+
             //if (qrInvoice == null)
-            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode4(filePath);
 
-
-
+            //if (qrInvoice == null)
 
             //if (qrInvoice == null)
             //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode2(filePath);

@@ -178,7 +178,7 @@ public class FileProcessor
             // Итеративная обработка
             foreach (var clipLimit in clipLimits)
             {
-                // Применение CLAHE
+                // Применение CLAHE контраст
                 var clahe = Cv2.CreateCLAHE(clipLimit: clipLimit, tileGridSize: new OpenCvSharp.Size(8, 8));
                 Mat enhanced = new Mat();
                 clahe.Apply(gray, enhanced);
@@ -255,10 +255,10 @@ public class FileProcessor
             Cv2.CvtColor(original, gray, ColorConversionCodes.BGR2GRAY);
 
             // Список параметров для итераций
-            double[] clipLimits = { 1.1, 2.0, 3.0 };     // Для CLAHE
+            double[] clipLimits = { 1.1, 2.0 };     // Для CLAHE
             int[] kernels = { 1, 3 };                                   // Для медианного фильтра
-            double[] sharpWeights = { 1.2, 1.5, 2.0 };   // Для усиления резкости
-            int[] thrBlocks = { 11, 15, 19 };                           // Для адаптивной бинаризации
+            double[] sharpWeights = { 1.2, 2.0 };   // Для усиления резкости
+            int[] thrBlocks = { 11, 19 };                           // Для адаптивной бинаризации
             OpenCvSharp.Size[] blurKernels = { new OpenCvSharp.Size(3, 3), new OpenCvSharp.Size(5, 5), new OpenCvSharp.Size(9, 9) };
 
 
@@ -295,22 +295,26 @@ public class FileProcessor
                     Mat denoised = new Mat();
                     Cv2.MedianBlur(enhanced, denoised, kernel);
 
-                    foreach (var blockSize in thrBlocks)
+                    foreach (var sharpWeight in sharpWeights)
                     {
-                        // Адаптивная бинаризация
-                        Mat binary = new Mat();
-                        Cv2.AdaptiveThreshold(denoised, binary, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, blockSize, 2);
-
-                        foreach (var sharpWeight in sharpWeights)
+                        foreach (var blurKernel in blurKernels)
                         {
-                            foreach (var blurKernel in blurKernels)
-                            {
-                                // Усиление резкости через Unsharp Masking
-                                Mat edges = new Mat();
-                                Cv2.GaussianBlur(binary, edges, blurKernel, 0);
+                            // Усиление резкости через Unsharp Masking
+                            Mat edges = new Mat();
+                            Cv2.GaussianBlur(denoised, edges, blurKernel, 0);
 
-                                Mat sharpened = new Mat();
-                                Cv2.AddWeighted(binary, sharpWeight, edges, -0.5, 0, sharpened);
+                            Mat sharpened = new Mat();
+                            Cv2.AddWeighted(denoised, sharpWeight, edges, -0.5, 0, sharpened);
+                                
+                                
+                            foreach (var blockSize in thrBlocks)
+                            {
+                                // Адаптивная бинаризация
+                                Mat binary = new Mat();
+                                Cv2.Threshold(sharpened, binary, 127, 255, ThresholdTypes.Otsu);
+                                //Cv2.AdaptiveThreshold(sharpened, binary, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, blockSize, 2);
+
+                        
 
                                 // Конвертация изображения в Bitmap для ZXing
                                 using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(sharpened);
@@ -424,41 +428,41 @@ public class FileProcessor
                     Mat denoised = new Mat();
                     Cv2.MedianBlur(enhanced, denoised, kernel);
 
-                    foreach (var blockSize in thrBlocks)
+                    foreach (var sharpWeight in sharpWeights)
                     {
-                        // Адаптивная бинаризация
-                        Mat binary = new Mat();
-                        Cv2.AdaptiveThreshold(denoised, binary, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, blockSize, 2);
-
-                        foreach (var houghThreshold in houghThresholds)
+                        foreach (var blurKernel in blurKernels)
                         {
-                            // Преобразование Хафа для обнаружения линий
-                            Mat edges = new Mat();
-                            //!!!!!!!!!!!!!!!!!!!!!!1 отличие от 1 й
-                            Cv2.Canny(binary, edges, 50, 150);
-                            //!!!!!!!!!!!!!!!!!!!!!!1 отличие от 1 й
-                            LineSegmentPoint[] lines = Cv2.HoughLinesP(edges, 1, Math.PI / 180, houghThreshold, minLineLength: 50, maxLineGap: 10);
+                            // Усиление резкости через Unsharp Masking
+                            Mat blurred = new Mat();
+                            Cv2.GaussianBlur(denoised, blurred, blurKernel, 0);
+                            Mat sharpened = new Mat();
+                            Cv2.AddWeighted(denoised, sharpWeight, blurred, -0.5, 0, sharpened);
 
-                            // Наложение найденных линий на изображение
-                            foreach (var line in lines)
+                            foreach (var blockSize in thrBlocks)
                             {
-                                Cv2.Line(binary, line.P1, line.P2, Scalar.White, 2); // Усиливаем линии
-                            }
+                                // Адаптивная бинаризация
+                                Mat binary = new Mat();
+                                Cv2.AdaptiveThreshold(sharpened, binary, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, blockSize, 2);
 
-                            foreach (var sharpWeight in sharpWeights)
-                            {
-                                foreach (var blurKernel in blurKernels)
+                                foreach (var houghThreshold in houghThresholds)
                                 {
-                                    // Усиление резкости через Unsharp Masking
-                                    Mat blurred = new Mat();
-                                    Cv2.GaussianBlur(binary, blurred, blurKernel, 0);
-                                    Mat sharpened = new Mat();
-                                    Cv2.AddWeighted(binary, sharpWeight, blurred, -0.5, 0, sharpened);
+                                    // Преобразование Хафа для обнаружения линий
+                                    Mat edges = new Mat();
+                                    //!!!!!!!!!!!!!!!!!!!!!!1 отличие от 1 й
+                                    Cv2.Canny(binary, edges, 50, 150);
+                                    //!!!!!!!!!!!!!!!!!!!!!!1 отличие от 1 й
+                                    LineSegmentPoint[] lines = Cv2.HoughLinesP(edges, 1, Math.PI / 180, houghThreshold, minLineLength: 50, maxLineGap: 10);
+
+                                    // Наложение найденных линий на изображение
+                                    foreach (var line in lines)
+                                    {
+                                        Cv2.Line(binary, line.P1, line.P2, Scalar.White, 2); // Усиливаем линии
+                                    }
+
+                        
 
                                     // Конвертация изображения в Bitmap для ZXing
-                                    using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(sharpened);
-
-
+                                    using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(binary);
 
                                     // Попытка распознать QR-коды
                                     var results = barcodeReader.DecodeMultiple(bitmap);
@@ -509,21 +513,48 @@ public class FileProcessor
             // Чтение изображения
             Mat original = Cv2.ImRead(imagePath, ImreadModes.Color);
 
-            // Конвертация в оттенки серого
-            Mat gray = new Mat();
-            Cv2.CvtColor(original, gray, ColorConversionCodes.BGR2GRAY);
+
+            //double[] clipLimits = { 1.0, 2.0, 3.0 };       // Для CLAHE
+            //int[] blurKernels = { 3, 5, 7 };               // Для медианного фильтра
+            //double[] sharpWeights = { 1.2, 1.5, 2.0 };     // Для усиления резкости
+            //int[] adaptiveThresholdBlocks = { 11, 15, 19 }; // Для адаптивной бинаризации
+            //int[] houghThresholds = { 30, 50, 70 };        // Для порога Хафа
+            //Size[] blurKernels = { new Size(3, 3), new Size(5, 5), new Size(7, 7), new Size(9, 9) };
 
 
+            // 2. Преобразование в оттенки серого
+            Mat grayImage = new Mat(); 
+            Cv2.CvtColor(original, grayImage, ColorConversionCodes.BGR2GRAY);
+
+
+            // 3. Улучшение контраста
+            CLAHE clahe = Cv2.CreateCLAHE(clipLimit: 2.0, tileGridSize: new OpenCvSharp.Size(8, 8));
+            Mat enhancedImage = new Mat();
+            clahe.Apply(grayImage, enhancedImage);
+            
+            using var bitmap1 = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(enhancedImage);
+            bitmap1.Save(processedFilePath, ImageFormat.Png);
+
+            // 4. Фильтрация шума
+            Mat filteredImage = new Mat();
+            Cv2.MedianBlur(enhancedImage, filteredImage, 5);
+
+            // 5. Бинаризация изображения
+            Mat binaryImage = new Mat();
+            Cv2.AdaptiveThreshold(filteredImage, binaryImage, 255, AdaptiveThresholdTypes.MeanC, ThresholdTypes.Binary, 11, 2);
+
+            
             // Создаем детектор QR-кодов
             QRCodeDetector qrDetector = new QRCodeDetector();
 
             // Распознаем и декодируем QR-код
             Point2f[] points;
-            bool isDetected = qrDetector.DetectMulti(gray, out points);
-            string[] results;
-            qrDetector.DecodeMulti(gray, points, out results);
+            string[] results = Array.Empty<string>();
+            bool isDetected = qrDetector.DetectMulti(binaryImage, out points);
+            if(isDetected) 
+                qrDetector.DecodeMulti(binaryImage, points, out results);
 
-            //string result = qrDetector.DetectAndDecode(gray, out points);
+            //string result = qrDetector.DetectAndDecode(binaryImage, out points);
 
             foreach (var result in results)
             {
@@ -539,7 +570,7 @@ public class FileProcessor
                     string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed4", $"processed-{Path.GetFileNameWithoutExtension(imagePath)}{Path.GetExtension(imagePath)}");
                     Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
                     // Конвертация изображения в Bitmap 
-                    using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(gray);
+                    using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(binaryImage);
                     bitmap.Save(processedFilePath, ImageFormat.Png);
                     return qrCodeData;
                 }
@@ -549,7 +580,7 @@ public class FileProcessor
                 string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed4", $"NOTprocessed-{Path.GetFileNameWithoutExtension(imagePath)}{Path.GetExtension(imagePath)}");
                 Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
                 // Конвертация изображения в Bitmap
-                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(gray);
+                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(binaryImage);
                 bitmap.Save(processedFilePath, ImageFormat.Png);
             }
             return qrCodeData;
