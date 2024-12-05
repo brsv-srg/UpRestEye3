@@ -238,6 +238,10 @@ public class FileProcessor
             return null;
         }
 
+
+
+
+
         [SupportedOSPlatform("windows")]
         public async Task<QRCodeData> AutoProcessAndDecodeQRCode15(string imagePath)
         {
