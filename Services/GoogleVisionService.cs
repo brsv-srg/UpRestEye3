@@ -3,16 +3,15 @@ using Newtonsoft.Json;
 using OpenCvSharp;
 using System;
 using System.Net.Http;
-using UpRestEye3.NewServices;
 using UpRestEye3.Services;
 
 
-namespace UpRestEye3.NewServices
+namespace UpRestEye3.Services
 {
-    class GoogleVisionOCR
+    class GoogleVisionService
     {
 
-        public GoogleVisionOCR()
+        public GoogleVisionService()
         {
             // загрузка кредов TODO: вынести в конфиг
             Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", ".\\Properties\\GInvoiceRecognition.json");
