@@ -32,10 +32,10 @@ namespace UpRestEye3.Models
             InvoiceNumber = qrcode.DocNumber;
             InvoiceDate = DateTime.ParseExact(qrcode.DocDate, "yyyyMMdd", null);
 
-            TotalAmountInclTaxes = decimal.Parse(qrcode.TotalAmount);
-            TotalAmountExclTaxes = decimal.Parse(qrcode.NetAmount);
-            TaxCategories.Add(new TaxCategory { Category = "13%", Amount = decimal.Parse(qrcode.I6) });
-            TaxCategories.Add(new TaxCategory { Category = "23%", Amount = decimal.Parse(qrcode.N) });
+            TotalAmountInclTaxes = decimal.Parse(qrcode.TotalAmount != "" ? qrcode.TotalAmount : "0.0");
+            TotalAmountExclTaxes = decimal.Parse(qrcode.NetAmount != "" ? qrcode.NetAmount : "0.0");
+            TaxCategories.Add(new TaxCategory { Category = "13%", Amount = decimal.Parse(qrcode.I6 != "" ? qrcode.I6 : "0.0") });
+            TaxCategories.Add(new TaxCategory { Category = "23%", Amount = decimal.Parse(qrcode.N != "" ? qrcode.N : "0.0") });
 
         }
     }
