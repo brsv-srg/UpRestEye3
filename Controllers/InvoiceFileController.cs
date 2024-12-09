@@ -18,11 +18,14 @@ namespace UpRestEye3.Controllers
     public class InvoicesFilesController : ControllerBase
     {
         private readonly IInvoiceService _invoiceService;
+        private readonly IImageProcessor _imageProcessor;
 
 
-        public InvoicesFilesController(IInvoiceService invoiceService)
+
+        public InvoicesFilesController(IInvoiceService invoiceService, IImageProcessor imageProcessor)
         {
             _invoiceService = invoiceService;
+            _imageProcessor = imageProcessor;
         }
 
         [HttpPost("upload")]
@@ -38,26 +41,22 @@ namespace UpRestEye3.Controllers
                 await file.CopyToAsync(stream);
             }
 
+            QRCodeData qrInvoice = await _imageProcessor.ProcessImageAsync(filePath);
+
             // Process the file to recognize QR code and fill Invoice
-            var fileProcessor = new FileProcessor();
-            QRCodeData qrInvoice = await fileProcessor.ProcessFileAsync(filePath);
-            qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode1(filePath);
-            qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode15(filePath);
+            //var fileProcessor = new FileProcessor();
+            //QRCodeData qrInvoice = await fileProcessor.ProcessFileAsync(filePath);
+            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode1(filePath);
+            //if (qrInvoice == null)
+            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode15(filePath);
+            //if (qrInvoice == null)
             //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode2(filePath);
+            //if (qrInvoice == null)
             //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode3(filePath);
+            //if (qrInvoice == null)
             //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode4(filePath);
+            //if (qrInvoice == null)
             //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode5(filePath);
-            
-
-            //if (qrInvoice == null)
-
-            //if (qrInvoice == null)
-
-            //if (qrInvoice == null)
-            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode2(filePath);
-            //if (qrInvoice == null)
-            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode3(filePath);
-
 
 
             if (qrInvoice == null)

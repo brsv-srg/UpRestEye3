@@ -4,220 +4,259 @@ using System.Data;
 using OpenCvSharp;
 using Microsoft.ML;
 using System;
+using System.Configuration;
 using System.Collections.Generic;
 using UpRestEye3.MLImageModels;
 using System.Linq;
+using static UpRestEye3.Services.MLService;
+using Tensorflow;
 
 
 namespace UpRestEye3.Services
 {
+    // Интерфейс сервиса по работе с ML
+    public interface IMLService
+    {
+        void UpdateModel(ImageDigest digest, PredictionParameters parameters);
+        PredictionParameters Predict(ImageDigest digest);
+    }
+
     //Класс создает и обучает модель машинного обучения
-    public class MLAService
+    public class MLService: IMLService
     {
         private readonly MLContext _mlContext;
-        private ITransformer _model;
+        private readonly Dictionary<string, ITransformer> _models;
         private IDataView _trainingData;
-        private const string ModelPath = "qr_code_model.zip";
-        private const string DataPath = "training_data.csv";
+        private readonly string _modelPath;
+        private readonly string _dataPath;
+        private readonly string[] _labels = {
+            nameof(TrainingData.medianBlurKernel),
+            nameof(TrainingData.convScaleContrast),
+            nameof(TrainingData.convScaleBrightness),
+            nameof(TrainingData.adThresBlock),
+            nameof(TrainingData.cannyThreshold1),
+            nameof(TrainingData.cannyThreshold2) };
 
-        public MLAService()
+        public MLService()
         {
             _mlContext = new MLContext();
+            _models = new Dictionary<string, ITransformer>();
+            _modelPath = "model/model.zip";// configuration["MLService:ModelPath"];
+            _dataPath = "model/data.csv";// configuration["MLService:DataPath"];
+            
+
             LoadDataAndModel();
-        }
-
-        // Загрузка существующей модели и данных
-        private void LoadDataAndModel()
-        {
-            if (File.Exists(DataPath))
-            {
-                _trainingData = _mlContext.Data.LoadFromTextFile<TrainingRecord>(DataPath, hasHeader: true, separatorChar: ',');
-            }
-
-            if (File.Exists(ModelPath))
-            {
-                _model = _mlContext.Model.Load(ModelPath, out _);
-            }
-        }
-
-        // Дообучение модели на новых данных
-        public void UpdateModel(IEnumerable<TrainingData> newTrainingData, string modelPath, string trainingDataPath)
-        {
-            // Объединяем старые и новые данные
-            var newDataView = _mlContext.Data.LoadFromEnumerable(newTrainingData);
-            _trainingData = _trainingData == null ? newDataView : _mlContext.Data.LoadFromEnumerable(_mlContext.Data.CreateEnumerable<TrainingData>(_trainingData, reuseRowObject: false).Concat(newTrainingData));
-
-
-            // Пайплайн обучения
-            var pipeline = _mlContext.Transforms.Concatenate("Features",
-                    nameof(TrainingData.Brightness),
-                    nameof(TrainingData.Contrast),
-                    nameof(TrainingData.NoiseLevel),
-                    nameof(TrainingData.Sharpness),
-                    nameof(TrainingData.AspectRatio))
-                .Append(_mlContext.Transforms.Concatenate("Label",
-                    nameof(TrainingData.MedianBlurKernel),
-                    nameof(TrainingData.ConvScaleContrast),
-                    nameof(TrainingData.ConvScaleBrightness),
-                    nameof(TrainingData.AdThresBlock),
-                    nameof(TrainingData.CannyThreshold1),
-                    nameof(TrainingData.CannyThreshold2)))
-                .Append(_mlContext.Regression.Trainers.Sdca());
-
-            // Дообучение модели
-            _model = pipeline.Fit(_trainingData);
-
-            // Сохранение обновленной модели и данных
-            SaveModel(modelPath, trainingDataPath);
         }
 
 
         // Дообучение на новых данных
         public void UpdateModel(ImageDigest digest, PredictionParameters parameters)
         {
-            // Создание новой записи для обновления
-            var newRecord = new TrainingData
+            try
             {
-                Brightness = digest.Brightness,
-                Contrast = digest.Contrast,
-                NoiseLevel = digest.NoiseLevel,
-                Sharpness = digest.Sharpness,
-                AspectRatio = digest.AspectRatio,
-                MedianBlurKernel = parameters.medianBlurKernel,
-                ConvScaleContrast = parameters.convScaleContrast,
-                ConvScaleBrightness = parameters.convScaleBrightness,
-                AdThresBlock = parameters.adThresBlock,
-                CannyThreshold1 = parameters.cannyThreshold1,
-                CannyThreshold2 = parameters.cannyThreshold2
-            };
+                // Создание новой записи для обновления
+                var newRecord = new TrainingData(digest, parameters);
 
-            // Добавление новых данных
-            var newDataView = _mlContext.Data.LoadFromEnumerable(new[] { newRecord });
-            _trainingData = _trainingData == null
-                ? newDataView
-                : _mlContext.Data.Append(_trainingData, newDataView);
 
-            _trainingData = _trainingData == null 
-                                            ? newDataView 
-                                            : _mlContext.Data.LoadFromEnumerable(_mlContext.Data.CreateEnumerable<TrainingData>(_trainingData, reuseRowObject: false).Concat(newDataView));
+                // Добавление новых данных
+                var newDataView = _mlContext.Data.LoadFromEnumerable([newRecord]);
+                _trainingData = _trainingData == null
+                                                ? newDataView
+                                                : _mlContext.Data.LoadFromEnumerable((new[] { _trainingData }).Append(newDataView));
 
-            // Пайплайн обучения
-            var pipeline = _mlContext.Transforms.Concatenate("Features",
-                    nameof(TrainingData.Brightness),
-                    nameof(TrainingData.Contrast),
-                    nameof(TrainingData.NoiseLevel),
-                    nameof(TrainingData.Sharpness),
-                    nameof(TrainingData.AspectRatio))
-                .Append(_mlContext.Transforms.Concatenate("Label",
-                    nameof(TrainingData.MedianBlurKernel),
-                    nameof(TrainingData.ConvScaleContrast),
-                    nameof(TrainingData.ConvScaleBrightness),
-                    nameof(TrainingData.AdThresBlock),
-                    nameof(TrainingData.CannyThreshold1),
-                    nameof(TrainingData.CannyThreshold2)))
-                .Append(_mlContext.Regression.Trainers.Sdca());
+                foreach (var _label in _labels)
+                {
+                    // Пайплайн для одного параметра
+                    var pipeline = _mlContext.Transforms.Concatenate("Features",
+                            nameof(TrainingData.brightness),
+                            nameof(TrainingData.contrast),
+                            nameof(TrainingData.noiseLevel),
+                            nameof(TrainingData.sharpness),
+                            nameof(TrainingData.aspectRatio))
+                        .Append(_mlContext.Transforms.NormalizeMinMax("Features", fixZero: true))
+                        .Append(_mlContext.Transforms.CopyColumns(outputColumnName: "Label", inputColumnName: _label))
+                        .Append(_mlContext.Regression.Trainers.Sdca(labelColumnName: "Label", featureColumnName: "Features", maximumNumberOfIterations: 100));
 
-            // Обучение модели
-            _model = pipeline.Fit(_trainingData);
+                    // Обучение модели для одного параметра
+                    _models[_label] = pipeline.Fit(_trainingData);
 
-            // Сохранение обновленной модели и данных
-            SaveDataAndModel();
+                }
+
+                // Сохранение обновленной модели и данных
+                SaveDataAndModel();
+            }
+            catch (Exception ex)
+            {
+                // Log the exception (you can replace this with your logging mechanism)
+                Console.WriteLine($"An error occurred during updating model: {ex.Message}");
+
+            }
         }
+
 
         // Прогнозирование
         public PredictionParameters Predict(ImageDigest digest)
         {
-            var predictionEngine = _mlContext.Model.CreatePredictionEngine<ImageDigest, PredictionParameters>(_model);
-            return predictionEngine.Predict(digest);
+            try
+            {
+                var prediction = new PredictionParameters();
+
+                foreach (var _label in _labels)
+                {
+                    // Создаём PredictionEngine для каждой модели
+                    var predictionEngine = _mlContext.Model.CreatePredictionEngine<ImageDigest, SinglePrediction>(_models[_label]);
+                    var predictedValue = predictionEngine.Predict(digest).Score;
+
+                    // Запись результата предсказания в соответствующее свойство
+                    switch (_label)
+                    {
+                        case nameof(TrainingData.medianBlurKernel):
+                            prediction.medianBlurKernel = predictedValue;
+                            break;
+                        case nameof(TrainingData.convScaleContrast):
+                            prediction.convScaleContrast = predictedValue;
+                            break;
+                        case nameof(TrainingData.convScaleBrightness):
+                            prediction.convScaleBrightness = predictedValue;
+                            break;
+                        case nameof(TrainingData.adThresBlock):
+                            prediction.adThresBlock = predictedValue;
+                            break;
+                        case nameof(TrainingData.cannyThreshold1):
+                            prediction.cannyThreshold1 = predictedValue;
+                            break;
+                        case nameof(TrainingData.cannyThreshold2):
+                            prediction.cannyThreshold2 = predictedValue;
+                            break;
+                    }
+                }
+
+                return prediction;
+            }
+            catch (Exception ex)
+            {
+                // Log the exception (you can replace this with your logging mechanism)
+                Console.WriteLine($"An error occurred during prediction: {ex.Message}");
+                // Return default or null to indicate failure
+                return null;
+            }
+        }
+
+        // Загрузка существующей модели и данных
+        private void LoadDataAndModel()
+        {
+            try
+            {
+                if (File.Exists(_dataPath))
+                {
+                    _trainingData = _mlContext.Data.LoadFromTextFile<TrainingData>(_dataPath, hasHeader: true, separatorChar: ',');
+                }
+
+                foreach (var _label in _labels)
+                {
+                    var modelPath = Path.Combine(Path.GetDirectoryName(_modelPath), $"{Path.GetFileName(_modelPath)}-{_label}{Path.GetExtension(_modelPath)}");
+                    var model = _mlContext.Model.Load(modelPath, out _);
+                    if (model != null)
+                    {
+                        _models[_label] = model;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception (you can replace this with your logging mechanism)
+                Console.WriteLine($"An error occurred during loading data and model: {ex.Message}");
+
+            }
         }
 
         // Сохранение данных и модели
         private void SaveDataAndModel()
         {
-            // Сохранение данных
-            using (var writer = new StreamWriter(DataPath))
+            try
             {
-                var data = _mlContext.Data.CreateEnumerable<TrainingRecord>(_trainingData, reuseRowObject: false);
-                foreach (var row in data)
+                // Сохранение данных
+                using (var writer = new StreamWriter(_dataPath))
                 {
-                    writer.WriteLine($"{row.Brightness},{row.Contrast},{row.NoiseLevel},{row.Sharpness},{row.AspectRatio},{row.MedianBlurKernel},{row.ConvScaleContrast},{row.ConvScaleBrightness},{row.AdThresBlock},{row.CannyThreshold1},{row.CannyThreshold2}");
+                    var data = _mlContext.Data.CreateEnumerable<TrainingData>(_trainingData, reuseRowObject: false);
+                    foreach (var row in data)
+                    {
+                        writer.WriteLine($"{row.brightness},{row.contrast},{row.noiseLevel},{row.sharpness},{row.aspectRatio},{row.medianBlurKernel},{row.convScaleContrast},{row.convScaleBrightness},{row.adThresBlock},{row.cannyThreshold1},{row.cannyThreshold2}");
+                    }
                 }
+
+                // Сохранение модели
+                foreach (var _label in _labels)
+                {
+                    var modelPath = Path.Combine(Path.GetDirectoryName(_modelPath), $"{Path.GetFileName(_modelPath)}-{_label}{Path.GetExtension(_modelPath)}");
+                    _mlContext.Model.Save(_models[_label], _trainingData.Schema, _modelPath);
+                }
+
             }
+            catch (Exception ex)
+            {
+                // Log the exception (you can replace this with your logging mechanism)
+                Console.WriteLine($"An error occurred during saving data and model: {ex.Message}");
 
-            // Сохранение модели
-            _mlContext.Model.Save(_model, _trainingData.Schema, ModelPath);
-        }
 
-
-
-        public PredictionParameters Predict(ImageDigest digest)
-        {
-            var predictionEngine = _mlContext.Model.CreatePredictionEngine<ImageDigest, PredictionParameters>(_model);
-            return predictionEngine.Predict(digest);
-        }
-       
-        public void UpdateModel(ImageDigest imageData)
-        {
-            // Обновляем модель с использованием новых данных
-            var newData = new List<ImageDigest> { imageData };
-            _trainingData = _mlContext.Data.LoadFromEnumerable(newData);
-            _model = _mlContext.BinaryClassification.Trainers.SdcaLogisticRegression().Fit(_trainingData);
+            }
         }
 
         // Вспомогательные классы
         public class TrainingData
         {
-            public double Brightness { get; set; }
-            public double Contrast { get; set; }
-            public double NoiseLevel { get; set; }
-            public double Sharpness { get; set; }
-            public float AspectRatio { get; set; }
-            public double MedianBlurKernel { get; set; }
-            public double ConvScaleContrast { get; set; }
-            public double ConvScaleBrightness { get; set; }
-            public double AdThresBlock { get; set; }
-            public double CannyThreshold1 { get; set; }
-            public double CannyThreshold2 { get; set; }
+            public float brightness { get; set; }
+            public float contrast { get; set; }
+            public float noiseLevel { get; set; }
+            public float sharpness { get; set; }
+            public float aspectRatio { get; set; }
+            public float medianBlurKernel { get; set; }
+            public float convScaleContrast { get; set; }
+            public float convScaleBrightness { get; set; }
+            public float adThresBlock { get; set; }
+            public float cannyThreshold1 { get; set; }
+            public float cannyThreshold2 { get; set; }
+
+            public TrainingData() { }
+
+            public float[] label
+            {
+                get => new[] { medianBlurKernel, convScaleContrast, convScaleBrightness, adThresBlock, cannyThreshold1, cannyThreshold2 };
+                set
+                {
+                    if (value == null || value.Length != 6)
+                    {
+                        throw new ArgumentException("Label array must have exactly 6 elements.");
+                    }
+                    medianBlurKernel = value[0];
+                    convScaleContrast = value[1];
+                    convScaleBrightness = value[2];
+                    adThresBlock = value[3];
+                    cannyThreshold1 = value[4];
+                    cannyThreshold2 = value[5];
+                }
+            }
+            public TrainingData(ImageDigest digest, PredictionParameters parameters)
+            {
+                brightness = (float)digest.brightness;
+                contrast = (float)digest.contrast;
+                noiseLevel = (float)digest.noiseLevel;
+                sharpness = (float)digest.sharpness;
+                aspectRatio = (float)digest.aspectRatio;
+                medianBlurKernel = (float)parameters.medianBlurKernel;
+                convScaleContrast = (float)parameters.convScaleContrast;
+                convScaleBrightness = (float)parameters.convScaleBrightness;
+                adThresBlock = (float)parameters.adThresBlock;
+                cannyThreshold1 = (float)parameters.cannyThreshold1;
+                cannyThreshold2 = (float)parameters.cannyThreshold2;
+            }
+        }
+        private class SinglePrediction
+        {
+            public float Score { get; set; }
         }
     }
 
-
-    // Класс работы с моделью машинного обучения. Получает параметры, онлайн дообучает модель. 
-    public class MLImageParametersPredictor
-    {
-        private readonly MLContext _mlContext;
-        private ITransformer _model;
-        private IDataView _trainingData;
-
-        public MLImageParametersPredictor(string modelPath)
-        {
-            _mlContext = new MLContext();
-            _trainingData = _mlContext.Data.LoadFromEnumerable(new ImageData[] { });
-            _model = _mlContext.Model.Load(modelPath, out _);
-        }
-
-        public PredictionParameters PredictParameters(ImageDigest digest)
-        {
-            var predictionEngine = _mlContext.Model.CreatePredictionEngine<ImageDigest, PredictionParameters>(_model);
-            return predictionEngine.Predict(digest);
-        }
-
-        public void UpdateModelOnline(ImageDigest digest, PredictionParameters parameters)
-        {
-            // Преобразуем существующее IDataView в IEnumerable
-            var existingData = _mlContext.Data.CreateEnumerable<ImageData>(_trainingData, reuseRowObject: false);
-
-            // Создаем новое обучение с объединением данных
-            var newTrainingData = existingData.Concat(new[] { new ImageData { Digest = digest, Parameters = parameters } });
-
-            // Создаем новый IDataView с объединенными данными
-            _trainingData = _mlContext.Data.LoadFromEnumerable(newTrainingData);
-
-            // Обучаем модель заново
-            _model = _mlContext.Transforms.Concatenate("Features", nameof(ImageDigest.Brightness), nameof(ImageDigest.Contrast), nameof(ImageDigest.NoiseLevel))
-                .Append(_mlContext.Regression.Trainers.Sdca())
-                .Fit(_trainingData);
-        }
-    }
+    
 
 }

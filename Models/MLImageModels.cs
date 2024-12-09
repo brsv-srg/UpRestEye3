@@ -20,18 +20,18 @@ namespace UpRestEye3.MLImageModels
 {
     public class ImageDigest
     {
-        public double Brightness { get; set; }      // Уровень яркости
-        public double Contrast { get; set; }        // Уровень контраста
-        public double NoiseLevel { get; set; }      // Уровень шума
-        public double Sharpness { get; set; }       // Уровень резкости
-        public float AspectRatio { get; set; }      // Соотношение сторон
+        public float brightness { get; set; }      // Уровень яркости
+        public float contrast { get; set; }        // Уровень контраста
+        public float noiseLevel { get; set; }      // Уровень шума
+        public float sharpness { get; set; }       // Уровень резкости
+        public float aspectRatio { get; set; }      // Соотношение сторон
 
     }
 
     public class ImageData
     {
-        public ImageDigest Digest { get; set; }
-        public PredictionParameters Parameters { get; set; }
+        public ImageDigest digest { get; set; }
+        public PredictionParameters parameters { get; set; }
     }
 
     public class PredictionParameters
@@ -43,6 +43,23 @@ namespace UpRestEye3.MLImageModels
         public double cannyThreshold1 { get; set; } = 0.0;          // Для обнаружения линий, нижняя граница, для QR 80
         public double cannyThreshold2 { get; set; } = 0.0;          // Для обнаружения линий, верхняя граница, для QR 160
 
+        public float[] label
+        {
+            get => new[] {(float)medianBlurKernel, (float)convScaleContrast, (float)convScaleBrightness, (float)adThresBlock, (float)cannyThreshold1, (float)cannyThreshold2 };
+            set
+            {
+                if (value == null || value.Length != 6)
+                {
+                    throw new ArgumentException("Label array must have exactly 6 elements.");
+                }
+                medianBlurKernel = value[0];
+                convScaleContrast = value[1];
+                convScaleBrightness = value[2];
+                adThresBlock = value[3];
+                cannyThreshold1 = value[4];
+                cannyThreshold2 = value[5];
+            }
+        }
         public bool Any()
         {
             return medianBlurKernel != 0 ||

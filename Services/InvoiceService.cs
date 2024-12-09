@@ -12,9 +12,9 @@ namespace UpRestEye3.Services
         Task<Invoice> GetInvoiceByIdAsync(int id);
         Task<ActionResult<IEnumerable<Invoice>>> GetInvoicesAsync();
         Task SaveInvoiceAsync(Invoice invoice);
-        Task SaveInvoicesAsync(List<Invoice> invoices);
-        
+        Task SaveInvoicesAsync(List<Invoice> invoices);    
     }
+
     public class InvoiceService : IInvoiceService
     {
         private readonly ApplicationDbContext _context;

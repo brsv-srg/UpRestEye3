@@ -21,6 +21,8 @@ builder.Services.AddSignalR();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connectionString));
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IMLService, MLService>();
+builder.Services.AddScoped<IImageProcessor, ImageProcessor>();
 
 // Настройка параметров формы для обработки больших файлов
 builder.Services.Configure<FormOptions>(options =>
