@@ -50,7 +50,7 @@ namespace UpRestEye3.Services
             // Шаг 2. Попытка распознать "в лоб"
             if (TryDecodeQRCode(imagePath, out string qrCodeText))
             {
-                _predictor.UpdateModel(digest, new PredictionParameters()); // Обучение без параметров
+                _predictor.UpdateModel(digest, new ImageProcessingParameters()); // Обучение без параметров
                 var qrCodeData = new QRCodeData(qrCodeText);
                 return qrCodeData;
             }
@@ -71,12 +71,14 @@ namespace UpRestEye3.Services
 
             // Список параметров для итераций
             double[] medianBlurKernels = { 3, 5, 7 };                             // Для медианного фильтра - удаление шумов
-            double[] convScaleContrasts = { 1,7, 1.2, 1.5, 2.0 };                 // Уровень контраста
+            double[] convScaleContrasts = { 1.7, 1.2, 1.5, 2.0 };                 // Уровень контраста
             double[] convScaleBrightnesses = { 20.0, -10.0, 10.0, -20.0, 0.0 };   // Уровень яркости
-            double[] adThresBlocks = { 15, 11, 19 };                              // Для адаптивной бинаризации
-            double[,] cannyThresholds = new double[,] { { 80, 160 }, { 50, 150 }, { 10, 100 }, { 100, 200 } }; // Массив пар значений для обнаружения линий
+            double[] adThreshBlocks = { 100, 127, 150 };                          // Для  бинаризации
+            //double[] adThreshBlocks = { 0, 3, 7, 11 };                          // Для адаптивной бинаризации
+            double[,] cannyThresholds = new double[,] { { 0.0, 0.0 } }; // { 80, 160 }, { 50, 150 }, { 10, 100 }, { 100, 200 } }; // Массив пар значений для обнаружения линий
+            double[,] sharpWeights = new double[,] { { 0.0, 0.0 } }; // { 1.5, -0.5 }, { 0.7, 0.3 } }; // Массив пар значений для веса резкозти
 
-            //var externalParams = new PredictionParameters()
+            //var externalParams = new ImageProcessingParameters()
             //{
             //    medianBlurKernel = 5,
             //    convScaleContrast = 1.2,
@@ -94,26 +96,31 @@ namespace UpRestEye3.Services
                 {
                     foreach (var convScaleBrightness in convScaleBrightnesses)
                     {
-                        foreach (var adThresBlock in adThresBlocks)
+                        foreach (var adThreshBlock in adThreshBlocks)
                         {
                             for (int i = 0; i < cannyThresholds.GetLength(0); i++)
                             {
-                                var manualParams = new PredictionParameters()
+                                for (int j = 0; j < sharpWeights.GetLength(0); j++)
                                 {
-                                    medianBlurKernel = medianBlurKernel,
-                                    convScaleContrast = convScaleContrast,
-                                    convScaleBrightness = convScaleBrightness,
-                                    adThresBlock = adThresBlock,
-                                    cannyThreshold1 = cannyThresholds[i, 0],
-                                    cannyThreshold2 = cannyThresholds[i, 1]
-                                };
+                                    var manualParams = new ImageProcessingParameters()
+                                    {
+                                        medianBlurKernel = medianBlurKernel,
+                                        convScaleContrast = convScaleContrast,
+                                        convScaleBrightness = convScaleBrightness,
+                                        adThreshBlock = adThreshBlock,
+                                        cannyThreshold1 = cannyThresholds[i, 0],
+                                        cannyThreshold2 = cannyThresholds[i, 1],
+                                        sharpWeightA = sharpWeights[j,0],
+                                        sharpWeightB = sharpWeights[j,1]
+                                    };
 
-                                var processedImage = ApplyImageProcessing(imagePath, manualParams);
-                                if (TryDecodeQRCode(processedImage, out qrCodeText))
-                                {
-                                    _predictor.UpdateModel(digest, manualParams);
-                                    var qrCodeData = new QRCodeData(qrCodeText);
-                                    return qrCodeData;
+                                    var processedImage = ApplyImageProcessing(imagePath, manualParams);
+                                    if (TryDecodeQRCode(processedImage, out qrCodeText))
+                                    {
+                                        _predictor.UpdateModel(digest, manualParams);
+                                        var qrCodeData = new QRCodeData(qrCodeText);
+                                        return qrCodeData;
+                                    }
                                 }
                             }
                         }
@@ -124,14 +131,16 @@ namespace UpRestEye3.Services
             
 
             // Шаг 6. Обращение к внешней модели
-            var externalParams = new PredictionParameters()
+            var externalParams = new ImageProcessingParameters()
             {
                 medianBlurKernel = 3,
                 convScaleContrast = 1.7,
                 convScaleBrightness = 20,
-                adThresBlock = 11,
+                adThreshBlock = 11,
                 cannyThreshold1 = 80,
-                cannyThreshold2 = 160
+                cannyThreshold2 = 160,
+                sharpWeightA = 1.5,
+                sharpWeightB = -0.5
             };
 
             var image = ApplyImageProcessing(imagePath, externalParams);
@@ -230,7 +239,7 @@ namespace UpRestEye3.Services
             return res;// !string.IsNullOrEmpty(qrCodeText);
         }
 
-        private Mat ApplyImageProcessing(string imagePath, PredictionParameters parameters)
+        private Mat ApplyImageProcessing(string imagePath, ImageProcessingParameters parameters)
         {
             // 1. Загрузка изображения
             Mat image = Cv2.ImRead(imagePath, ImreadModes.Color); //+
@@ -242,30 +251,84 @@ namespace UpRestEye3.Services
             // 3. Удаление шума
             Mat denoised = new Mat();
             Cv2.MedianBlur(gray, denoised, (int)parameters.medianBlurKernel); //+
-
-            // 4. Усиление контраста
-            Mat enhanced = new Mat();
-            Cv2.ConvertScaleAbs(denoised, enhanced, alpha: parameters.convScaleContrast, beta: parameters.convScaleBrightness); //+ Контраст и Яркость
-
-            // 5. Бинаризация
-            Mat binary = new Mat();
-            Cv2.AdaptiveThreshold(enhanced, binary, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, (int)parameters.adThresBlock, 2);
-
-            // 6. Выделение границ
-            Mat edgesCanny = new Mat();
-            Cv2.Canny(binary, edgesCanny, parameters.cannyThreshold1, parameters.cannyThreshold2);
-            //Cv2.AddWeighted(binary, sharpWeight, edgesCanny, -0.5, 0, binary);
-
-
             {// запись
-                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(enhanced);
-                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp-{Path.GetFileNameWithoutExtension(imagePath)}-medianBlurKernel{parameters.medianBlurKernel}-convScaleContrast{parameters.convScaleContrast}-convScaleBrightness{parameters.convScaleBrightness}-adThresBlock{parameters.adThresBlock}-cannyThreshold1{parameters.cannyThreshold1}-cannyThreshold2{parameters.cannyThreshold2}{Path.GetExtension(imagePath)}");
-                
+                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(denoised);
+                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp1-{Path.GetFileNameWithoutExtension(imagePath)}-{parameters.medianBlurKernel}{Path.GetExtension(imagePath)}");
+
 
                 Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
                 bitmap.Save(processedFilePath, ImageFormat.Png);
             }
-            return edgesCanny;
+
+            // 4. Усиление контраста
+            Mat enhanced = new Mat();
+            Cv2.ConvertScaleAbs(denoised, enhanced, alpha: parameters.convScaleContrast, beta: parameters.convScaleBrightness); //+ Контраст и Яркость
+            {// запись
+                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(enhanced);
+                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp2-{Path.GetFileNameWithoutExtension(imagePath)}-{parameters.medianBlurKernel}-{parameters.convScaleContrast}-{parameters.convScaleBrightness}{Path.GetExtension(imagePath)}");
+
+
+                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                bitmap.Save(processedFilePath, ImageFormat.Png);
+            }
+
+            // 5. Бинаризация
+            Mat binary = new Mat();
+            Cv2.Threshold(enhanced, binary, parameters.adThreshBlock, 255, ThresholdTypes.Otsu);
+            {// запись
+                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(binary);
+                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp3-{Path.GetFileNameWithoutExtension(imagePath)}-{parameters.medianBlurKernel}-{parameters.convScaleContrast}-{parameters.convScaleBrightness}-{parameters.adThreshBlock}{Path.GetExtension(imagePath)}");
+
+
+                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                bitmap.Save(processedFilePath, ImageFormat.Png);
+            }
+
+            //
+            return binary;
+
+
+
+
+
+
+            //// 5. Бинаризация
+            //Mat binary = new Mat();
+            //Cv2.AdaptiveThreshold(enhanced, binary, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, (int)parameters.adThreshBlock, 2);
+            //{// запись
+            //    using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(binary);
+            //    string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp3-{Path.GetFileNameWithoutExtension(imagePath)}-{parameters.medianBlurKernel}-{parameters.convScaleContrast}-{parameters.convScaleBrightness}-{parameters.adThreshBlock}{Path.GetExtension(imagePath)}");
+
+
+            //    Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+            //    bitmap.Save(processedFilePath, ImageFormat.Png);
+            //}
+
+
+            //// 6. Выделение границ
+            //Mat edgesCanny = new Mat();
+            //Cv2.Canny(binary, edgesCanny, parameters.cannyThreshold1, parameters.cannyThreshold2);
+            //{// запись
+            //    using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(edgesCanny);
+            //    string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp4-{Path.GetFileNameWithoutExtension(imagePath)}-{parameters.medianBlurKernel}-{parameters.convScaleContrast}-{parameters.convScaleBrightness}-{parameters.adThreshBlock}-{parameters.cannyThreshold1}-{parameters.cannyThreshold2}{Path.GetExtension(imagePath)}");
+
+
+            //    Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+            //    bitmap.Save(processedFilePath, ImageFormat.Png);
+            //}
+
+            //Mat resImage = new Mat();
+            //Cv2.AddWeighted(binary, parameters.sharpWeightA, edgesCanny, parameters.sharpWeightB, 0, resImage);
+
+            //{// запись
+            //    using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(resImage);
+            //    string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp5-{Path.GetFileNameWithoutExtension(imagePath)}-{parameters.medianBlurKernel}-{parameters.convScaleContrast}-{parameters.convScaleBrightness}-{parameters.adThreshBlock}-{parameters.cannyThreshold1}-{parameters.cannyThreshold2}-{parameters.sharpWeightA}-{parameters.sharpWeightB}{Path.GetExtension(imagePath)}");
+
+
+            //    Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+            //    bitmap.Save(processedFilePath, ImageFormat.Png);
+            //}
+            //return resImage;
         }
 
         private bool IsMatchingATQRCode(string input)

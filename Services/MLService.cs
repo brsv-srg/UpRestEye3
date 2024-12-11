@@ -18,8 +18,8 @@ namespace UpRestEye3.Services
     // Интерфейс сервиса по работе с ML
     public interface IMLService
     {
-        void UpdateModel(ImageDigest digest, PredictionParameters parameters);
-        PredictionParameters Predict(ImageDigest digest);
+        void UpdateModel(ImageDigest digest, ImageProcessingParameters parameters);
+        ImageProcessingParameters Predict(ImageDigest digest);
     }
 
     //Класс создает и обучает модель машинного обучения
@@ -27,21 +27,24 @@ namespace UpRestEye3.Services
     {
         private readonly MLContext _mlContext;
         private readonly Dictionary<string, ITransformer> _models;
-        private IDataView _trainingData;
+        private Dictionary<string, IDataView> _trainingData;
         private readonly string _modelPath;
         private readonly string _dataPath;
         private readonly string[] _labels = {
-            nameof(TrainingData.medianBlurKernel),
-            nameof(TrainingData.convScaleContrast),
-            nameof(TrainingData.convScaleBrightness),
-            nameof(TrainingData.adThresBlock),
-            nameof(TrainingData.cannyThreshold1),
-            nameof(TrainingData.cannyThreshold2) };
+            nameof(ImageProcessingParameters.medianBlurKernel),
+            nameof(ImageProcessingParameters.convScaleContrast),
+            nameof(ImageProcessingParameters.convScaleBrightness),
+            nameof(ImageProcessingParameters.adThreshBlock),
+            nameof(ImageProcessingParameters.cannyThreshold1),
+            nameof(ImageProcessingParameters.cannyThreshold2),
+            nameof(ImageProcessingParameters.sharpWeightA),
+            nameof(ImageProcessingParameters.sharpWeightB)};
 
         public MLService()
         {
             _mlContext = new MLContext();
             _models = new Dictionary<string, ITransformer>();
+            _trainingData = new Dictionary<string, IDataView>();
             _modelPath = "model/model.zip";// configuration["MLService:ModelPath"];
             _dataPath = "model/data.csv";// configuration["MLService:DataPath"];
             
@@ -51,36 +54,63 @@ namespace UpRestEye3.Services
 
 
         // Дообучение на новых данных
-        public void UpdateModel(ImageDigest digest, PredictionParameters parameters)
+        public void UpdateModel(ImageDigest digest, ImageProcessingParameters parameters)
         {
             try
             {
-                // Создание новой записи для обновления
-                var newRecord = new TrainingData(digest, parameters);
-
-
-                // Добавление новых данных
-                var newDataView = _mlContext.Data.LoadFromEnumerable([newRecord]);
-                _trainingData = _trainingData == null
-                                                ? newDataView
-                                                : _mlContext.Data.LoadFromEnumerable((new[] { _trainingData }).Append(newDataView));
-
                 foreach (var _label in _labels)
                 {
+                    var imageForUpdate = new ImageData(digest, new ImageDataPrediction());
+                    // Создание новой записи для обновления
+                    switch (_label)
+                    {
+                        case nameof(ImageProcessingParameters.medianBlurKernel):
+                            imageForUpdate.paramValue = (float)parameters.medianBlurKernel;
+                            break;
+                        case nameof(ImageProcessingParameters.convScaleContrast):
+                            imageForUpdate.paramValue = (float)parameters.convScaleContrast; 
+                            break;
+                        case nameof(ImageProcessingParameters.convScaleBrightness):
+                            imageForUpdate.paramValue = (float)parameters.convScaleBrightness;
+                            break;
+                        case nameof(ImageProcessingParameters.adThreshBlock):
+                            imageForUpdate.paramValue = (float)parameters.adThreshBlock;
+                            break;
+                        case nameof(ImageProcessingParameters.cannyThreshold1):
+                            imageForUpdate.paramValue = (float)parameters.cannyThreshold1;
+                            break;
+                        case nameof(ImageProcessingParameters.cannyThreshold2):
+                            imageForUpdate.paramValue = (float)parameters.cannyThreshold2;
+                            break;
+                   case nameof(ImageProcessingParameters.sharpWeightA):
+                            imageForUpdate.paramValue = (float)parameters.sharpWeightA;
+                            break;
+                   case nameof(ImageProcessingParameters.sharpWeightB):
+                            imageForUpdate.paramValue = (float)parameters.sharpWeightB;
+                            break;
+                    }
+                   
+                    // Добавление новых данных
+                    var newDataView = _mlContext.Data.LoadFromEnumerable([imageForUpdate]);                
+
+                    if(_trainingData.ContainsKey(_label))
+                        _trainingData[_label] = _mlContext.Data.LoadFromEnumerable((new[] { _trainingData[_label] }).Append(newDataView));
+                    else
+                        _trainingData[_label] = newDataView;
+                    
                     // Пайплайн для одного параметра
                     var pipeline = _mlContext.Transforms.Concatenate("Features",
-                            nameof(TrainingData.brightness),
-                            nameof(TrainingData.contrast),
-                            nameof(TrainingData.noiseLevel),
-                            nameof(TrainingData.sharpness),
-                            nameof(TrainingData.aspectRatio))
+                            nameof(ImageData.brightness),
+                            nameof(ImageData.contrast),
+                            nameof(ImageData.noiseLevel),
+                            nameof(ImageData.sharpness),
+                            nameof(ImageData.aspectRatio))
                         .Append(_mlContext.Transforms.NormalizeMinMax("Features", fixZero: true))
-                        .Append(_mlContext.Transforms.CopyColumns(outputColumnName:"Label", inputColumnName: _label))
+                        .Append(_mlContext.Transforms.CopyColumns(outputColumnName:"Label", inputColumnName: nameof(ImageData.paramValue)))
                         .Append(_mlContext.Regression.Trainers.Sdca(labelColumnName: "Label", featureColumnName: "Features", maximumNumberOfIterations: 100));
 
                     // Обучение модели для одного параметра
-                    _models[_label] = pipeline.Fit(_trainingData);
-
+                    _models[_label] = pipeline.Fit(_trainingData[_label]);
                 }
 
                 // Сохранение обновленной модели и данных
@@ -96,38 +126,45 @@ namespace UpRestEye3.Services
 
 
         // Прогнозирование
-        public PredictionParameters Predict(ImageDigest digest)
+        public ImageProcessingParameters Predict(ImageDigest digest)
         {
             try
             {
-                var prediction = new PredictionParameters();
+                var prediction = new ImageProcessingParameters();
 
                 foreach (var _label in _labels)
                 {
                     // Создаём PredictionEngine для каждой модели
-                    var predictionEngine = _mlContext.Model.CreatePredictionEngine<ImageDigest, SinglePrediction>(_models[_label]);
-                    var predictedValue = predictionEngine.Predict(digest).Score;
+                    var imageForPredict = new ImageData(digest, new ImageDataPrediction());
+                    var predictionEngine = _mlContext.Model.CreatePredictionEngine<ImageData, ImageDataPrediction>(_models[_label]);
+                    var predictedValue = predictionEngine.Predict(imageForPredict).paramValue;
 
                     // Запись результата предсказания в соответствующее свойство
                     switch (_label)
                     {
-                        case nameof(TrainingData.medianBlurKernel):
+                        case nameof(ImageProcessingParameters.medianBlurKernel):
                             prediction.medianBlurKernel = predictedValue;
                             break;
-                        case nameof(TrainingData.convScaleContrast):
+                        case nameof(ImageProcessingParameters.convScaleContrast):
                             prediction.convScaleContrast = predictedValue;
                             break;
-                        case nameof(TrainingData.convScaleBrightness):
+                        case nameof(ImageProcessingParameters.convScaleBrightness):
                             prediction.convScaleBrightness = predictedValue;
                             break;
-                        case nameof(TrainingData.adThresBlock):
-                            prediction.adThresBlock = predictedValue;
+                        case nameof(ImageProcessingParameters.adThreshBlock):
+                            prediction.adThreshBlock = predictedValue;
                             break;
-                        case nameof(TrainingData.cannyThreshold1):
+                        case nameof(ImageProcessingParameters.cannyThreshold1):
                             prediction.cannyThreshold1 = predictedValue;
                             break;
-                        case nameof(TrainingData.cannyThreshold2):
+                        case nameof(ImageProcessingParameters.cannyThreshold2):
                             prediction.cannyThreshold2 = predictedValue;
+                            break;
+                        case nameof(ImageProcessingParameters.sharpWeightA):
+                            prediction.sharpWeightA = predictedValue;
+                            break;
+                        case nameof(ImageProcessingParameters.sharpWeightB):
+                            prediction.sharpWeightB = predictedValue;
                             break;
                     }
                 }
@@ -148,13 +185,14 @@ namespace UpRestEye3.Services
         {
             try
             {
-                if (File.Exists(_dataPath))
-                {
-                    _trainingData = _mlContext.Data.LoadFromTextFile<TrainingData>(_dataPath, hasHeader: true, separatorChar: ',');
-                }
-
                 foreach (var _label in _labels)
                 {
+                    var dataPath = Path.Combine(Path.GetDirectoryName(_dataPath), $"{Path.GetFileNameWithoutExtension(_dataPath)}-{_label}{Path.GetExtension(_dataPath)}");
+                    if (File.Exists(dataPath))
+                    {
+                        _trainingData[_label] = _mlContext.Data.LoadFromTextFile<ImageData>(dataPath, hasHeader: true, separatorChar: ',');
+                    }
+
                     var modelPath = Path.Combine(Path.GetDirectoryName(_modelPath), $"{Path.GetFileNameWithoutExtension(_modelPath)}-{_label}{Path.GetExtension(_modelPath)}");
                     if (File.Exists(modelPath))
                     {
@@ -179,35 +217,38 @@ namespace UpRestEye3.Services
         {
             try
             {
-                // Проверка наличия файла данных, если его нет, создаем
-                if (!File.Exists(_dataPath))
-                {
-                    var directory = Path.GetDirectoryName(_dataPath);
-                    if (!Directory.Exists(directory))
-                    {
-                        Directory.CreateDirectory(directory);
-                    }
-                    File.Create(_dataPath).Dispose();
-                }
-
-                // Сохранение данных
-                using (var writer = new StreamWriter(_dataPath))
-                {
-                    // Запись заголовков
-                    writer.WriteLine($"{nameof(TrainingData.brightness)},{nameof(TrainingData.contrast)},{nameof(TrainingData.noiseLevel)},{nameof(TrainingData.sharpness)},{nameof(TrainingData.aspectRatio)},{nameof(TrainingData.medianBlurKernel)},{nameof(TrainingData.convScaleContrast)},{nameof(TrainingData.convScaleBrightness)},{nameof(TrainingData.adThresBlock)},{nameof(TrainingData.cannyThreshold1)},{nameof(TrainingData.cannyThreshold2)}");
-
-                    var data = _mlContext.Data.CreateEnumerable<TrainingData>(_trainingData, reuseRowObject: false);
-                    foreach (var row in data)
-                    {
-                        writer.WriteLine($"{row.brightness},{row.contrast},{row.noiseLevel},{row.sharpness},{row.aspectRatio},{row.medianBlurKernel},{row.convScaleContrast},{row.convScaleBrightness},{row.adThresBlock},{row.cannyThreshold1},{row.cannyThreshold2}");
-                    }
-                }
-
                 // Сохранение модели
                 foreach (var _label in _labels)
                 {
+                    var dataPath = Path.Combine(Path.GetDirectoryName(_dataPath), $"{Path.GetFileNameWithoutExtension(_dataPath)}-{_label}{Path.GetExtension(_dataPath)}");
+
+                    // Проверка наличия файла данных, если его нет, создаем
+                    if (!File.Exists(dataPath))
+                    {
+                        var directory = Path.GetDirectoryName(dataPath);
+                        if (!Directory.Exists(directory))
+                        {
+                            Directory.CreateDirectory(directory);
+                        }
+                        File.Create(dataPath).Dispose();
+                    }
+
+                    // Сохранение данных
+                    using (var writer = new StreamWriter(dataPath))
+                    {
+                        // Запись заголовков
+                        writer.WriteLine($"{nameof(ImageData.brightness)},{nameof(ImageData.contrast)},{nameof(ImageData.noiseLevel)},{nameof(ImageData.sharpness)},{nameof(ImageData.aspectRatio)},{nameof(ImageData.paramValue)}");
+
+                        var data = _mlContext.Data.CreateEnumerable<ImageData>(_trainingData[_label], reuseRowObject: false);
+                        foreach (var row in data)
+                        {
+                            writer.WriteLine($"{row.brightness},{row.contrast},{row.noiseLevel},{row.sharpness},{row.aspectRatio},{row.paramValue}");
+                        }
+                    }
+
+                
                     var newPathByModel = Path.Combine(Path.GetDirectoryName(_modelPath), $"{Path.GetFileNameWithoutExtension(_modelPath)}-{_label}{Path.GetExtension(_modelPath)}");
-                    _mlContext.Model.Save(_models[_label], _trainingData.Schema, newPathByModel);
+                    _mlContext.Model.Save(_models[_label], _trainingData[_label].Schema, newPathByModel);
                 }
 
             }
@@ -219,59 +260,31 @@ namespace UpRestEye3.Services
         }
 
         // Вспомогательные классы
-        public class TrainingData
+        public class ImageData
         {
             [LoadColumn(0)] public float brightness { get; set; }
             [LoadColumn(1)] public float contrast { get; set; }
             [LoadColumn(2)] public float noiseLevel { get; set; }
             [LoadColumn(3)] public float sharpness { get; set; }
             [LoadColumn(4)] public float aspectRatio { get; set; }
-            [LoadColumn(5)] public float medianBlurKernel { get; set; }
-            [LoadColumn(6)] public float convScaleContrast { get; set; }
-            [LoadColumn(7)] public float convScaleBrightness { get; set; }
-            [LoadColumn(8)] public float adThresBlock { get; set; }
-            [LoadColumn(9)] public float cannyThreshold1 { get; set; }
-            [LoadColumn(10)] public float cannyThreshold2 { get; set; }
+            [LoadColumn(5)] public float paramValue { get; set; }
 
-            public TrainingData() { }
+            public ImageData() { }
 
-            public TrainingData(ImageDigest digest, PredictionParameters parameters)
+            public ImageData(ImageDigest digest, ImageDataPrediction parameter)
             {
                 brightness = (float)digest.brightness;
                 contrast = (float)digest.contrast;
                 noiseLevel = (float)digest.noiseLevel;
                 sharpness = (float)digest.sharpness;
                 aspectRatio = (float)digest.aspectRatio;
-                medianBlurKernel = (float)parameters.medianBlurKernel;
-                convScaleContrast = (float)parameters.convScaleContrast;
-                convScaleBrightness = (float)parameters.convScaleBrightness;
-                adThresBlock = (float)parameters.adThresBlock;
-                cannyThreshold1 = (float)parameters.cannyThreshold1;
-                cannyThreshold2 = (float)parameters.cannyThreshold2;
+                paramValue = (float)parameter.paramValue;
             }
-
-            public float[] label
-            {
-                get => new[] { medianBlurKernel, convScaleContrast, convScaleBrightness, adThresBlock, cannyThreshold1, cannyThreshold2 };
-                set
-                {
-                    if (value == null || value.Length != 6)
-                    {
-                        throw new ArgumentException("Label array must have exactly 6 elements.");
-                    }
-                    medianBlurKernel = value[0];
-                    convScaleContrast = value[1];
-                    convScaleBrightness = value[2];
-                    adThresBlock = value[3];
-                    cannyThreshold1 = value[4];
-                    cannyThreshold2 = value[5];
-                }
-            }
-
         }
-        private class SinglePrediction
+        public class ImageDataPrediction
         {
-            public float Score { get; set; }
+            [ColumnName("Label")]
+            public float paramValue { get; set; }
         }
     }
 
