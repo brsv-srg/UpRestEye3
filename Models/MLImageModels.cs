@@ -52,5 +52,17 @@ namespace UpRestEye3.MLImageModels
                     sharpWeightA !=0.0 ||
                     sharpWeightB !=0.0;
         }
+
+        public void Clear()
+        {
+            medianBlurKernel = 0.0;
+            convScaleContrast = 0.0;
+            convScaleBrightness = 0.0;
+            adThreshBlock = 0.0;
+            cannyThreshold1 = 0.0;
+            cannyThreshold2 = 0.0;
+            sharpWeightA = 0.0;
+            sharpWeightB = 0.0;
+        }
     }
 }

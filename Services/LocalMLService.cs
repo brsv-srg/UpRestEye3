@@ -8,7 +8,7 @@ using System.Configuration;
 using System.Collections.Generic;
 using UpRestEye3.MLImageModels;
 using System.Linq;
-using static UpRestEye3.Services.MLService;
+using static UpRestEye3.Services.LocalMLService;
 using Tensorflow;
 using Microsoft.ML.Data;
 
@@ -16,14 +16,14 @@ using Microsoft.ML.Data;
 namespace UpRestEye3.Services
 {
     // Интерфейс сервиса по работе с ML
-    public interface IMLService
+    public interface ILocalMLService
     {
         void UpdateModel(ImageDigest digest, ImageProcessingParameters parameters);
         ImageProcessingParameters Predict(ImageDigest digest);
     }
 
     //Класс создает и обучает модель машинного обучения
-    public class MLService: IMLService
+    public class LocalMLService: ILocalMLService
     {
         private readonly MLContext _mlContext;
         private readonly Dictionary<string, ITransformer> _models;
@@ -40,13 +40,13 @@ namespace UpRestEye3.Services
             nameof(ImageProcessingParameters.sharpWeightA),
             nameof(ImageProcessingParameters.sharpWeightB)};
 
-        public MLService()
+        public LocalMLService()
         {
             _mlContext = new MLContext();
             _models = new Dictionary<string, ITransformer>();
             _trainingData = new Dictionary<string, IDataView>();
-            _modelPath = "model/model.zip";// configuration["MLService:ModelPath"];
-            _dataPath = "model/data.csv";// configuration["MLService:DataPath"];
+            _modelPath = "model/model.zip";// configuration["LocalMLService:ModelPath"];
+            _dataPath = "model/data.csv";// configuration["LocalMLService:DataPath"];
             
 
             LoadDataAndModel();

@@ -5,18 +5,25 @@ using UpRestEye3.Controllers;
 using UpRestEye3.Services;
 using System;
 using System.Linq;
+using UpRestEye3.Components.Pages;
 
 namespace UpRestEye3.Data
 {
-    public static class SeedData
+    public class SeedData
     {
-        public static void Initialize(IServiceProvider serviceProvider)
+        private readonly IInvoiceService _invoiceService;
+
+        public SeedData(IInvoiceService invoiceService)
+        {
+            _invoiceService = invoiceService;
+        }
+
+        public void Initialize(IServiceProvider serviceProvider)
         {
             using (var scope = serviceProvider.CreateScope())
             {
                 var services = scope.ServiceProvider;
                 var context = services.GetRequiredService<ApplicationDbContext>();
-
 
                 if (context.Invoices.Any())
                 {
@@ -24,79 +31,80 @@ namespace UpRestEye3.Data
                 }
 
                 var invoices = new List<Invoice>
-                    {
-                        new Invoice
                         {
-                            SupplierName = "Supplier A",
-                            SupplierTaxNumber = "123456789",
-                            SupplierBankAccount = "DE12345678901234567890",
-                            InvoiceNumber = "INV-001",
-                            InvoiceDate = DateTime.Now,
-                            TotalAmountInclTaxes = 1200.00m,
-                            TotalAmountExclTaxes = 1000.00m,
-                            TaxCategories = new List<TaxCategory>
+                            new Invoice
                             {
-                                new TaxCategory { Category = "13%", Amount = 2.00m }
-                            },
-                            Products = new List<Product>
-                            {
-                                new Product
+                                Supplier = new Invoice.SupplierInfo
                                 {
-                                    ExternalProductCode = "EXT-001",
-                                    ExternalProductName = "External Product 1",
-                                    InternalProductCode = "INT-001",
-                                    InternalProductName = "Internal Product 1",
-                                    Unit = "pcs",
-                                    Quantity = 10,
-                                    ExternalPriceInclTaxes = 120.00m,
-                                    ExternalTaxCategory = "VAT",
-                                    ExternalTaxAmount = 20.00m,
-                                    ExternalPriceExclTaxes = 100.00m,
-                                    InternalPriceInclTaxes = 120.00m,
-                                    InternalTaxCategory = "VAT",
-                                    InternalTaxAmount = 20.00m,
-                                    InternalPriceExclTaxes = 100.00m
+                                    Name = "Supplier A",
+                                    TaxNumber = "123456789",
+                                    BankAccount = "DE12345678901234567890"
+                                },
+                                Info = new Invoice.InvoiceInfo
+                                {
+                                    InvoiceNumber = "INV-001",
+                                    InvoiceDate = DateTime.Now,
+                                    TotalAmountInclTaxes = 1200.00m,
+                                    TotalAmountExclTaxes = 1000.00m
+                                },
+                                TaxCategories = new List<TaxCategory>
+                                {
+                                    new TaxCategory { Category = "13%", Amount = 2.00m }
+                                },
+                                Products = new List<Product>
+                                {
+                                    new Product
+                                    {
+                                        ProductCode = "EXT-001",
+                                        ProductName = "External Product 1",
+                                        Unit = "pcs",
+                                        Quantity = 10,
+                                        Price = 100.00m
+                                    }
+                                }
+                            },
+                            new Invoice
+                            {
+                                Supplier = new Invoice.SupplierInfo
+                                {
+                                    Name = "Supplier B",
+                                    TaxNumber = "987654321",
+                                    BankAccount = null
+                                },
+                                Info = new Invoice.InvoiceInfo
+                                {
+                                    InvoiceNumber = "INV-002",
+                                    InvoiceDate = DateTime.Now.AddDays(-1),
+                                    TotalAmountInclTaxes = 2400.00m,
+                                    TotalAmountExclTaxes = 2000.00m
+                                },
+                                TaxCategories = new List<TaxCategory>
+                                {
+                                    new TaxCategory { Category = "23%", Amount = 4.00m }
+                                },
+                                Products = new List<Product>
+                                {
+                                    new Product
+                                    {
+                                        ProductCode = "EXT-002",
+                                        ProductName = "External Product 2",
+                                        Unit = "pcs",
+                                        Quantity = 10,
+                                        Price = 100.00m
+                                    },
+                                    new Product
+                                    {
+                                        ProductCode = "EXT-003",
+                                        ProductName = "External Product 3",
+                                        Unit = "pcs",
+                                        Quantity = 14,
+                                        Price = 104.00m
+                                    },
                                 }
                             }
-                        },
-                        new Invoice
-                        {
-                            SupplierName = "Supplier B",
-                            SupplierTaxNumber = "987654321",
-                            SupplierBankAccount = null,
-                            InvoiceNumber = "INV-002",
-                            InvoiceDate = DateTime.Now.AddDays(-1),
-                            TotalAmountInclTaxes = 2400.00m,
-                            TotalAmountExclTaxes = 2000.00m,
-                            TaxCategories = new List<TaxCategory>
-                            {
-                                new TaxCategory { Category = "23%", Amount = 4.00m }
-                            },
-                            Products = new List<Product>
-                            {
-                                new Product
-                                {
-                                    ExternalProductCode = "EXT-002",
-                                    ExternalProductName = "External Product 2",
-                                    InternalProductCode = "INT-002",
-                                    InternalProductName = "Internal Product 2",
-                                    Unit = "pcs",
-                                    Quantity = 20,
-                                    ExternalPriceInclTaxes = 240.00m,
-                                    ExternalTaxCategory = "VAT",
-                                    ExternalTaxAmount = 40.00m,
-                                    ExternalPriceExclTaxes = 200.00m,
-                                    InternalPriceInclTaxes = 240.00m,
-                                    InternalTaxCategory = "VAT",
-                                    InternalTaxAmount = 40.00m,
-                                    InternalPriceExclTaxes = 200.00m
-                                }
-                            }
-                        }
-                    };
+                        };
 
-                var invoicesController = services.GetRequiredService<InvoiceService>();
-                //invoicesController.SaveInvoices(invoices).Wait();
+                _invoiceService.SaveInvoicesAsync(invoices);
             }
         }
     }

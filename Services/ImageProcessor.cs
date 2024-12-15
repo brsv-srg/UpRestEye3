@@ -1,6 +1,9 @@
 ﻿using Microsoft.ML;
 using Newtonsoft.Json;
 using OpenCvSharp;
+using ZXing;
+using ZXing.Common;
+using ZXing.Windows.Compatibility;
 using System;
 using System.IO;
 using System.Configuration;
@@ -18,6 +21,11 @@ using Microsoft.AspNetCore.Mvc;
 using UpRestEye3.Models;
 using System.Drawing.Imaging;
 using System.Drawing;
+using SkiaSharp;
+using static UpRestEye3.Services.LocalMLService;
+using AForge.Imaging.Filters;
+using System.Runtime.Versioning;
+using Google.Cloud.Vision.V1;
 
 
 namespace UpRestEye3.Services
@@ -34,143 +42,65 @@ namespace UpRestEye3.Services
     // Класс обработки изображения
     public class ImageProcessor: IImageProcessor
     {
-        private readonly IMLService _predictor;
+        private readonly ILocalMLService _predictor;
 
-        public ImageProcessor(IMLService predictor)
+        public ImageProcessor(ILocalMLService predictor)
         {
             _predictor = predictor;
         }
 
         public async Task<QRCodeData> ProcessImageAsync(string imagePath)
         {
+            // Шаг 0. Загрузка изображения
+            var image = Cv2.ImRead(imagePath, ImreadModes.Color);
 
             // Шаг 1. Создание дайджеста изображения
-            var digest = GenerateImageDigest(imagePath);
-
+            var digest = GenerateImageDigest(image);
+/*
             // Шаг 2. Попытка распознать "в лоб"
-            if (TryDecodeQRCode(imagePath, out string qrCodeText))
+            if (TryDecodeQRCode(image, out QRCodeData qrCodeData))
             {
                 _predictor.UpdateModel(digest, new ImageProcessingParameters()); // Обучение без параметров
-                var qrCodeData = new QRCodeData(qrCodeText);
                 return qrCodeData;
             }
-
-            // Шаг 3. Получение параметров обработки
+            
+            // Шаг 3. Получение предсказания параметров обработки,
+            // обработка и распознование согласно предсказанию
             var parameters = _predictor.Predict(digest);
 
             if (parameters != null && parameters.Any())
             {
-                var processedImage = ApplyImageProcessing(imagePath, parameters);
-                if (TryDecodeQRCode(processedImage, out qrCodeText))
+                image = ApplyImageProcessing(image, imagePath, parameters);
+                if (TryDecodeQRCode(image, out  qrCodeData))
                 {
                     _predictor.UpdateModel(digest, parameters); // Обучение с параметрами
-                    var qrCodeData = new QRCodeData(qrCodeText);
                     return qrCodeData;
                 }
             }
 
-            // Список параметров для итераций
-            double[] medianBlurKernels = { 3, 5, 7 };                             // Для медианного фильтра - удаление шумов
-            double[] convScaleContrasts = { 1.7, 1.2, 1.5, 2.0 };                 // Уровень контраста
-            double[] convScaleBrightnesses = { 20.0, -10.0, 10.0, -20.0, 0.0 };   // Уровень яркости
-            double[] adThreshBlocks = { 100, 127, 150 };                          // Для  бинаризации
-            //double[] adThreshBlocks = { 0, 3, 7, 11 };                          // Для адаптивной бинаризации
-            double[,] cannyThresholds = new double[,] { { 0.0, 0.0 } }; // { 80, 160 }, { 50, 150 }, { 10, 100 }, { 100, 200 } }; // Массив пар значений для обнаружения линий
-            double[,] sharpWeights = new double[,] { { 0.0, 0.0 } }; // { 1.5, -0.5 }, { 0.7, 0.3 } }; // Массив пар значений для веса резкозти
 
-            //var externalParams = new ImageProcessingParameters()
-            //{
-            //    medianBlurKernel = 5,
-            //    convScaleContrast = 1.2,
-            //    convScaleBrightness = 20,
-            //    adThresBlock = 15,
-            //    cannyThreshold1 = 80,
-            //    cannyThreshold2 = 160
-            //};
+            // Шаг 4. Обработка и распознование через подбор параметров 
 
-
-            // Шаг 5. Подбор параметров во вложенных циклах
-            foreach (var medianBlurKernel in medianBlurKernels)
+            if(TryImageProcessingAndDecodeQrCode(image, imagePath, out parameters, out  qrCodeData))
             {
-                foreach (var convScaleContrast in convScaleContrasts)
-                {
-                    foreach (var convScaleBrightness in convScaleBrightnesses)
-                    {
-                        foreach (var adThreshBlock in adThreshBlocks)
-                        {
-                            for (int i = 0; i < cannyThresholds.GetLength(0); i++)
-                            {
-                                for (int j = 0; j < sharpWeights.GetLength(0); j++)
-                                {
-                                    var manualParams = new ImageProcessingParameters()
-                                    {
-                                        medianBlurKernel = medianBlurKernel,
-                                        convScaleContrast = convScaleContrast,
-                                        convScaleBrightness = convScaleBrightness,
-                                        adThreshBlock = adThreshBlock,
-                                        cannyThreshold1 = cannyThresholds[i, 0],
-                                        cannyThreshold2 = cannyThresholds[i, 1],
-                                        sharpWeightA = sharpWeights[j,0],
-                                        sharpWeightB = sharpWeights[j,1]
-                                    };
-
-                                    var processedImage = ApplyImageProcessing(imagePath, manualParams);
-                                    if (TryDecodeQRCode(processedImage, out qrCodeText))
-                                    {
-                                        _predictor.UpdateModel(digest, manualParams);
-                                        var qrCodeData = new QRCodeData(qrCodeText);
-                                        return qrCodeData;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                _predictor.UpdateModel(digest, parameters); // Обучение
+                return qrCodeData;
             }
-
-            
+            */
 
             // Шаг 6. Обращение к внешней модели
-            var externalParams = new ImageProcessingParameters()
+
+            var qpCodeData = await TryExternalImageProcessingAndDecodeAsync(image, imagePath);
+            if (qpCodeData != null)
             {
-                medianBlurKernel = 3,
-                convScaleContrast = 1.7,
-                convScaleBrightness = 20,
-                adThreshBlock = 11,
-                cannyThreshold1 = 80,
-                cannyThreshold2 = 160,
-                sharpWeightA = 1.5,
-                sharpWeightB = -0.5
-            };
-
-            var image = ApplyImageProcessing(imagePath, externalParams);
-
-
-
-            var ocrClient = new GoogleVisionService();
-
-            var recResult = await ocrClient.RecognizeAI(image.ToBytes());
-
-            if (recResult != null)
-            {
-                foreach(var res in recResult)
-                {
-                    if (IsMatchingATQRCode(res))
-                    {
-                        _predictor.UpdateModel(digest, externalParams); // Обучение по данным API
-                        var qrCodeData = new QRCodeData(qrCodeText);
-                        return qrCodeData;
-                    }
-                }
+                return qpCodeData;
             }
 
             return new QRCodeData();
         }
 
-        private ImageDigest GenerateImageDigest(string imagePath)
+        private ImageDigest GenerateImageDigest(Mat image)
         {
-            var image = Cv2.ImRead(imagePath, ImreadModes.Grayscale);
-            
             var brightness = Cv2.Mean(image).Val0;
 
             Cv2.MeanStdDev(image, out _, out var stdDev);
@@ -200,92 +130,260 @@ namespace UpRestEye3.Services
             };
         }
 
-        private bool TryDecodeQRCode(string imagePath, out string qrCodeText)
+
+        private bool TryDecodeQRCode(Mat image, out QRCodeData qrCodeData)
         {
-            var image = Cv2.ImRead(imagePath, ImreadModes.Grayscale);
-            return TryDecodeQRCode(image, out qrCodeText);
+            qrCodeData = TryDecodeQRByOpenCV(image);
+            if (qrCodeData != null)
+                return true;
+
+            qrCodeData = TryDecodeQRByZXin(image);
+            if (qrCodeData != null)
+                return true;
+            else
+                return false;
         }
 
-        private bool TryDecodeQRCode(Mat image, out string qrCodeText)
+        private QRCodeData TryDecodeQRByOpenCV(Mat image)
         {
-            Point2f[] points; 
             var detector = new QRCodeDetector();
-            //qrCodeText = detector.DetectAndDecode(image, out points);
-            //qrCodeText = detector.DetectAndDecode(image, out points);
-            bool res = false;
-            qrCodeText = string.Empty;
-
-            string[] results = Array.Empty<string>();
-            bool isDetected = detector.DetectMulti(image, out points);
-            if (isDetected)
-                detector.DecodeMulti(image, points, out results);
-
+            
+            bool isDetected = detector.DetectMulti(image, out Point2f[] points);
+            if (!isDetected)
+                return null;
+            
+            isDetected = detector.DecodeMulti(image, points, out string?[] results);
             if (isDetected)
             {
+                // Успешно распознаны
                 foreach (var result in results)
                 {
-                    // Конвертация изображения в Bitmap 
-                    if (IsMatchingATQRCode(result))
+                    if (result != null && IsMatchingATQRCode(result))
                     {
-                        // Успешно распознано
-                        Console.WriteLine("QR codes have been found:");
-                        Console.WriteLine($"Contents: {result}");
-                        qrCodeText = result;
-                        res = true;
+                        // Успешно распознан QR-код с нужной структурой
+                        return new QRCodeData(result);
+                    }
+                }
+            }
+            return null;
+        }
+
+        [SupportedOSPlatform("windows")]
+        private QRCodeData TryDecodeQRByZXin(Mat image)
+        {
+            // Распознавание ZXing
+            // Настройка 
+            var barcodeReader = new BarcodeReader
+            {
+                AutoRotate = true,
+                Options = new DecodingOptions
+                {
+                    TryHarder = true,
+                    TryInverted = true,
+                    PossibleFormats = new[] { BarcodeFormat.QR_CODE },
+                    PureBarcode = false
+                }
+            };
+
+            // Конвертация в Bitmap для ZXing
+            using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(image);
+
+            // Попытка распознать 
+            var results = barcodeReader.DecodeMultiple(bitmap);
+            if (results != null && results.Length > 0)
+            {
+                // Успешно распознаны
+                foreach (var result in results)
+                {
+                    if (result != null && IsMatchingATQRCode(result.Text))
+                    {
+                        // Успешно распознан QR-код с нужной структурой
+                        return new QRCodeData(result.Text);
+                    }
+                }
+            }
+            return null;
+        }
+
+
+
+        private bool TryImageProcessingAndDecodeQrCode(Mat image, string imagePath, out ImageProcessingParameters parameters, out QRCodeData qrCodeData)
+        {
+            parameters = new ImageProcessingParameters();
+            qrCodeData = new QRCodeData();  
+            // Список параметров для итераций
+            double[] medianBlurKernels = { 3, 5, 7 };                             // Для медианного фильтра - удаление шумов
+            double[] convScaleContrasts = { 1.7, 1.2, 1.5, 2.0 };                 // Уровень контраста
+            double[] convScaleBrightnesses = { 20.0, -10.0, 10.0, -20.0, 0.0 };   // Уровень яркости
+            double[] adThreshBlocks = { 100, 127, 150 };                          // Для  бинаризации
+            //double[] adThreshBlocks = { 0, 3, 7, 11 };                          // Для адаптивной бинаризации
+            double[,] cannyThresholds = new double[,] { { 0.0, 0.0 } }; // { 80, 160 }, { 50, 150 }, { 10, 100 }, { 100, 200 } }; // Массив пар значений для обнаружения линий
+            double[,] sharpWeights = new double[,] { { 0.0, 0.0 } }; // { 1.5, -0.5 }, { 0.7, 0.3 } }; // Массив пар значений для веса резкозти
+
+           
+            // Подбор параметров во вложенных циклах
+            foreach (var medianBlurKernel in medianBlurKernels)
+            {
+                parameters.Clear();
+                parameters.medianBlurKernel = medianBlurKernel;
+                var processedImage = ApplyImageProcessing(image, imagePath, parameters);
+                if (TryDecodeQRCode(processedImage, out qrCodeData))
+                {
+                    return true;
+                }
+                
+                foreach (var convScaleContrast in convScaleContrasts)
+                {
+                    parameters.Clear();
+                    parameters.medianBlurKernel = medianBlurKernel;
+                    parameters.convScaleContrast = convScaleContrast;
+                    processedImage = ApplyImageProcessing(image, imagePath, parameters);
+                    if (TryDecodeQRCode(processedImage, out qrCodeData))
+                    {
+                        return true;
+                    }
+                    foreach (var convScaleBrightness in convScaleBrightnesses)
+                    {
+                        parameters.Clear();
+                        parameters.medianBlurKernel = medianBlurKernel;
+                        parameters.convScaleContrast = convScaleContrast;
+                        parameters.convScaleBrightness = convScaleBrightness;
+                        processedImage = ApplyImageProcessing(image, imagePath, parameters);
+                        if (TryDecodeQRCode(processedImage, out qrCodeData))
+                        {
+                            return true;
+                        }
+                        foreach (var adThreshBlock in adThreshBlocks)
+                        {
+                            parameters.Clear();
+                            parameters.medianBlurKernel = medianBlurKernel;
+                            parameters.convScaleContrast = convScaleContrast;
+                            parameters.convScaleBrightness = convScaleBrightness;
+                            parameters.adThreshBlock = adThreshBlock;
+                            processedImage = ApplyImageProcessing(image, imagePath, parameters);
+                            if (TryDecodeQRCode(processedImage, out qrCodeData))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        private async Task<QRCodeData> TryExternalImageProcessingAndDecodeAsync(Mat image, string imagePath)
+        {
+            var parameters = new ImageProcessingParameters();
+            parameters.medianBlurKernel = 1;
+            parameters.convScaleContrast = 1.2;
+            parameters.convScaleBrightness = 10;
+            parameters.adThreshBlock = 0;
+            parameters.cannyThreshold1 = 0;
+            parameters.cannyThreshold2 = 0;
+            parameters.sharpWeightA = 0;
+            parameters.sharpWeightB = 0;
+
+            image = ApplyImageProcessing(image, imagePath, parameters);
+
+            // Convert OpenCvSharp.Mat to Google.Cloud.Vision.V1.Image
+            byte[] imageBytes = image.ToBytes();
+            var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(imageBytes);
+
+            
+
+            var clientIA = await ImageAnnotatorClient.CreateAsync();
+            TextAnnotation text = clientIA.DetectDocumentText(googleImage);
+            Console.WriteLine($"Text: {text.Text}");
+            foreach (Page page in text.Pages)
+            {
+                foreach (var block in page.Blocks)
+                {
+                    string box = string.Join(" - ", block.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})"));
+                    Console.WriteLine($"Block {block.BlockType} at {box}");
+                    foreach (var paragraph in block.Paragraphs)
+                    {
+                        box = string.Join(" - ", paragraph.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})"));
+                        Console.WriteLine($"  Paragraph at {box}");
+                        foreach (var word in paragraph.Words)
+                        {
+                            Console.WriteLine($"    Word: {string.Join("", word.Symbols.Select(s => s.Text))}");
+                        }
                     }
                 }
             }
 
-            return res;// !string.IsNullOrEmpty(qrCodeText);
+
+
+
+            return new QRCodeData();
         }
 
-        private Mat ApplyImageProcessing(string imagePath, ImageProcessingParameters parameters)
-        {
-            // 1. Загрузка изображения
-            Mat image = Cv2.ImRead(imagePath, ImreadModes.Color); //+
 
+        private Mat ApplyImageProcessing(Mat image, string imagePath, ImageProcessingParameters parameters)
+        {
+            Mat resultImage = image;
             // 2. Преобразование в оттенки серого
             Mat gray = new Mat();
-            Cv2.CvtColor(image, gray, ColorConversionCodes.BGR2GRAY); //+
+            Cv2.CvtColor(resultImage, gray, ColorConversionCodes.BGR2GRAY); //+
+            resultImage = gray;
 
             // 3. Удаление шума
-            Mat denoised = new Mat();
-            Cv2.MedianBlur(gray, denoised, (int)parameters.medianBlurKernel); //+
-            {// запись
-                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(denoised);
-                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp1-{Path.GetFileNameWithoutExtension(imagePath)}-{parameters.medianBlurKernel}{Path.GetExtension(imagePath)}");
+            if(parameters.medianBlurKernel > 0)
+            {
+                Mat denoised = new Mat();
+                Cv2.MedianBlur(resultImage, denoised, (int)parameters.medianBlurKernel); //+ 
+                resultImage = denoised;
+
+                {// запись
+                    using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(resultImage);
+                    string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp1-{Path.GetFileNameWithoutExtension(imagePath)}-{parameters.medianBlurKernel}{Path.GetExtension(imagePath)}");
 
 
-                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
-                bitmap.Save(processedFilePath, ImageFormat.Png);
+                    Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                    bitmap.Save(processedFilePath, ImageFormat.Png);
+                }
             }
 
             // 4. Усиление контраста
-            Mat enhanced = new Mat();
-            Cv2.ConvertScaleAbs(denoised, enhanced, alpha: parameters.convScaleContrast, beta: parameters.convScaleBrightness); //+ Контраст и Яркость
-            {// запись
-                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(enhanced);
-                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp2-{Path.GetFileNameWithoutExtension(imagePath)}-{parameters.medianBlurKernel}-{parameters.convScaleContrast}-{parameters.convScaleBrightness}{Path.GetExtension(imagePath)}");
+            if (parameters.convScaleContrast != 0.0 || parameters.convScaleBrightness != 0.0)
+            {
+                Mat enhanced = new Mat();
+                Cv2.ConvertScaleAbs(resultImage, enhanced, alpha: parameters.convScaleContrast, beta: parameters.convScaleBrightness); //+ Контраст и Яркость
+                resultImage = enhanced;
 
 
-                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
-                bitmap.Save(processedFilePath, ImageFormat.Png);
+                {// запись
+                    using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(resultImage);
+                    string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp2-{Path.GetFileNameWithoutExtension(imagePath)}-{parameters.medianBlurKernel}-{parameters.convScaleContrast}-{parameters.convScaleBrightness}{Path.GetExtension(imagePath)}");
+
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                    bitmap.Save(processedFilePath, ImageFormat.Png);
+                }
             }
 
+
             // 5. Бинаризация
-            Mat binary = new Mat();
-            Cv2.Threshold(enhanced, binary, parameters.adThreshBlock, 255, ThresholdTypes.Otsu);
-            {// запись
-                using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(binary);
-                string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp3-{Path.GetFileNameWithoutExtension(imagePath)}-{parameters.medianBlurKernel}-{parameters.convScaleContrast}-{parameters.convScaleBrightness}-{parameters.adThreshBlock}{Path.GetExtension(imagePath)}");
+            if (parameters.adThreshBlock > 0)
+            {
+                Mat binary = new Mat();
+                Cv2.Threshold(resultImage, binary, parameters.adThreshBlock, 255, ThresholdTypes.Otsu);
+                //Cv2.AdaptiveThreshold(resultImage, binary, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, (int)parameters.adThreshBlock, 2);
+                resultImage = binary;
 
 
-                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
-                bitmap.Save(processedFilePath, ImageFormat.Png);
+                {// запись
+                    using var bitmap = OpenCvSharp.Extensions.BitmapConverter.ToBitmap(resultImage);
+                    string processedFilePath = Path.Combine(Path.GetDirectoryName(imagePath), "processed", $"temp3-{Path.GetFileNameWithoutExtension(imagePath)}-{parameters.medianBlurKernel}-{parameters.convScaleContrast}-{parameters.convScaleBrightness}-{parameters.adThreshBlock}{Path.GetExtension(imagePath)}");
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                    bitmap.Save(processedFilePath, ImageFormat.Png);
+                }
             }
 
             //
-            return binary;
+            return resultImage;
 
 
 

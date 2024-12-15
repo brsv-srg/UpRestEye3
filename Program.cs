@@ -21,7 +21,7 @@ builder.Services.AddSignalR();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connectionString));
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
-builder.Services.AddScoped<IMLService, MLService>();
+builder.Services.AddScoped<ILocalMLService, LocalMLService>();
 builder.Services.AddScoped<IImageProcessor, ImageProcessor>();
 
 // Настройка параметров формы для обработки больших файлов
@@ -63,7 +63,10 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<ApplicationDbContext>();
     context.Database.Migrate();
-    SeedData.Initialize(services);
+   
+    var seedData = new SeedData(services.GetRequiredService<IInvoiceService>());
+    seedData.Initialize(services);
+
 }
 
 
