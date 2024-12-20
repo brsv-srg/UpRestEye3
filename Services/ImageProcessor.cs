@@ -26,6 +26,11 @@ using static UpRestEye3.Services.LocalMLService;
 using AForge.Imaging.Filters;
 using System.Runtime.Versioning;
 using Google.Cloud.Vision.V1;
+using System.Text.Json.Nodes;
+using System.Text.Json;
+using System.Runtime.InteropServices.JavaScript;
+using Protobuf.Text;
+
 
 
 namespace UpRestEye3.Services
@@ -36,6 +41,7 @@ namespace UpRestEye3.Services
     public interface IImageProcessor
     {
         Task<QRCodeData> ProcessImageAsync(string imagePath);
+        Task<Invoice> ExtProcessImageAsync(string imagePath);
 
     }
 
@@ -43,10 +49,12 @@ namespace UpRestEye3.Services
     public class ImageProcessor: IImageProcessor
     {
         private readonly ILocalMLService _predictor;
+        private readonly IGPTService _gptParser;
 
-        public ImageProcessor(ILocalMLService predictor)
+        public ImageProcessor(ILocalMLService predictor, IGPTService gptParser)
         {
             _predictor = predictor;
+            _gptParser = gptParser;
         }
 
         public async Task<QRCodeData> ProcessImageAsync(string imagePath)
@@ -56,7 +64,7 @@ namespace UpRestEye3.Services
 
             // Шаг 1. Создание дайджеста изображения
             var digest = GenerateImageDigest(image);
-/*
+
             // Шаг 2. Попытка распознать "в лоб"
             if (TryDecodeQRCode(image, out QRCodeData qrCodeData))
             {
@@ -78,7 +86,6 @@ namespace UpRestEye3.Services
                 }
             }
 
-
             // Шаг 4. Обработка и распознование через подбор параметров 
 
             if(TryImageProcessingAndDecodeQrCode(image, imagePath, out parameters, out  qrCodeData))
@@ -86,18 +93,28 @@ namespace UpRestEye3.Services
                 _predictor.UpdateModel(digest, parameters); // Обучение
                 return qrCodeData;
             }
-            */
-
-            // Шаг 6. Обращение к внешней модели
-
-            var qpCodeData = await TryExternalImageProcessingAndDecodeAsync(image, imagePath);
-            if (qpCodeData != null)
-            {
-                return qpCodeData;
-            }
-
             return new QRCodeData();
         }
+
+        public async Task<Invoice> ExtProcessImageAsync(string imagePath)
+        {
+            // Шаг 0. Загрузка изображения
+            var image = Cv2.ImRead(imagePath, ImreadModes.Color);
+
+            // Шаг 1. Создание дайджеста изображения
+            var digest = GenerateImageDigest(image);
+            
+            // Шаг 6. Обращение к внешней модели
+
+            //var invoiceText = await TryExternalImageProcessingAndDecodeAsync(image, imagePath);
+            //if (invoiceText != null && invoiceText.TextBlocks.Count > 0)
+            {
+                return await _gptParser.ParseReceiptWithLLM(null);// invoiceText);
+            }
+
+            return new Invoice();
+        }
+
 
         private ImageDigest GenerateImageDigest(Mat image)
         {
@@ -272,7 +289,7 @@ namespace UpRestEye3.Services
             return false;
         }
 
-        private async Task<QRCodeData> TryExternalImageProcessingAndDecodeAsync(Mat image, string imagePath)
+        private async Task<RecognizedDocument> TryExternalImageProcessingAndDecodeAsync(Mat image, string imagePath)
         {
             var parameters = new ImageProcessingParameters();
             parameters.medianBlurKernel = 1;
@@ -289,34 +306,52 @@ namespace UpRestEye3.Services
             // Convert OpenCvSharp.Mat to Google.Cloud.Vision.V1.Image
             byte[] imageBytes = image.ToBytes();
             var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(imageBytes);
-
             
 
             var clientIA = await ImageAnnotatorClient.CreateAsync();
             TextAnnotation text = clientIA.DetectDocumentText(googleImage);
             Console.WriteLine($"Text: {text.Text}");
+
+            var jsonObject = new RecognizedDocument();
+            int blockIndex = 0;
+
+
+            var recognizedDocument = new RecognizedDocument();
+            int blockNumber=0;
             foreach (Page page in text.Pages)
             {
                 foreach (var block in page.Blocks)
                 {
-                    string box = string.Join(" - ", block.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})"));
-                    Console.WriteLine($"Block {block.BlockType} at {box}");
+                    var textBlock = new TextBlock
+                    {
+                        BlockNumber = blockNumber++,
+                        BlockCoordinates = string.Join(" - ", block.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})")),
+                        Paragraphs = new List<TextParagraph>()
+                    };
+                    int paragraphNumber = 0;
                     foreach (var paragraph in block.Paragraphs)
                     {
-                        box = string.Join(" - ", paragraph.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})"));
-                        Console.WriteLine($"  Paragraph at {box}");
+                        var paragraphText = new StringBuilder();
                         foreach (var word in paragraph.Words)
                         {
-                            Console.WriteLine($"    Word: {string.Join("", word.Symbols.Select(s => s.Text))}");
+                            paragraphText.Append(string.Join("", word.Symbols.Select(s => s.Text))).Append(" ");
                         }
+
+                        textBlock.Paragraphs.Add(new TextParagraph
+                        {
+                            ParagraphNumber= paragraphNumber++,
+                            ParagraphCoordinates = string.Join(" - ", paragraph.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})")),
+                            ParagraphText = paragraphText.ToString()
+                        });
                     }
+
+                    recognizedDocument.TextBlocks.Add(textBlock);
                 }
             }
 
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(recognizedDocument));
 
-
-
-            return new QRCodeData();
+            return recognizedDocument;
         }
 
 

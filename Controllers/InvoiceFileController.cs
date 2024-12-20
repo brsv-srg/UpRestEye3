@@ -41,30 +41,13 @@ namespace UpRestEye3.Controllers
                 await file.CopyToAsync(stream);
             }
 
-            QRCodeData qrInvoice = await _imageProcessor.ProcessImageAsync(filePath);
+            Invoice invoice = await _imageProcessor.ExtProcessImageAsync(filePath);
 
-            // Process the file to recognize QR code and fill Invoice
-            //var fileProcessor = new FileProcessor();
-            //QRCodeData qrInvoice = await fileProcessor.ProcessFileAsync(filePath);
-            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode1(filePath);
-            //if (qrInvoice == null)
-            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode15(filePath);
-            //if (qrInvoice == null)
-            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode2(filePath);
-            //if (qrInvoice == null)
-            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode3(filePath);
-            //if (qrInvoice == null)
-            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode4(filePath);
-            //if (qrInvoice == null)
-            //qrInvoice = await fileProcessor.AutoProcessAndDecodeQRCode5(filePath);
-
-
-            if (qrInvoice == null)
+            if (invoice == null)
             {
-                return BadRequest("Failed to recognize QR code or invalid data.");
+                return BadRequest("Failed to recognize invoice image.");
             }
 
-            var invoice = new Invoice(qrInvoice);
             invoice.FilePath = filePath;
 
             await _invoiceService.SaveInvoiceAsync(invoice);

@@ -23,6 +23,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<ILocalMLService, LocalMLService>();
 builder.Services.AddScoped<IImageProcessor, ImageProcessor>();
+builder.Services.AddScoped<IGPTService, GPTService>();
 
 // Настройка параметров формы для обработки больших файлов
 builder.Services.Configure<FormOptions>(options =>
