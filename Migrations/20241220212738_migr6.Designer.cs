@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UpRestEye3.Data;
 
@@ -10,34 +11,14 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241220212738_migr6")]
+    partial class migr6
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
-
-            modelBuilder.Entity("UpRestEye3.Models.ConsumerInfo", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TaxNumber")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TaxNumber")
-                        .IsUnique();
-
-                    b.ToTable("Consumers");
-                });
 
             modelBuilder.Entity("UpRestEye3.Models.Invoice", b =>
                 {
@@ -65,14 +46,32 @@ namespace UpRestEye3.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ConsumerId");
-
-                    b.HasIndex("SupplierId");
-
                     b.ToTable("Invoices");
                 });
 
-            modelBuilder.Entity("UpRestEye3.Models.SupplierInfo", b =>
+            modelBuilder.Entity("UpRestEye3.Models.Invoice+ConsumerInfo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TaxNumber")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaxNumber")
+                        .IsUnique();
+
+                    b.ToTable("Consumers");
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.Invoice+SupplierInfo", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -122,16 +121,6 @@ namespace UpRestEye3.Migrations
 
             modelBuilder.Entity("UpRestEye3.Models.Invoice", b =>
                 {
-                    b.HasOne("UpRestEye3.Models.ConsumerInfo", "Consumer")
-                        .WithMany("Invoices")
-                        .HasForeignKey("ConsumerId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("UpRestEye3.Models.SupplierInfo", "Supplier")
-                        .WithMany("Invoices")
-                        .HasForeignKey("SupplierId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.OwnsOne("UpRestEye3.Models.Invoice+InvoiceInfo", "Info", b1 =>
                         {
                             b1.Property<int>("InvoiceId")
@@ -195,14 +184,10 @@ namespace UpRestEye3.Migrations
                                 .HasForeignKey("InvoiceId");
                         });
 
-                    b.Navigation("Consumer");
-
                     b.Navigation("Info")
                         .IsRequired();
 
                     b.Navigation("Products");
-
-                    b.Navigation("Supplier");
                 });
 
             modelBuilder.Entity("UpRestEye3.Models.TaxCategory", b =>
@@ -212,19 +197,9 @@ namespace UpRestEye3.Migrations
                         .HasForeignKey("InvoiceId");
                 });
 
-            modelBuilder.Entity("UpRestEye3.Models.ConsumerInfo", b =>
-                {
-                    b.Navigation("Invoices");
-                });
-
             modelBuilder.Entity("UpRestEye3.Models.Invoice", b =>
                 {
                     b.Navigation("TaxCategories");
-                });
-
-            modelBuilder.Entity("UpRestEye3.Models.SupplierInfo", b =>
-                {
-                    b.Navigation("Invoices");
                 });
 #pragma warning restore 612, 618
         }

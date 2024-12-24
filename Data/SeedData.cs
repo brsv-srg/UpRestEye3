@@ -34,7 +34,7 @@ namespace UpRestEye3.Data
                         {
                             new Invoice
                             {
-                                Supplier = new Invoice.SupplierInfo
+                                Supplier = new SupplierInfo
                                 {
                                     Name = "Supplier A",
                                     TaxNumber = "123456789",
@@ -65,7 +65,7 @@ namespace UpRestEye3.Data
                             },
                             new Invoice
                             {
-                                Supplier = new Invoice.SupplierInfo
+                                Supplier = new SupplierInfo
                                 {
                                     Name = "Supplier B",
                                     TaxNumber = "987654321",

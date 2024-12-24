@@ -90,36 +90,31 @@ namespace UpRestEye3.Services
 
                 // Извлечение элемента, содержащего данные Invoice
                 if (root.TryGetProperty("choices", out JsonElement choicesElement) &&
-                    choicesElement[0].TryGetProperty("message", out JsonElement messageElement)) 
+                    choicesElement[0].TryGetProperty("message", out JsonElement messageElement) &&
+                    messageElement.TryGetProperty("content", out JsonElement contentElement) &&
+                    contentElement.ValueKind == JsonValueKind.String) 
                 {
-                    var tempElement = messageElement.GetProperty("content");
-                    var tempString = tempElement.GetString();   
-                    using var contentDocument = JsonDocument.Parse(tempString);
-                
-                    // Десериализация содержимого JSON в объект Invoice
-                    // Extract the "Invoice" element from the contentElement
+                    using var contentDocument = JsonDocument.Parse(contentElement.GetString());
                     var rootContent = contentDocument.RootElement;
 
-                    var isTitle = rootContent.TryGetProperty("title", out JsonElement titleElement);
-                    var isInvoice = titleElement.GetString() == "Invoice";
-                    //var isProperties = rootContent.TryGetProperty("properties", out JsonElement invoiceElement);
-                    var invoiceElement = rootContent.GetProperty("properties");
-
-                    string temtString = invoiceElement.GetRawText(); //GetString();
-                    using var invoiceDocument = JsonDocument.Parse(temtString);
-
-                    if (isTitle == true && 
-                        isInvoice == true /* &&
-                        isProperties == true*/)
+                    if(rootContent.TryGetProperty("title", out JsonElement titleElement) &&
+                        titleElement.GetString() == "Invoice")
                     {
-                        var invoice = new Invoice (invoiceDocument);
+                        var options = new JsonSerializerOptions
+                        {
+                            Converters = { new DateTimeJsonConverter(), new DecimalJsonConverter(), new IntegerJsonConverter()},
+                            PropertyNameCaseInsensitive = true
+                        };
+                        using var invoiceDocument = JsonDocument.Parse(rootContent.GetProperty("properties").GetRawText());
+
+                        
+                        Invoice invoice = JsonSerializer.Deserialize<Invoice>(invoiceDocument, options);
                         return invoice;
                     }
                     else
                     {
                         throw new Exception("Invoice element not found in JSON response");
                     }
-                    
                 }
                 else
                 {
@@ -173,15 +168,9 @@ Extract structured data from given receipts.
   ""title"": ""Invoice"",
   ""type"": ""object"",
   ""properties"": {{
-    ""Id"": {{
-      ""type"": ""integer""
-    }},
     ""Supplier"": {{
       ""type"": ""object"",
       ""properties"": {{
-        ""Id"": {{
-          ""type"": ""integer""
-        }},
         ""Name"": {{
           ""type"": ""string""
         }},
@@ -196,9 +185,6 @@ Extract structured data from given receipts.
     ""Consumer"": {{
       ""type"": ""object"",
       ""properties"": {{
-        ""Id"": {{
-          ""type"": ""integer""
-        }},
         ""Name"": {{
           ""type"": ""string""
         }},
@@ -230,9 +216,6 @@ Extract structured data from given receipts.
       ""items"": {{
         ""type"": ""object"",
         ""properties"": {{
-          ""Id"": {{
-            ""type"": ""integer""
-          }},
           ""ProductCode"": {{
             ""type"": ""string""
           }},
@@ -256,9 +239,6 @@ Extract structured data from given receipts.
       ""items"": {{
         ""type"": ""object"",
         ""properties"": {{
-          ""Id"": {{
-            ""type"": ""integer""
-          }},
           ""Category"": {{
             ""type"": ""string""
           }},
@@ -343,22 +323,26 @@ private const string _request_prompt = $@"
       ""Paragraphs"": [
         {{
         ""ParagraphNumber"": 0,
-          ""ParagraphText"": ""Descricao""
+          ""ParagraphText"": ""Codigo""
         }},
         {{
         ""ParagraphNumber"": 1,
-          ""ParagraphText"": ""Qtd.""
+          ""ParagraphText"": ""Descricao""
         }},
         {{
         ""ParagraphNumber"": 2,
-          ""ParagraphText"": ""Preco""
+          ""ParagraphText"": ""Qtd.""
         }},
         {{
         ""ParagraphNumber"": 3,
-          ""ParagraphText"": ""Total""
+          ""ParagraphText"": ""Preco""
         }},
         {{
         ""ParagraphNumber"": 4,
+          ""ParagraphText"": ""Total""
+        }},
+        {{
+        ""ParagraphNumber"": 5,
           ""ParagraphText"": ""IVA""
         }}
       ]
@@ -369,22 +353,26 @@ private const string _request_prompt = $@"
       ""Paragraphs"": [
         {{
         ""ParagraphNumber"": 0,
-          ""ParagraphText"": ""Boina Tinto""
+          ""ParagraphText"": ""00112233""
         }},
         {{
         ""ParagraphNumber"": 1,
-          ""ParagraphText"": ""12""
+          ""ParagraphText"": ""Boina Tinto""
         }},
         {{
         ""ParagraphNumber"": 2,
-          ""ParagraphText"": ""6""
+          ""ParagraphText"": ""12""
         }},
         {{
         ""ParagraphNumber"": 3,
-          ""ParagraphText"": ""72""
+          ""ParagraphText"": ""6""
         }},
         {{
         ""ParagraphNumber"": 4,
+          ""ParagraphText"": ""72""
+        }},
+        {{
+        ""ParagraphNumber"": 5,
           ""ParagraphText"": ""13%""
         }}
       ]
@@ -482,7 +470,7 @@ string trainValue = @$"{{
       ""index"": 0,
       ""message"": {{
         ""role"": ""assistant"",
-        ""content"": ""{{\n  \""$schema\"": \""http://json-schema.org/draft-07/schema#\"",\n  \""title\"": \""Invoice\"",\n  \""type\"": \""object\"",\n  \""properties\"": {{\n    \""Id\"": null,\n    \""Supplier\"": {{\n      \""Id\"": null,\n      \""Name\"": \""Figueiredo & Andrade, Unipessoal Limitada\"",\n      \""TaxNumber\"": \""515409723\"",\n      \""BankAccount\"": \""PT50 0033 0000 45631842115 05\""\n    }},\n    \""Consumer\"": {{\n      \""Id\"": null,\n      \""Name\"": null,\n      \""TaxNumber\"": \""515409723\""\n    }},\n    \""Info\"": {{\n      \""InvoiceNumber\"": \""FT 2024/123\"",\n      \""InvoiceDate\"": \""14-10-2024\"",\n      \""TotalAmountInclTaxes\"": 81.36,\n      \""TotalAmountExclTaxes\"": 72\n    }},\n    \""Products\"": [\n      {{\n        \""Id\"": null,\n        \""ProductCode\"": null,\n        \""ProductName\"": \""Boina Tinto\"",\n        \""Unit\"": \""piece\"",\n        \""Quantity\"": 12,\n        \""Price\"": 6\n      }}\n    ],\n    \""TaxCategories\"": [\n      {{\n        \""Id\"": null,\n        \""Category\"": \""IVA\"",\n        \""Amount\"": 9.36\n      }}\n    ],\n    \""FilePath\"": null,\n    \""UploadTime\"": null,\n    \""Comments\"": \""The total amount with tax matches the sum of the items listed.\"",\n    \""Status\"": null\n  }}\n}}"",
+        ""content"": ""{{\n  \""$schema\"": \""http://json-schema.org/draft-07/schema#\"",\n  \""title\"": \""Invoice\"",\n  \""type\"": \""object\"",\n  \""properties\"": {{\n    \""Supplier\"": {{\n      \""Name\"": \""Pupermotivo\"",\n      \""TaxNumber\"": \""518390947\"",\n      \""BankAccount\"": \""PT50 0033 0000 45631834432 08\""\n    }},\n    \""Consumer\"": {{\n      \""Name\"": \""Figueiredo & Andrade, Unipessoal Limitada\"",\n      \""TaxNumber\"": \""515409723\""\n    }},\n    \""Info\"": {{\n      \""InvoiceNumber\"": \""FT 2024/123\"",\n      \""InvoiceDate\"": \""14-10-2024\"",\n      \""TotalAmountInclTaxes\"": 81.36,\n      \""TotalAmountExclTaxes\"": 72\n    }},\n    \""Products\"": [\n      {{\n        \""ProductCode\"": \""00112233\"",\n        \""ProductName\"": \""Boina Tinto\"",\n        \""Unit\"": \""piece\"",\n        \""Quantity\"": 12,\n        \""Price\"": 6\n      }}\n    ],\n    \""TaxCategories\"": [\n      {{\n        \""Category\"": \""13%\"",\n        \""Amount\"": 9.36\n      }}\n    ],\n    \""FilePath\"": null,\n    \""UploadTime\"": \""20.12.2024\"",\n    \""Comments\"": \""The total amount with tax matches the sum of the items listed.\"",\n    \""Status\"": null\n  }}\n}}"",
         ""refusal"": null
       }},
       ""logprobs"": null,
