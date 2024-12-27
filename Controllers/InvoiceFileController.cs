@@ -18,11 +18,11 @@ namespace UpRestEye3.Controllers
     public class InvoicesFilesController : ControllerBase
     {
         private readonly IInvoiceService _invoiceService;
-        private readonly IImageProcessor _imageProcessor;
+        private readonly IInvoiceFileService _imageProcessor;
 
 
 
-        public InvoicesFilesController(IInvoiceService invoiceService, IImageProcessor imageProcessor)
+        public InvoicesFilesController(IInvoiceService invoiceService, IInvoiceFileService imageProcessor)
         {
             _invoiceService = invoiceService;
             _imageProcessor = imageProcessor;
@@ -41,18 +41,17 @@ namespace UpRestEye3.Controllers
                 await file.CopyToAsync(stream);
             }
 
-            Invoice invoice = await _imageProcessor.ExtProcessImageAsync(filePath);
+            var result = await _imageProcessor.FileProcessAsync(filePath); // ExtProcessImageAsync(filePath);
 
-            if (invoice == null)
+            if (!result)
             {
                 return BadRequest("Failed to recognize invoice image.");
             }
+            else
+            {
+                return Ok("Invoice image recognized successfully.");
+            }
 
-            invoice.FilePath = filePath;
-
-            await _invoiceService.SaveInvoiceAsync(invoice);
-
-            return Ok(new { filePath });
         }
     }
 }

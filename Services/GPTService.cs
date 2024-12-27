@@ -95,17 +95,15 @@ namespace UpRestEye3.Services
                     using var contentDocument = JsonDocument.Parse(contentElement.GetString());
                     var rootContent = contentDocument.RootElement;
 
-                    if (rootContent.TryGetProperty("title", out JsonElement titleElement) &&
-                        titleElement.GetString() == "Invoice")
+                    if (rootContent.TryGetProperty("Supplier", out contentElement))
                     {
                         var options = new JsonSerializerOptions
                         {
                             Converters = { new DateTimeJsonConverter(), new DecimalJsonConverter(), new IntegerJsonConverter() },
                             PropertyNameCaseInsensitive = true
                         };
-                        using var invoiceDocument = JsonDocument.Parse(rootContent.GetProperty("properties").GetRawText());
 
-
+                        using var invoiceDocument = JsonDocument.Parse(rootContent.GetRawText());
                         Invoice invoice = JsonSerializer.Deserialize<Invoice>(invoiceDocument, options);
                         return invoice;
                     }

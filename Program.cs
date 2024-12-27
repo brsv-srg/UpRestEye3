@@ -22,7 +22,11 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connectionString));
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<ILocalMLService, LocalMLService>();
-builder.Services.AddScoped<IImageProcessor, ImageProcessor>();
+builder.Services.AddScoped<IInvoiceFileService, InvoiceFileService>();
+builder.Services.AddScoped<IImageFileProcessor, ImageFileProcessor>();
+builder.Services.AddScoped<IQRProcessing, QRProcessingOpenCV>();
+builder.Services.AddScoped<IQRRecognition, QRRecognitionOpenCV>();
+builder.Services.AddScoped<IQRRecognition, QRRecognitionZXing>();
 builder.Services.AddScoped<IGPTService, GPTService>();
 
 // Настройка параметров формы для обработки больших файлов

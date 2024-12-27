@@ -1,4 +1,6 @@
-﻿namespace UpRestEye3.Models
+﻿using System.Text.RegularExpressions;
+
+namespace UpRestEye3.Models
 {
 
     public class QRCodeData
@@ -74,5 +76,12 @@
                 }
             }
         }
+
+        public static bool IsMatchingATQRCode(string input)
+        {
+            string pattern = @"^A:.*\*B:.*\*C:.*\*D:.*\*E:.*\*F:.*\*G:.*\*H:.*$";
+            return Regex.IsMatch(input, pattern);
+        }
+
     }
 }

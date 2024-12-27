@@ -44,18 +44,23 @@ namespace UpRestEye3.Models
         }
 
         // Constructor from QRCodeData
-        public Invoice(QRCodeData qrcode)
+        public Invoice(QRCodeData? qrCode, string? filePath)
         {
-            Supplier.Name = qrcode.SupplierTaxNumber;
-            Supplier.TaxNumber = qrcode.SupplierTaxNumber;
+            if (qrCode != null)
+            {
+                Supplier.Name = qrCode.SupplierTaxNumber;
+                Supplier.TaxNumber = qrCode.SupplierTaxNumber;
 
-            Info.InvoiceNumber = qrcode.DocNumber;
-            Info.InvoiceDate = DateTime.ParseExact(qrcode.DocDate, "yyyyMMdd", null);
-            Info.TotalAmountInclTaxes = decimal.Parse(qrcode.TotalAmount != "" ? qrcode.TotalAmount : "0.0");
-            Info.TotalAmountExclTaxes = decimal.Parse(qrcode.NetAmount != "" ? qrcode.NetAmount : "0.0");
+                Info.InvoiceNumber = qrCode.DocNumber;
+                Info.InvoiceDate = DateTime.ParseExact(qrCode.DocDate, "yyyyMMdd", null);
+                Info.TotalAmountInclTaxes = decimal.Parse(qrCode.TotalAmount != "" ? qrCode.TotalAmount : "0.0");
+                Info.TotalAmountExclTaxes = decimal.Parse(qrCode.NetAmount != "" ? qrCode.NetAmount : "0.0");
 
-            TaxCategories.Add(new TaxCategory { Category = "13%", Amount = decimal.Parse(qrcode.I6 != "" ? qrcode.I6 : "0.0") });
-            TaxCategories.Add(new TaxCategory { Category = "23%", Amount = decimal.Parse(qrcode.N != "" ? qrcode.N : "0.0") });
+                TaxCategories.Add(new TaxCategory { Category = "13%", Amount = decimal.Parse(qrCode.I6 != "" ? qrCode.I6 : "0.0") });
+                TaxCategories.Add(new TaxCategory { Category = "23%", Amount = decimal.Parse(qrCode.N != "" ? qrCode.N : "0.0") });
+            }
+
+            FilePath = filePath;
         }
   
 

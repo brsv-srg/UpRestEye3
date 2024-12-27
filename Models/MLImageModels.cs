@@ -65,4 +65,31 @@ namespace UpRestEye3.MLImageModels
             sharpWeightB = 0.0;
         }
     }
+
+    public class ImageProcessingHypotheses 
+    {
+
+        // Список параметров для итераций
+        // Для медианного фильтра - удаление шумов
+        public double[] medianBlurKernels { get; } = { 0.0, 3, 5, 7 };
+        
+        // Уровень контраста
+        public double[] convScaleContrasts { get; } = { 0.0, 1.7, 1.2, 1.5, 2.0 };
+
+        // Уровень яркости
+        public double[] convScaleBrightnesses { get; } = { 0.0, 20.0, -10.0, 10.0, -20.0 }; 
+        
+        // Для  бинаризации
+        public double[] adThreshBlocks { get; } = { 0.0, 100, 127, 150 };
+
+        // Для адаптивной бинаризации
+        //double[] adThreshBlocks { get; } = { 0, 3, 7, 11 };                        
+
+        // Для обнаружения линий
+        public double[,] cannyThresholds { get; } = new double[,] { { 0.0, 0.0 }, { 80, 160 }, { 50, 150 }, { 10, 100 }, { 100, 200 } }; 
+
+        // Вес резкости
+        public double[,] sharpWeights { get; } = new double[,] { { 0.0, 0.0 }, { 1.5, -0.5 }, { 0.7, 0.3 } }; 
+        
+    }
 }

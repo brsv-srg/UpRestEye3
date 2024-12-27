@@ -26,7 +26,7 @@ using AForge.Imaging;
 
 namespace UpRestEye3.Services
 { 
-public class FileProcessor
+public class QRProcessingZXing
     {
         [SupportedOSPlatform("windows")]
         public async Task<QRCodeData> ProcessFileAsync(string filePath)
@@ -212,7 +212,7 @@ public class FileProcessor
                             foreach (var result in results)
                             {
                                 Console.WriteLine($"Contents: {result.Text}");
-                                if (IsMatchingATQRCode(result.Text))
+                                if (QRCodeData.IsMatchingATQRCode(result.Text))
                                 {
                                     qrCodeData = new QRCodeData(result.Text);
                                 }
@@ -350,7 +350,7 @@ public class FileProcessor
                             foreach (var result in results)
                             {
                                 // Конвертация изображения в Bitmap 
-                                if (IsMatchingATQRCode(result))
+                                if (QRCodeData.IsMatchingATQRCode(result))
                                 {
                                     // Успешно распознано
                                     Console.WriteLine("QR codes have been found:");
@@ -508,7 +508,7 @@ public class FileProcessor
                                     foreach (var result in results)
                                     {
                                         // Конвертация изображения в Bitmap 
-                                        if (IsMatchingATQRCode(result))
+                                        if (QRCodeData.IsMatchingATQRCode(result))
                                         {
                                             // Успешно распознано
                                             Console.WriteLine("QR codes have been found:");
@@ -656,7 +656,7 @@ public class FileProcessor
                                         foreach (var result in results)
                                         {
                                             Console.WriteLine($"Contents: {result.Text}");
-                                            if (IsMatchingATQRCode(result.Text))
+                                            if (QRCodeData.IsMatchingATQRCode(result.Text))
                                             {
                                                 qrCodeData = new QRCodeData(result.Text);
                                             }
@@ -737,7 +737,7 @@ public class FileProcessor
 
             foreach (var result in results)
             {
-                if (IsMatchingATQRCode(result))
+                if (QRCodeData.IsMatchingATQRCode(result))
                 {
                     // Успешно распознано
                     Console.WriteLine("QR codes have been found:");
@@ -785,7 +785,7 @@ public class FileProcessor
             // Шаг 1: Попытка прямого распознавания
             Point2f[] points;
             string result = qrDetector.DetectAndDecode(original, out points);
-            if (!string.IsNullOrEmpty(result) && IsMatchingATQRCode(result))
+            if (!string.IsNullOrEmpty(result) && QRCodeData.IsMatchingATQRCode(result))
             {
                 // Успешно распознано
                 Console.WriteLine("QR codes have been found:");
@@ -822,7 +822,7 @@ public class FileProcessor
 
             // Шаг 4: Повторное распознавание после обработки
             result = qrDetector.DetectAndDecode(enhancedImage, out points);
-            if (!string.IsNullOrEmpty(result) && IsMatchingATQRCode(result))
+            if (!string.IsNullOrEmpty(result) && QRCodeData.IsMatchingATQRCode(result))
             {
                 // Успешно распознано
                 Console.WriteLine("QR codes have been found:");
@@ -894,10 +894,5 @@ public class FileProcessor
             
         }
 
-        public bool IsMatchingATQRCode(string input)
-        {
-            string pattern = @"^A:.*\*B:.*\*C:.*\*D:.*\*E:.*\*F:.*\*G:.*\*H:.*$";
-            return Regex.IsMatch(input, pattern);
-        }
     }
 }
