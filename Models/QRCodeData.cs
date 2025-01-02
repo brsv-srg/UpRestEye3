@@ -19,7 +19,7 @@ namespace UpRestEye3.Models
         public string E { get; set; } = string.Empty;
         //------------
         public string F { get; set; } = string.Empty;
-        public string DocDate { get => F; set => F = value; }
+        public DateOnly DocDate { get => ParseDate(F); }
         //------------
         public string G { get; set; } = string.Empty;
         public string DocNumber { get => G; set => G = value; }
@@ -29,14 +29,32 @@ namespace UpRestEye3.Models
         //------------
         public string I1 { get; set; } = string.Empty;
         //------------
+        public string I2 { get; set; } = string.Empty;
+        public decimal Base0 { get => ParseDecimal(I2); }
+        //------------
+        public string I3 { get; set; } = string.Empty;
+        public decimal Base6 { get => ParseDecimal(I3); }
+        //------------
+        public string I4 { get; set; } = string.Empty;
+        public decimal IVA6 { get => ParseDecimal(I4); }
+        //------------
         public string I5 { get; set; } = string.Empty;
-        public string NetAmount { get => I5; set => I5 = value; }
+        public decimal Base13 { get => ParseDecimal(I5); }
         //------------
         public string I6 { get; set; } = string.Empty;
+        public decimal IVA13 { get => ParseDecimal(I6); }
+        //------------
+        public string I7 { get; set; } = string.Empty;
+        public decimal Base23 { get => ParseDecimal(I7); }
+        //------------
+        public string I8 { get; set; } = string.Empty;
+        public decimal IVA23 { get => ParseDecimal(I8); }
+        //------------
         public string N { get; set; } = string.Empty;
+        public decimal TotalIVA { get => ParseDecimal(N); }
         //------------
         public string O { get; set; } = string.Empty;
-        public string TotalAmount { get => O; set => O = value; }
+        public decimal TotalAmount { get => ParseDecimal(O); }
         //------------
         public string Q { get; set; } = string.Empty;
         //------------
@@ -66,14 +84,51 @@ namespace UpRestEye3.Models
                         case "G": G = keyValue[1]; break;
                         case "H": H = keyValue[1]; break;
                         case "I1": I1 = keyValue[1]; break;
+                        case "I2": I2 = keyValue[1]; break;
+                        case "I3": I3 = keyValue[1]; break;
+                        case "I4": I4 = keyValue[1]; break;
                         case "I5": I5 = keyValue[1]; break;
                         case "I6": I6 = keyValue[1]; break;
+                        case "I7": I7 = keyValue[1]; break;
+                        case "I8": I8 = keyValue[1]; break;
                         case "N": N = keyValue[1]; break;
                         case "O": O = keyValue[1]; break;
                         case "Q": Q = keyValue[1]; break;
                         case "R": R = keyValue[1]; break;
                     }
                 }
+            }
+        }
+
+        private static decimal ParseDecimal(string value)
+        {
+            try
+            {
+                if (decimal.TryParse(value, out decimal result))
+                {
+                    return result;
+                }
+                return 0;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
+        private static DateOnly ParseDate(string value)
+        {
+            try
+            {
+                if (DateOnly.TryParse(value, out DateOnly result))
+                {
+                    return result;
+                }
+                return DateOnly.MinValue;
+            }
+            catch (Exception)
+            {
+                return DateOnly.MinValue;
             }
         }
 
@@ -85,3 +140,77 @@ namespace UpRestEye3.Models
 
     }
 }
+
+
+/*
+
+
+MUSE
+FIGUEIREDO & ANDRADE, UNIPESSOAL LIMITADA                   
+ Sede: Avenida 1º de Maio, 36G, Costa da                    
+       Caparica, 2825-393, Portugal                         
+              NIF: 515409723
+
+
+    Avenida 1º de Maio, 36G, Costa da                       
+       Caparica, 2825-393, Portugal                         
+        2825-393 Costa da Caparica                          
+                                                            
+Consultas de Mesa                                           
+CM 01_01.24G/667                                            
+Original - IVA incluído                                     
+Consumidor final                                            
+------------------------------------------                  
+Qt. Descrição            Preço   T   Valor                  
+1.000 Americano          1.50    B    1.50                  
+1.000 Americano 0% tax   3.50    M    3.50    M99 Não sujeito; não tributado(ou similar)
+1.000 Americano 23% tax  3.50    A    3.50                  
+1.000 Americano 6% tax   1.50    C    1.50                  
+------------------------------------------                  
+T O T A L                            10.00                  
+------------------------------------------                  
+    Base    IVA    Taxa          T   Valor                  
+    2.85    23%    0.65          A    3.50                  
+    1.33    13%    0.17          B    1.50                  
+    1.42     6%    0.08          C    1.50                  
+    3.50     0%    0.00          M    3.50                  
+------------------------------------------                  
+            ATCUD:JJSGNPYG - 667
+
+QR: 
+A: 515409723 * 
+B:999999990 * 
+C:Desconhecido* 
+D:CM* 
+E:N* 
+F:20241229 * 
+G:CM 01_01.24G/667*
+H:JJSGNPYG - 667 * 
+I1:PT* 
+I2:3.50 * Base 0%
+I3:1.42 * Base 6%
+I4:0.08 * Taxa 6%
+I5:1.33 * Base 13%
+I6:0.17 * Taxa 13%
+I7:2.85 * Base 23%
+I8:0.65 * Taxa 23%
+
+N:0.90  * Taxa Total   
+O:10.00 * Total
+
+Q:bfXe* 
+
+R:3005
+
+
+
+bfXe - Processado por programa certificado nº 3005/AT         
+Data:     2024 - 12 - 29 23:37:57
+Operador: SYSTEM
+Mesa:     Order 5099                                        
+Este documento não serve de fatura                          
+         Obrigado e volte sempre 
+
+
+
+*/

@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Text.Json;
+using UpRestEye3.Models;
 
 
 namespace UpRestEye3.Services
@@ -18,7 +20,7 @@ namespace UpRestEye3.Services
             _consumerNIF = ConsumerNIF;
             //_systemPrompt = String.Format(_systemPromptLiteral, _consumerNIF, _consumerName);
             _systemPrompt = String.Format(_testSystemPromptLiteral, _consumerNIF, _consumerName);
-            _responseFormat = _responseFormatLiteral;
+            _responseFormat = GetInvoiceJsonSchema(); // _responseFormatLiteral;
             _testRequestPrompt = _testRequestPromptLiteral;
             _testResponse = _trainResponseLiteral;
 
@@ -45,7 +47,47 @@ namespace UpRestEye3.Services
             return _testResponse;
         }
         
+        public string GetInvoiceJsonSchema()
+        {
+            var invoiceType = typeof(Invoice);
+            var schema = GenerateJsonSchema(invoiceType);
+            return schema;
+        }
 
+        private string GenerateJsonSchema(Type type)
+        {
+            var properties = type.GetProperties();
+            var schema = new
+            {
+                schema = "http://json-schema.org/draft-07/schema#",
+                title = type.Name,
+                type = "object",
+                properties = properties.ToDictionary(
+                    prop => prop.Name,
+                    prop => new
+                    {
+                        type = GetJsonType(prop.PropertyType)
+                    })
+            };
+
+            return JsonSerializer.Serialize(schema, new JsonSerializerOptions { WriteIndented = true });
+        }
+
+        private string GetJsonType(Type type)
+        {
+            if (type == typeof(string))
+                return "string";
+            if (type == typeof(int) || type == typeof(long) || type == typeof(float) || type == typeof(double) || type == typeof(decimal))
+                return "number";
+            if (type == typeof(bool))
+                return "boolean";
+            if (type.IsArray || (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>)))
+                return "array";
+            if (type.IsClass)
+                return "object";
+
+            return "string";
+        }
 
 
         private const string _systemPromptLiteral = $@"
@@ -121,10 +163,10 @@ Extract structured data from given receipts.
           ""type"": ""string"",
           ""format"": ""date-time""
         }},
-        ""TotalAmountInclTaxes"": {{
+        ""TotalTax"": {{
           ""type"": ""number""
         }},
-        ""TotalAmountExclTaxes"": {{
+        ""TotalAmount"": {{
           ""type"": ""number""
         }}
       }}
@@ -388,7 +430,7 @@ Extract structured data from given receipts.
       ""index"": 0,
       ""message"": {{
         ""role"": ""assistant"",
-        ""content"": ""{{\n  \""$schema\"": \""http://json-schema.org/draft-07/schema#\"",\n  \""title\"": \""Invoice\"",\n  \""type\"": \""object\"",\n  \""properties\"": {{\n    \""Supplier\"": {{\n      \""Name\"": \""Pupermotivo\"",\n      \""TaxNumber\"": \""518390947\"",\n      \""BankAccount\"": \""PT50 0033 0000 45631834432 08\""\n    }},\n    \""Consumer\"": {{\n      \""Name\"": \""Figueiredo & Andrade, Unipessoal Limitada\"",\n      \""TaxNumber\"": \""515409723\""\n    }},\n    \""Info\"": {{\n      \""InvoiceNumber\"": \""FT 2024/123\"",\n      \""InvoiceDate\"": \""14-10-2024\"",\n      \""TotalAmountInclTaxes\"": 81.36,\n      \""TotalAmountExclTaxes\"": 72\n    }},\n    \""Products\"": [\n      {{\n        \""ProductCode\"": \""00112233\"",\n        \""ProductName\"": \""Boina Tinto\"",\n        \""Unit\"": \""piece\"",\n        \""Quantity\"": 12,\n        \""Price\"": 6\n      }}\n    ],\n    \""TaxCategories\"": [\n      {{\n        \""Category\"": \""13%\"",\n        \""Amount\"": 9.36\n      }}\n    ],\n    \""FilePath\"": null,\n    \""UploadTime\"": \""20.12.2024\"",\n    \""Comments\"": \""The total amount with tax matches the sum of the items listed.\"",\n    \""Status\"": null\n  }}\n}}"",
+        ""content"": ""{{\n  \""$schema\"": \""http://json-schema.org/draft-07/schema#\"",\n  \""title\"": \""Invoice\"",\n  \""type\"": \""object\"",\n  \""properties\"": {{\n    \""Supplier\"": {{\n      \""Name\"": \""Pupermotivo\"",\n      \""TaxNumber\"": \""518390947\"",\n      \""BankAccount\"": \""PT50 0033 0000 45631834432 08\""\n    }},\n    \""Consumer\"": {{\n      \""Name\"": \""Figueiredo & Andrade, Unipessoal Limitada\"",\n      \""TaxNumber\"": \""515409723\""\n    }},\n    \""Info\"": {{\n      \""InvoiceNumber\"": \""FT 2024/123\"",\n      \""InvoiceDate\"": \""14-10-2024\"",\n      \""TotalTax\"": 81.36,\n      \""TotalAmount\"": 72\n    }},\n    \""Products\"": [\n      {{\n        \""ProductCode\"": \""00112233\"",\n        \""ProductName\"": \""Boina Tinto\"",\n        \""Unit\"": \""piece\"",\n        \""Quantity\"": 12,\n        \""Price\"": 6\n      }}\n    ],\n    \""TaxCategories\"": [\n      {{\n        \""Category\"": \""13%\"",\n        \""Amount\"": 9.36\n      }}\n    ],\n    \""FilePath\"": null,\n    \""UploadTime\"": \""20.12.2024\"",\n    \""Comments\"": \""The total amount with tax matches the sum of the items listed.\"",\n    \""Status\"": null\n  }}\n}}"",
         ""refusal"": null
       }},
       ""logprobs"": null,

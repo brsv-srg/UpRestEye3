@@ -31,6 +31,7 @@ using System.Text.Json;
 using System.Runtime.InteropServices.JavaScript;
 using Protobuf.Text;
 using Google.Api;
+using UpRestEye3.Components.Pages;
 
 
 
@@ -41,8 +42,9 @@ namespace UpRestEye3.Services
 
     public interface IImageFileProcessor
     {
-        Task<QRCodeData> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath);
-        Task<Invoice> DeepImageProcessAsync(Bitmap sourceImage, string imagePath);
+        Task<QRCodeData?> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath);
+        Task<QRCodeData?> DeepQRRecognitionAsync(Bitmap sourceImage, string imagePath);
+        Task<Invoice> DeepTextRecognitionAsync(Bitmap sourceImage, string imagePath);
 
     }
 
@@ -53,13 +55,15 @@ namespace UpRestEye3.Services
         private readonly IGPTService _gptParser;
         private readonly IQRProcessing _qrProcessor;
         private readonly IEnumerable<IQRRecognition> _qrRecognizers;
+        private readonly ITextRecognition _textRecognizer;
 
-        public ImageFileProcessor(IQRProcessing qrProcessor, ILocalMLService predictor, IGPTService gptParser, IEnumerable<IQRRecognition> qrRecognizers)
+        public ImageFileProcessor(IQRProcessing qrProcessor, ILocalMLService predictor, IGPTService gptParser, IEnumerable<IQRRecognition> qrRecognizers, ITextRecognition textRecognizer)
         {
             _predictor = predictor;
-            _gptParser = gptParser;
             _qrProcessor = qrProcessor;
             _qrRecognizers = qrRecognizers;
+            _textRecognizer = textRecognizer;
+            _gptParser = gptParser;
         }
 
         public async Task<QRCodeData?> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath)
@@ -77,20 +81,22 @@ namespace UpRestEye3.Services
                 return qrCodeData;
             }
 
+
             // Шаг 3. Получение предсказания параметров обработки,
             // обработка и распознование согласно предсказанию
             var parameters = _predictor.Predict(digest);
 
-            if (parameters != null && parameters.Any())
-            {
-                var processedImage = _qrProcessor.ApplyImageProcessing(grayImage, imagePath, parameters);
-                if (TryDecodeQRCode(processedImage, out qrCodeData))
-                    return qrCodeData;
-            }
+            if (parameters == null || !parameters.Any())
+                parameters = _predictor.GetProbable(digest);
+            
+            var processedImage = _qrProcessor.ApplyImageProcessing2(grayImage, imagePath, parameters);
+            if (TryDecodeQRCode(processedImage, out qrCodeData))
+                 return qrCodeData;
+            
             return null;
         }
 
-        public async Task<Invoice> DeepQRRecognitionAsync(Bitmap sourceImage, string imagePath)
+        public async Task<QRCodeData?> DeepQRRecognitionAsync(Bitmap sourceImage, string imagePath)
         {
             // Шаг 0. Засерение изображения (хотя скорее всего уже серое)
             var grayImage = await _qrProcessor.GrayScale(sourceImage);
@@ -100,33 +106,13 @@ namespace UpRestEye3.Services
 
             // Шаг 4. Обработка и распознование через подбор параметров 
 
-            if (TryImageProcessingAndDecodeQrCode(image, imagePath, out parameters, out qrCodeData))
+            if (TryImageProcessingAndDecodeQrCode(grayImage, imagePath, out ImageProcessingParameters parameters, out QRCodeData? qrCodeData))
             {
                 _predictor.UpdateModel(digest, parameters); // Обучение
                 return qrCodeData;
             }
             return null;
         }
-
-
-
-
-
-
-        //    // Шаг 6. Обращение к внешней модели
-
-            //    var invoiceText = await TryExternalImageProcessingAndDecodeAsync(image, imagePath);
-            //    if (invoiceText != null && invoiceText.TextBlocks.Count > 0)
-            //    {
-            //        return await _gptParser.ParseReceiptWithLLM(invoiceText);
-            //    }
-
-            //    return new Invoice();
-            //}
-
-
-
-
 
         private bool TryImageProcessingAndDecodeQrCode(Bitmap sourceImage, string imagePath, out ImageProcessingParameters parameters, out QRCodeData? qrCodeData)
         {
@@ -185,20 +171,57 @@ namespace UpRestEye3.Services
         }
 
 
-        //private async Task<RecognizedDocument> TryExternalImageProcessingAndDecodeAsync(Mat image, string imagePath)
+
+        public async Task<Invoice> DeepTextRecognitionAsync(Bitmap sourceImage, string imagePath)
+        {
+            Invoice invoice = new Invoice();
+            var parameters = new ImageProcessingParameters();
+            parameters.SetMedium();
+
+            // Шаг 0. Засерение изображения (хотя скорее всего уже серое)
+            var grayImage = await _qrProcessor.GrayScale(sourceImage);
+
+            // Шаг 1. Создание минимальная обработка изображения
+            var processedImage = _qrProcessor.ApplyImageProcessing(grayImage, imagePath, parameters);
+
+            // Шаг 6. Обращение к внешней модели
+            var recognizedText = await _textRecognizer.TextRecognize(processedImage);
+            if (recognizedText != null)
+            {
+                return await _gptParser.ParseReceiptWithLLM(recognizedText);
+            }
+            return new Invoice();
+        }
+
+
+
+        //    var recognizedDoc = await _textRecognizer.TextRecognize(processedImage); 
+            
+            
+            
+        //    var invoiceText = await TryExternalTextRecognition(grayImage, imagePath);
+        //    if (invoiceText != null && invoiceText.TextBlocks.Count > 0)
+        //    {
+        //        return await _gptParser.ParseReceiptWithLLM(invoiceText);
+        //    }
+
+        //    return new Invoice();
+        //}
+
+
+
+        //private bool TryExternalTextRecognition(Bitmap sourceImage, string imagePath, out Invoice? invoice)
         //{
+        //    invoice = new Invoice();
         //    var parameters = new ImageProcessingParameters();
-        //    parameters.medianBlurKernel = 1;
-        //    parameters.convScaleContrast = 1.2;
-        //    parameters.convScaleBrightness = 10;
-        //    parameters.adThreshBlock = 0;
-        //    parameters.cannyThreshold1 = 0;
-        //    parameters.cannyThreshold2 = 0;
-        //    parameters.sharpWeightA = 0;
-        //    parameters.sharpWeightB = 0;
+        //    parameters.SetMedium();
 
-        //    image = ApplyImageProcessing(image, imagePath, parameters);
+        //    var processedImage = _qrProcessor.ApplyImageProcessing(sourceImage, imagePath, parameters);
 
+        //    var recognizedDoc = await _textRecognizer.TextRecognize(processedImage);  
+            
+            
+        //    _textRecognizer. 
         //    // Convert OpenCvSharp.Mat to Google.Cloud.Vision.V1.Image
         //    byte[] imageBytes = image.ToBytes();
         //    var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(imageBytes);
@@ -213,7 +236,7 @@ namespace UpRestEye3.Services
 
 
         //    var recognizedDocument = new RecognizedDocument();
-        //    int blockNumber=0;
+        //    int blockNumber = 0;
         //    foreach (Page page in text.Pages)
         //    {
         //        foreach (var block in page.Blocks)
@@ -235,7 +258,7 @@ namespace UpRestEye3.Services
 
         //                textBlock.Paragraphs.Add(new TextParagraph
         //                {
-        //                    ParagraphNumber= paragraphNumber++,
+        //                    ParagraphNumber = paragraphNumber++,
         //                    ParagraphCoordinates = string.Join(" - ", paragraph.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})")),
         //                    ParagraphText = paragraphText.ToString()
         //                });

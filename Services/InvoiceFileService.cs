@@ -1,35 +1,5 @@
-﻿using Microsoft.ML;
-using Newtonsoft.Json;
-using OpenCvSharp;
-using ZXing;
-using ZXing.Common;
-using ZXing.Windows.Compatibility;
-using System;
-using System.IO;
-using System.Configuration;
-using System.Net.Http;
-using System.Text;
-using System.Threading.Tasks;
-using Newtonsoft.Json;
-using OpenCvSharp;
-using Microsoft.ML;
-using Google.Protobuf.WellKnownTypes;
-using ImageMagick;
-using System.Text.RegularExpressions;
-using UpRestEye3.MLImageModels;
-using Microsoft.AspNetCore.Mvc;
-using UpRestEye3.Models;
-using System.Drawing.Imaging;
+﻿using UpRestEye3.Models;
 using System.Drawing;
-using SkiaSharp;
-using static UpRestEye3.Services.LocalMLService;
-using AForge.Imaging.Filters;
-using System.Runtime.Versioning;
-using Google.Cloud.Vision.V1;
-using System.Text.Json.Nodes;
-using System.Text.Json;
-using System.Runtime.InteropServices.JavaScript;
-using Protobuf.Text;
 
 
 
@@ -72,12 +42,27 @@ namespace UpRestEye3.Services
                 var basicInvoice = new Invoice(qrCode, filePath);
                 await _invoiceService.SaveInvoiceAsync(basicInvoice);
 
-                // Шаг 3. Распознование дополнительной информации в отдельном потоке (TODO)
-                var fullInvoice = await _imageProcessor.DeepImageProcessAsync(image, filePath);
+                // TODO сделать в отдельном потоке
+
+                // Шаг 3. Распознавание QR-кода через подбор вариантов преобразований и обучение модели
+                var deepQRCode = await _imageProcessor.DeepQRRecognitionAsync(image, filePath);
+                if (deepQRCode != null)
+                {
+                    // Внесение изменений в существующую накладную
+                    basicInvoice.Update(deepQRCode, filePath);
+                    // Сохранение изменений в базу данных
+                    await _invoiceService.SaveInvoiceAsync(basicInvoice);
+                }
+
+
+                // Шаг 3. Распознование текста и формирование полной накладной  
+                var fullInvoice = await _imageProcessor.DeepTextRecognitionAsync(image, filePath);
                 // Обработка результатов выполнения
                 if (fullInvoice != null)
                 {
-                    // Дополнительная обработка extInvoice
+                    // Внесение изменений в существующую накладную
+                    basicInvoice.Update(fullInvoice);
+                    // СОхранение изменений в базу данных
                     await _invoiceService.SaveInvoiceAsync(fullInvoice);
                 }
                 return true;

@@ -1,0 +1,17 @@
+.round-button {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #ff6ec4, #7873f5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    border: none;
+    cursor: pointer;
+}
+
+.round-button:hover {
+    background: linear-gradient(45deg, #ff6ec4, #5a54d4);
+}

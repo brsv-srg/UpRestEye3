@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.Features;
 using UpRestEye3.Data;
 using UpRestEye3.Services;
 
+// TODO добавить логирование
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,7 @@ builder.Services.AddScoped<IImageFileProcessor, ImageFileProcessor>();
 builder.Services.AddScoped<IQRProcessing, QRProcessingOpenCV>();
 builder.Services.AddScoped<IQRRecognition, QRRecognitionOpenCV>();
 builder.Services.AddScoped<IQRRecognition, QRRecognitionZXing>();
+builder.Services.AddScoped<ITextRecognition, TextRecognitionGoogleVision>();
 builder.Services.AddScoped<IGPTService, GPTService>();
 
 // Настройка параметров формы для обработки больших файлов

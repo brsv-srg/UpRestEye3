@@ -54,8 +54,8 @@ namespace UpRestEye3.Migrations
                     b.Property<string>("FilePath")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Status")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("SupplierId")
                         .HasColumnType("INTEGER");
@@ -97,21 +97,26 @@ namespace UpRestEye3.Migrations
                     b.ToTable("Suppliers");
                 });
 
-            modelBuilder.Entity("UpRestEye3.Models.TaxCategory", b =>
+            modelBuilder.Entity("UpRestEye3.Models.Taxes", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<decimal>("Amount")
+                    b.Property<decimal>("Base")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Category")
-                        .IsRequired()
+                    b.Property<int>("Category")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("IVA")
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("InvoiceId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Total")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -123,12 +128,12 @@ namespace UpRestEye3.Migrations
             modelBuilder.Entity("UpRestEye3.Models.Invoice", b =>
                 {
                     b.HasOne("UpRestEye3.Models.ConsumerInfo", "Consumer")
-                        .WithMany("Invoices")
+                        .WithMany()
                         .HasForeignKey("ConsumerId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("UpRestEye3.Models.SupplierInfo", "Supplier")
-                        .WithMany("Invoices")
+                        .WithMany()
                         .HasForeignKey("SupplierId")
                         .OnDelete(DeleteBehavior.Restrict);
 
@@ -137,17 +142,17 @@ namespace UpRestEye3.Migrations
                             b1.Property<int>("InvoiceId")
                                 .HasColumnType("INTEGER");
 
-                            b1.Property<DateTime>("InvoiceDate")
+                            b1.Property<DateOnly>("InvoiceDate")
                                 .HasColumnType("TEXT");
 
                             b1.Property<string>("InvoiceNumber")
                                 .IsRequired()
                                 .HasColumnType("TEXT");
 
-                            b1.Property<decimal>("TotalAmountExclTaxes")
+                            b1.Property<decimal>("TotalAmount")
                                 .HasColumnType("TEXT");
 
-                            b1.Property<decimal>("TotalAmountInclTaxes")
+                            b1.Property<decimal>("TotalIVA")
                                 .HasColumnType("TEXT");
 
                             b1.HasKey("InvoiceId");
@@ -205,26 +210,16 @@ namespace UpRestEye3.Migrations
                     b.Navigation("Supplier");
                 });
 
-            modelBuilder.Entity("UpRestEye3.Models.TaxCategory", b =>
+            modelBuilder.Entity("UpRestEye3.Models.Taxes", b =>
                 {
                     b.HasOne("UpRestEye3.Models.Invoice", null)
                         .WithMany("TaxCategories")
                         .HasForeignKey("InvoiceId");
                 });
 
-            modelBuilder.Entity("UpRestEye3.Models.ConsumerInfo", b =>
-                {
-                    b.Navigation("Invoices");
-                });
-
             modelBuilder.Entity("UpRestEye3.Models.Invoice", b =>
                 {
                     b.Navigation("TaxCategories");
-                });
-
-            modelBuilder.Entity("UpRestEye3.Models.SupplierInfo", b =>
-                {
-                    b.Navigation("Invoices");
                 });
 #pragma warning restore 612, 618
         }

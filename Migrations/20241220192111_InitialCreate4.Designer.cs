@@ -134,7 +134,7 @@ namespace UpRestEye3.Migrations
                     b.ToTable("Products");
                 });
 
-            modelBuilder.Entity("UpRestEye3.Models.TaxCategory", b =>
+            modelBuilder.Entity("UpRestEye3.Models.Taxes", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -181,10 +181,10 @@ namespace UpRestEye3.Migrations
                                 .IsRequired()
                                 .HasColumnType("TEXT");
 
-                            b1.Property<decimal>("TotalAmountExclTaxes")
+                            b1.Property<decimal>("TotalAmount")
                                 .HasColumnType("TEXT");
 
-                            b1.Property<decimal>("TotalAmountInclTaxes")
+                            b1.Property<decimal>("TotalTax")
                                 .HasColumnType("TEXT");
 
                             b1.HasKey("InvoiceId");
@@ -210,7 +210,7 @@ namespace UpRestEye3.Migrations
                         .HasForeignKey("InvoiceId");
                 });
 
-            modelBuilder.Entity("UpRestEye3.Models.TaxCategory", b =>
+            modelBuilder.Entity("UpRestEye3.Models.Taxes", b =>
                 {
                     b.HasOne("UpRestEye3.Models.Invoice", null)
                         .WithMany("TaxCategories")

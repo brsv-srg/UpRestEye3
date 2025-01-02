@@ -9,7 +9,7 @@ namespace UpRestEye3.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
         public DbSet<Invoice> Invoices { get; set; }
-        public DbSet<TaxCategory> TaxCategories { get; set; }
+        public DbSet<Taxes> TaxCategories { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<SupplierInfo> Suppliers { get; set; }
         public DbSet<ConsumerInfo> Consumers { get; set; }

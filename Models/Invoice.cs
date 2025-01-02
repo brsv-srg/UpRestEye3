@@ -9,6 +9,8 @@ using System.Text.Json.Serialization;
 using System.Text;
 using static Google.Cloud.Vision.V1.TextAnnotation.Types;
 using System.Globalization;
+using OpenCvSharp;
+using Tensorflow;
 
 
 namespace UpRestEye3.Models
@@ -30,13 +32,13 @@ namespace UpRestEye3.Models
 
         public InvoiceInfo Info { get; set; } = new InvoiceInfo();
         public List<Product> Products { get; set; } = [];
-        public List<TaxCategory> TaxCategories { get; set; } = [];
+        public List<Taxes> TaxCategories { get; set; } = [];
 
         public string? FilePath { get; set; }
         public DateTime UploadTime { get; set; } = DateTime.Now;
 
         public string? Comments { get; set; }
-        public string? Status { get; set; }
+        public InvoiceStatus Status { get; set; } = InvoiceStatus.New;
 
         // Default constructor
         public Invoice()
@@ -46,35 +48,130 @@ namespace UpRestEye3.Models
         // Constructor from QRCodeData
         public Invoice(QRCodeData? qrCode, string? filePath)
         {
+            Update(qrCode, filePath);
+        }
+        public void Update(QRCodeData? qrCode, string? filePath)
+        {
             if (qrCode != null)
             {
                 Supplier.Name = qrCode.SupplierTaxNumber;
                 Supplier.TaxNumber = qrCode.SupplierTaxNumber;
 
                 Info.InvoiceNumber = qrCode.DocNumber;
-                Info.InvoiceDate = DateTime.ParseExact(qrCode.DocDate, "yyyyMMdd", null);
-                Info.TotalAmountInclTaxes = decimal.Parse(qrCode.TotalAmount != "" ? qrCode.TotalAmount : "0.0");
-                Info.TotalAmountExclTaxes = decimal.Parse(qrCode.NetAmount != "" ? qrCode.NetAmount : "0.0");
+                Info.InvoiceDate = qrCode.DocDate;
+                Info.TotalIVA = qrCode.TotalIVA;
+                Info.TotalAmount = qrCode.TotalAmount;
 
-                TaxCategories.Add(new TaxCategory { Category = "13%", Amount = decimal.Parse(qrCode.I6 != "" ? qrCode.I6 : "0.0") });
-                TaxCategories.Add(new TaxCategory { Category = "23%", Amount = decimal.Parse(qrCode.N != "" ? qrCode.N : "0.0") });
+
+                TaxCategories.Add(new Taxes { Category = Taxes.GetCategory("0%"), Base = qrCode.Base0, IVA = qrCode.Base0, Total = qrCode.Base0 });
+                TaxCategories.Add(new Taxes { Category = Taxes.GetCategory("6%"), Base = qrCode.Base6, IVA = qrCode.IVA6, Total = qrCode.Base6 + qrCode.IVA6 });
+                TaxCategories.Add(new Taxes { Category = Taxes.GetCategory("13%"), Base = qrCode.Base13, IVA = qrCode.IVA13, Total = qrCode.Base13 + qrCode.IVA13 });
+                TaxCategories.Add(new Taxes { Category = Taxes.GetCategory("23%"), Base = qrCode.Base23, IVA = qrCode.IVA23, Total = qrCode.Base23 + qrCode.IVA23 });
+                Status = InvoiceStatus.QRCodeProcessed;
+                FilePath = filePath;
+            }
+            else
+            if (filePath != null)
+            {
+                Status = InvoiceStatus.RawFile;
+                FilePath = filePath;    
+            }
+            else
+            {
+                Status = InvoiceStatus.Error;
+                throw new ArgumentException("Both QRCodeData and filePath are null");
+            }
+        } 
+        
+        public void Update(Invoice invoiceNew)
+        {
+            if(Supplier.TaxNumber != invoiceNew.Supplier.TaxNumber &&
+                Supplier.TaxNumber == invoiceNew.Consumer.TaxNumber)
+            {
+                Supplier.Name = invoiceNew.Consumer.Name;
+                Supplier.Id = null;
+            }
+            else
+            if (Supplier.TaxNumber == invoiceNew.Supplier.TaxNumber)
+            {
+                Supplier.Name = invoiceNew.Supplier.Name;
+                Supplier.Id = null;
+            }
+            else
+            if(Supplier.TaxNumber == null)
+            {
+                Supplier.Name = invoiceNew.Supplier.Name;
+                Supplier.TaxNumber = invoiceNew.Supplier.TaxNumber;
+                Supplier.Id = null;
             }
 
-            FilePath = filePath;
+            Supplier.BankAccount = invoiceNew.Supplier.BankAccount;
+
+
+
+            if (Consumer.TaxNumber != invoiceNew.Consumer.TaxNumber &&
+               Consumer.TaxNumber == invoiceNew.Supplier.TaxNumber)
+            {
+                Consumer.Name = invoiceNew.Supplier.Name;
+                Consumer.Id = null;
+            }
+            else
+           if (Consumer.TaxNumber == invoiceNew.Consumer.TaxNumber)
+            {
+                Consumer.Name = invoiceNew.Consumer.Name;
+                Consumer.Id = null;
+            }
+            else
+           if (Consumer.TaxNumber == null)
+            {
+                Consumer.Name = invoiceNew.Consumer.Name;
+                Consumer.TaxNumber = invoiceNew.Consumer.TaxNumber;
+                Consumer.Id = null;
+            }
+
+            Info.InvoiceNumber = invoiceNew.Info.InvoiceNumber;
+            Info.InvoiceDate = invoiceNew.Info.InvoiceDate;
+            Info.TotalIVA = invoiceNew.Info.TotalIVA;
+            Info.TotalAmount = invoiceNew.Info.TotalAmount;
+
+            Products = invoiceNew.Products;
+            TaxCategories = invoiceNew.TaxCategories;
+            
+            Status = invoiceNew.Status;
+            FilePath = invoiceNew.FilePath;
+            
         }
-  
 
         [Owned]
         public class InvoiceInfo
         {
             public string InvoiceNumber { get; set; } = string.Empty;
-            public DateTime InvoiceDate { get; set; }
-            public decimal TotalAmountInclTaxes { get; set; }
-            public decimal TotalAmountExclTaxes { get; set; }
+            public DateOnly InvoiceDate { get; set; }
+            public decimal TotalIVA { get; set; }
+            public decimal TotalAmount { get; set; }
         }
     }
+    public enum InvoiceStatus
+    {
+        New,
+        RawFile,
+        QRCodeProcessed,
+        TextProcessed,
+        ProductsMapped,
+        SavedToSystem,
+        Error
+    }
 
-    public class SupplierInfo
+    public enum TaxCategory
+    {
+        Normal,
+        Intermediate,
+        Reduced,
+        Zero
+    }   
+
+
+public class SupplierInfo
     {
         [JsonIgnore]
         public int? Id { get; set; }
@@ -90,12 +187,40 @@ namespace UpRestEye3.Models
         public string TaxNumber { get; set; } = string.Empty;
     }
 
-    public class TaxCategory
+    public class Taxes
     {
         [JsonIgnore]
         public int? Id { get; set; }
-        public string Category { get; set; } = string.Empty;
-        public decimal Amount { get; set; }
+        public TaxCategory Category { get; set; } = TaxCategory.Intermediate;
+        public decimal Base { get; set; } = 0.0m;
+        public decimal IVA { get; set; } = 0.0m;
+        public decimal Total { get; set; } = 0.0m;
+
+        public static TaxCategory GetCategory(string stringCategory)
+        {
+
+            stringCategory = stringCategory.ToLower();
+            if (stringCategory.Contains("23") || stringCategory.ToLower().Contains("nor"))
+            {
+                return TaxCategory.Normal;
+            }
+            else if (stringCategory.Contains("13") || stringCategory.ToLower().Contains("int"))
+            {
+                return TaxCategory.Intermediate;
+            }
+            else if (stringCategory.Contains("6") || stringCategory.ToLower().Contains("red"))
+            {
+                return TaxCategory.Reduced;
+            }
+            else if (stringCategory.Contains("0") || stringCategory.ToLower().Contains("na") || stringCategory.ToLower().Contains("nã"))
+            {
+                return TaxCategory.Zero;
+            }
+            else
+            {
+                throw new ArgumentException("Invalid category string");
+            }
+        }
     }
 
     public class Product
@@ -105,8 +230,8 @@ namespace UpRestEye3.Models
         public string ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
-        public float Quantity { get; set; }
-        public decimal Price { get; set; }
+        public float Quantity { get; set; } = 0.0f;
+        public decimal Price { get; set; } = 0.0m;
     }
 
     public class DecimalJsonConverter : JsonConverter<decimal>
@@ -239,4 +364,8 @@ namespace UpRestEye3.Models
             writer.WriteStringValue(value.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture));
         }
     }
+
+
+    
 }
+

@@ -20,12 +20,14 @@ else
         <table class="table">
             <thead style="position: sticky; top: 0; background-color: white; z-index: 1;">
                 <tr>
-                    <th>Upload Time</th> 
-                    <th>Supplier Name</th>
+                    <th>Upload Time</th>
                     <th>Invoice Number</th>
                     <th>Invoice Date</th>
-                    <th>Total Amount (incl. taxes)</th>
-                    <th>Total Amount (excl. taxes)</th>
+                    <th>Supplier Name</th>
+                    <th>Supplier TaxID</th>
+                    <th>Total IVA</th>
+                    <th>Total Amount</th>
+                    <th>Status</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -34,13 +36,21 @@ else
                 {
                     <tr>
                         <td>@invoice.UploadTime.ToString("g")</td> 
-                        <td>@invoice.Supplier.Name</td>
                         <td>@invoice.Info.InvoiceNumber</td>
                         <td>@invoice.Info.InvoiceDate.ToShortDateString()</td>
-                        <td>@invoice.Info.TotalAmountExclTaxes</td>
-                        <td>@invoice.Info.TotalAmountInclTaxes</td>
+                        <td>@invoice.Supplier.Name</td>
+                        <td>@invoice.Supplier.TaxNumber</td>
+                        <td>@invoice.Info.TotalIVA</td>
+                        <td>@invoice.Info.TotalAmount</td>
                         <td>
-                            <button @onclick="() => ShowProducts(invoice.Products)" class="btn btn-info">Show Products</button>
+                            <span class="@GetStatusClass(invoice.Status)">
+                                @invoice.Status.ToString()
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-link" @onclick="() => ShowProducts(invoice.Products)">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
                         </td>
                     </tr>
                 }
@@ -49,10 +59,10 @@ else
     </div>
 }
 
-<div class="d-flex justify-content-between align-items-center p-2 bg-white shadow-sm">
-    <InputFile OnChange="HandleFileSelected" class="form-control-file" />
-    <button @onclick="UploadFile" class="btn btn-primary">Upload File</button>
+<div class="fixed-bottom align-items-right bg-light shadow-sm p-3" >
+    <InputFile onchange="HandleFileSelected" class="round-button" />
 </div>
+
 
 @if (!string.IsNullOrEmpty(uploadMessage))
 {
@@ -124,6 +134,7 @@ else
     {
         selectedFile = e.File;
         Console.WriteLine("File selected: " + selectedFile.Name);
+        UploadFile();
     }
 
     private async Task UploadFile()
@@ -182,5 +193,14 @@ else
     {
         showProductsModal = false;
         selectedProducts = null;
+    }
+    private string GetStatusClass(InvoiceStatus status) // Изменено: Метод для получения CSS-класса статуса
+    {
+        return status switch
+        {
+            InvoiceStatus.Error => "text-danger",
+            InvoiceStatus.SavedToSystem => "text-success",
+            _ => "text-warning",
+        };
     }
 }

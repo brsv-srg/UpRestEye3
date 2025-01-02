@@ -12,7 +12,7 @@ namespace UpRestEye3.Services
     {
         Task<Invoice> GetInvoiceByIdAsync(int id);
         Task<ActionResult<IEnumerable<Invoice>>> GetInvoicesAsync();
-        Task SaveInvoiceAsync(Invoice invoice);
+        Task SaveInvoiceAsync(Invoice invoice, bool isList = false);
         Task SaveInvoicesAsync(List<Invoice> invoices);
         Task<int?> GetOrCreateSupplierIdAsync(SupplierInfo supplier);
         Task<int?> GetOrCreateConsumerIdAsync(ConsumerInfo consumer);
@@ -92,17 +92,26 @@ namespace UpRestEye3.Services
             return consumer.Id;
         }
 
-        public async Task SaveInvoiceAsync(Invoice invoice)
+        public async Task SaveInvoiceAsync(Invoice invoice, bool isList = false )
         {
             invoice.SupplierId = await GetOrCreateSupplierIdAsync(invoice.Supplier);
             invoice.ConsumerId = await GetOrCreateConsumerIdAsync(invoice.Consumer);
-            _context.Invoices.Add(invoice);
-            await _context.SaveChangesAsync();
+            
+            if (invoice.Id == null)
+                _context.Invoices.Add(invoice);
+            else
+                _context.Invoices.Update(invoice);
+
+            if(!isList)
+                await _context.SaveChangesAsync();
         }
 
         public async Task SaveInvoicesAsync(List<Invoice> invoices)
         {
-            _context.Invoices.AddRange(invoices);
+            foreach (var invoice in invoices)
+                await SaveInvoiceAsync(invoice, true);
+
+            //_context.Invoices.AddRange(invoices);
             await _context.SaveChangesAsync();
         }
     }

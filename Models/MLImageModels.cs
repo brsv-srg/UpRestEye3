@@ -34,7 +34,9 @@ namespace UpRestEye3.MLImageModels
         public double medianBlurKernel { get; set; } = 0.0;         // Для медианного фильтра - удаление шумов
         public double convScaleContrast { get; set; } = 0.0;        // Уровень контраста
         public double convScaleBrightness { get; set; } = 0.0;      // Уровень яркости
-        public double adThreshBlock { get; set; } = 0.0;             // Для адаптивной бинаризации
+        public double sharpLevel { get; set; } = 0.0;               // Уровень резкости (новое)
+        public double adThreshBlock { get; set; } = 0.0;            // Для адаптивной бинаризации
+        public double adThreshC { get; set; } = 0.0;                // Для адаптивной бинаризации
         public double cannyThreshold1 { get; set; } = 0.0;          // Для обнаружения линий, нижняя граница, для QR 80
         public double cannyThreshold2 { get; set; } = 0.0;          // Для обнаружения линий, верхняя граница, для QR 160
         public double sharpWeightA { get; set; } = 0.0;              // Вес резкости альфа
@@ -46,7 +48,9 @@ namespace UpRestEye3.MLImageModels
             return medianBlurKernel != 0 ||
                     convScaleContrast != 0.0 ||
                     convScaleBrightness != 0.0 ||
+                    sharpLevel != 0.0 ||
                     adThreshBlock != 0.0 ||
+                    adThreshC != 0.0 ||
                     cannyThreshold1 != 0.0 ||
                     cannyThreshold2 != 0.0 ||
                     sharpWeightA !=0.0 ||
@@ -58,11 +62,26 @@ namespace UpRestEye3.MLImageModels
             medianBlurKernel = 0.0;
             convScaleContrast = 0.0;
             convScaleBrightness = 0.0;
+            sharpLevel = 0.0;
             adThreshBlock = 0.0;
+            adThreshC = 0.0;
             cannyThreshold1 = 0.0;
             cannyThreshold2 = 0.0;
             sharpWeightA = 0.0;
             sharpWeightB = 0.0;
+        }
+        public void SetMedium()
+        {
+            medianBlurKernel = 1;
+            convScaleContrast = 1.2;
+            convScaleBrightness = 10.0;
+            sharpLevel = 1.0;
+            adThreshBlock = 0;
+            adThreshC = 0;
+            cannyThreshold1 = 0;
+            cannyThreshold2 = 0;
+            sharpWeightA = 0;
+            sharpWeightB = 0;
         }
     }
 

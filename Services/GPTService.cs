@@ -32,6 +32,7 @@ namespace UpRestEye3.Services
         public async Task<Invoice> ParseReceiptWithLLM(RecognizedDocument invoiceText)
         {
             // URL API OpenAI
+            // TODO Убрать в параметры, а поставщика доставать из QR кода и добавлять в запрос
             string url = "https://api.openai.com/v1/chat/completions";
             var env = new GPTEnvironment(ConsumerName: "Figueiredo", ConsumerNIF: "515409723");
 
@@ -42,8 +43,8 @@ namespace UpRestEye3.Services
                 messages = new object[]
                 {
                     new { role = "system", content = env.GetSystemPrompt() },
-                    new { role = "user", content = $@"Extract structured data from this receipt: {env.GetTestRequestPrompt()}" } //System.Text.Json.JsonSerializer.Serialize(invoiceText)}"}
-                },
+                    new { role = "user", content = $@"Extract structured data from this receipt: { JsonSerializer.Serialize(invoiceText)}"} // env.GetTestRequestPrompt()}" }
+            },
                 response_format = new
                 {
                     type = "json_schema",
