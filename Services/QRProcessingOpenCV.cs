@@ -191,68 +191,126 @@ namespace UpRestEye3.Services
 
         public Bitmap ApplyImageProcessing2(Bitmap sourceImage, string imagePath, ImageProcessingParameters parameters)
         {
-            using Mat matImage = BitmapConverter.ToMat(sourceImage);
-            Mat resultImage = matImage;
+            //using Mat matImage = BitmapConverter.ToMat(sourceImage);
+            Mat resultImage = null;  //matImage;
+
+            var decoder1 = new QRRecognitionOpenCV ();
+            var decoder2 = new QRRecognitionZXing();
 
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             ///*****************************************************************************************************************************///
             ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-            Cv2.Resize(resultImage, resultImage, new OpenCvSharp.Size(0, 0), fx: 1.2, fy: 1.2, interpolation: InterpolationFlags.Cubic);
-            SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"-test-Resize");
-
-            Cv2.Dilate(resultImage, resultImage, new Mat(), new OpenCvSharp.Point(-1, -1), iterations: 1);
-            SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"-test-Dilate");
-
-            Cv2.Erode(resultImage, resultImage, new Mat(), new OpenCvSharp.Point(-1, -1), iterations: 1);
-            SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"-test-Erode");
-
+            for (int i = 0; 1 < 10; i++)
             {
-                Mat mat1 = new Mat();
-                Cv2.GaussianBlur(resultImage, mat1, new OpenCvSharp.Size(5, 5), 0);
-                SaveImage(BitmapConverter.ToBitmap(mat1), imagePath, $@"-test11-GaussianBlur");
-                Cv2.Threshold(mat1, mat1, 0, 255, ThresholdTypes.Otsu);
-                SaveImage(BitmapConverter.ToBitmap(mat1), imagePath, $@"-test11-Threshold");
-            }
+                resultImage = BitmapConverter.ToMat(sourceImage);
 
-            {
-                Mat mat2 = new Mat();
-                Cv2.BilateralFilter(resultImage, mat2, 5, 75,75);
-                SaveImage(BitmapConverter.ToBitmap(mat2), imagePath, $@"-test12-BilateralFilter");
-                Cv2.Threshold(mat2, mat2, 0, 255, ThresholdTypes.Otsu);
-                SaveImage(BitmapConverter.ToBitmap(mat2), imagePath, $@"-test12-Threshold");
-            }
+                Cv2.Resize(resultImage, resultImage, new OpenCvSharp.Size(0, 0), fx: 1.2, fy: 1.2, interpolation: InterpolationFlags.Cubic);
+                SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"resize-{i}");
+                
 
-            {
-                Mat mat3 = new Mat();
-                Cv2.MedianBlur(resultImage, mat3, 3);
-                SaveImage(BitmapConverter.ToBitmap(mat3), imagePath, $@"-test13-MedianBlur");
-                Cv2.Threshold(mat3, mat3, 0, 255, ThresholdTypes.Otsu);
-                SaveImage(BitmapConverter.ToBitmap(mat3), imagePath, $@"-test13-Threshold");
-            }
-            //////////////////////////////////////////////////////////////////////////////////////////////////
-            {
-                Mat mat1 = new Mat();
-                Cv2.GaussianBlur(resultImage, mat1, new OpenCvSharp.Size(5, 5), 0);
-                SaveImage(BitmapConverter.ToBitmap(mat1), imagePath, $@"-test21-GaussianBlur");
-                Cv2.AdaptiveThreshold(mat1, mat1, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, 31, 2);
-                SaveImage(BitmapConverter.ToBitmap(mat1), imagePath, $@"-test21-AdaptiveThreshold");
-            }
+                // яркость и контраст
+                parameters.convScaleContrast = 1.2;
+                parameters.convScaleBrightness = 10.0;
+                Cv2.ConvertScaleAbs(resultImage, resultImage, alpha: parameters.convScaleContrast, beta: parameters.convScaleBrightness); //+ Контраст и Яркость
 
-            {
-                Mat mat2 = new Mat();
-                Cv2.BilateralFilter(resultImage, mat2, 5, 75, 75);
-                SaveImage(BitmapConverter.ToBitmap(mat2), imagePath, $@"-test2-BilateralFilter");
-                Cv2.AdaptiveThreshold(mat2, mat2, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, 31, 2);
-                SaveImage(BitmapConverter.ToBitmap(mat2), imagePath, $@"-test22-AdaptiveThreshold");
-            }
+                var qrcode = decoder1.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode == null)
+                    qrcode = decoder2.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode != null)
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"bright-OK-{i}"); 
+                else
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"bright-{i}"); 
 
-            {
-                Mat mat3 = new Mat();
-                Cv2.MedianBlur(resultImage, mat3, 3);
-                SaveImage(BitmapConverter.ToBitmap(mat3), imagePath, $@"-test3-MedianBlur");
-                Cv2.AdaptiveThreshold(mat3, mat3, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, 31, 2);
-                SaveImage(BitmapConverter.ToBitmap(mat3), imagePath, $@"-test23-AdaptiveThreshold");
+                // Удаление шума
+                parameters.medianBlurKernel = 3;
+                Cv2.FastNlMeansDenoising(resultImage, resultImage, (int)parameters.medianBlurKernel); //+ 
+
+                qrcode = decoder1.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode == null)
+                    qrcode = decoder2.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode != null)
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"denoise-OK-{i}");
+                else
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"denoise-{i}");
+
+
+                // Повышение резкости 
+                float centerValue_ = 9.0f;    // (float) parameters.sharpLevel;
+                float surroundValue_ = -1;   // -centerValue / 8.0f;
+
+                using var kernel_ = new Mat();
+                float[,] data_ = new float[,]
+                {
+                { surroundValue_, surroundValue_, surroundValue_ },
+                { surroundValue_,  centerValue_,  surroundValue_ },
+                { surroundValue_, surroundValue_, surroundValue_ }
+                };
+                kernel_.Create(new OpenCvSharp.Size(3, 3), MatType.CV_32F);
+                Marshal.Copy(data_.Cast<float>().ToArray(), 0, kernel_.Data, 9);
+                Cv2.Filter2D(resultImage, resultImage, -1, kernel_, new OpenCvSharp.Point(-1, -1));
+
+                qrcode = decoder1.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode == null)
+                    qrcode = decoder2.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode != null)
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"sharp-OK-{i}");
+                else
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"sharp-{i}");
+
+
+                // Удаление шума
+                Cv2.FastNlMeansDenoising(resultImage, resultImage, (int)parameters.medianBlurKernel); //+ 
+
+                qrcode = decoder1.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode == null)
+                    qrcode = decoder2.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode != null)
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"denoise2-OK-{i}");
+                else
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"denoise2-{i}");
+                
+
+                // Небольшое размытие
+                //Cv2.MedianBlur(resultImage, resultImage, (int)parameters.medianBlurKernel);
+                
+
+
+                
+                using Mat kernel2 = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(3, 3));
+                Cv2.MorphologyEx(resultImage, resultImage, MorphTypes.Open, kernel2); 
+                qrcode = decoder1.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode == null)
+                    qrcode = decoder2.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode != null)
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"morphOpen-OK-{i}");
+                else
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"morphOpen-{i}");
+
+                using Mat kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(3, 3));
+                Cv2.MorphologyEx(resultImage, resultImage, MorphTypes.Close, kernel);
+                qrcode = decoder1.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode == null)
+                    qrcode = decoder2.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode != null)
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"morphClose-OK-{i}");
+                else
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"morphClose-{i}");
+
+                
+                // Бинаризация
+                parameters.adThreshBlock = 127;
+                Cv2.Threshold(resultImage, resultImage, parameters.adThreshBlock, 255, ThresholdTypes.Tozero | ThresholdTypes.Otsu);
+                //Cv2.Threshold(resultImage, resultImage, 0, 255, ThresholdTypes.Binary | ThresholdTypes.Otsu);
+
+                qrcode = decoder1.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode == null)
+                    qrcode = decoder2.DecodeQRCode(BitmapConverter.ToBitmap(resultImage));
+                if (qrcode != null)
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"threshold-OK-{i}");
+                else
+                    SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"threshold-{i}");
+
+
             }
 
             return BitmapConverter.ToBitmap(resultImage);
@@ -269,7 +327,6 @@ namespace UpRestEye3.Services
                 Mat enhanced = new Mat();
                 Cv2.ConvertScaleAbs(resultImage, enhanced, alpha: parameters.convScaleContrast, beta: parameters.convScaleBrightness); //+ Контраст и Яркость
                 resultImage = enhanced;
-
 
                 SaveImage(BitmapConverter.ToBitmap(resultImage), imagePath, $@"-bright");
             }
