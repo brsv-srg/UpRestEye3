@@ -1,13 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System.IO;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using UpRestEye3.Data;
-using UpRestEye3.Models;
-using Microsoft.Extensions.DependencyInjection;
-using System;
-using UpRestEye3.Controllers;
-using UpRestEye3.Components.Pages;
 using UpRestEye3.Services;
 
 

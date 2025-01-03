@@ -35,8 +35,12 @@ namespace UpRestEye3.Services
                     throw new Exception("Failed to load image.");
 
                 // Шаг 1. Распознование QR-кода "в лоб" и с помощью предсказания
-                var qrCode = await _imageProcessor.BasicQRRecognitionAsync(image, filePath);
-
+                var (qrCode, basicProcessedImage) = await _imageProcessor.BasicQRRecognitionAsync(image, filePath);
+                if (basicProcessedImage != null)
+                { 
+                    image.Dispose();
+                    image = basicProcessedImage;
+                }
 
                 // Шаг 2. Сохранение предварительной накладной в базу данных
                 var basicInvoice = new Invoice(qrCode, filePath);
@@ -45,7 +49,7 @@ namespace UpRestEye3.Services
                 // TODO сделать в отдельном потоке
 
                 // Шаг 3. Распознавание QR-кода через подбор вариантов преобразований и обучение модели
-                var deepQRCode = await _imageProcessor.DeepQRRecognitionAsync(image, filePath);
+                var (deepQRCode, deepProcessedImage) = await _imageProcessor.DeepQRRecognitionAsync(image, filePath);
                 if (deepQRCode != null)
                 {
                     // Внесение изменений в существующую накладную
@@ -53,7 +57,11 @@ namespace UpRestEye3.Services
                     // Сохранение изменений в базу данных
                     await _invoiceService.SaveInvoiceAsync(basicInvoice);
                 }
-
+                if (deepProcessedImage != null)
+                {
+                    image.Dispose();
+                    image = deepProcessedImage;
+                }
 
                 // Шаг 3. Распознование текста и формирование полной накладной  
                 var fullInvoice = await _imageProcessor.DeepTextRecognitionAsync(image, filePath);

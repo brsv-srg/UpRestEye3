@@ -1,16 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations.Schema;
-using System;
-using System.Collections.Generic;
-using ZXing.QrCode.Internal;
-using Google.Api;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text;
-using static Google.Cloud.Vision.V1.TextAnnotation.Types;
 using System.Globalization;
-using OpenCvSharp;
-using Tensorflow;
 
 
 namespace UpRestEye3.Models

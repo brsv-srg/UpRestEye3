@@ -1,19 +1,7 @@
-﻿using System.Net.Http;
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text;
-using System.Threading.Tasks;
-using UpRestEye3.MLImageModels;
-using Google.Cloud.Vision.V1;
-using Microsoft.VisualBasic;
-using System.Buffers.Text;
-using System.Data;
-using System.IO.Pipelines;
-using System.Text.RegularExpressions;
 using UpRestEye3.Models;
-using System.Text.Json.Serialization;
-using System.Text.Json.Nodes;
-using Newtonsoft.Json.Schema;
 
 namespace UpRestEye3.Services
 {

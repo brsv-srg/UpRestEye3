@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using UpRestEye3.Data;
 using UpRestEye3.Models;
 using UpRestEye3.Services;
-using UpRestEye3.Components.Pages;
 
 namespace UpRestEye3.Controllers
 {

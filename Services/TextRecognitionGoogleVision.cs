@@ -1,13 +1,7 @@
 ﻿using Google.Cloud.Vision.V1;
-using Newtonsoft.Json;
-using OpenCvSharp;
-using SkiaSharp;
-using System;
 using System.Drawing;
-using System.Net.Http;
 using System.Text;
 using UpRestEye3.Models;
-using UpRestEye3.Services;
 
 
 namespace UpRestEye3.Services

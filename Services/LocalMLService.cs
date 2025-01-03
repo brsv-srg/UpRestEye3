@@ -1,17 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using OpenCvSharp;
-using System.Data;
-using OpenCvSharp;
-using Microsoft.ML;
-using System;
-using System.Configuration;
-using System.Collections.Generic;
-using UpRestEye3.MLImageModels;
-using System.Linq;
-using static UpRestEye3.Services.LocalMLService;
-using Tensorflow;
+﻿using Microsoft.ML;
 using Microsoft.ML.Data;
-using Google.Api;
+using UpRestEye3.Models;
 
 
 namespace UpRestEye3.Services
@@ -19,10 +8,8 @@ namespace UpRestEye3.Services
     // Интерфейс сервиса по работе с ML
     public interface ILocalMLService
     {
-        void UpdateModel(ImageDigest digest, ImageProcessingParameters parameters);
-        ImageProcessingParameters Predict(ImageDigest digest);
-        ImageProcessingParameters GetProbable(ImageDigest digest);
-
+        void UpdateModel(ImageDigest digest, ImageProcessingPipeline parameters);
+        ImageProcessingPipeline Predict(ImageDigest digest);
     }
 
     //Класс создает и обучает модель машинного обучения
@@ -57,7 +44,7 @@ namespace UpRestEye3.Services
 
 
         // Дообучение на новых данных
-        public void UpdateModel(ImageDigest digest, ImageProcessingParameters parameters)
+        public void UpdateModel(ImageDigest digest, ImageProcessingPipeline parameters)
         {
             try
             {
@@ -67,6 +54,7 @@ namespace UpRestEye3.Services
                     // Создание новой записи для обновления
                     switch (_label)
                     {
+                    /*
                         case nameof(ImageProcessingParameters.medianBlurKernel):
                             imageForUpdate.paramValue = (float)parameters.medianBlurKernel;
                             break;
@@ -91,6 +79,8 @@ namespace UpRestEye3.Services
                    case nameof(ImageProcessingParameters.sharpWeightB):
                             imageForUpdate.paramValue = (float)parameters.sharpWeightB;
                             break;
+
+                            */
                     }
                    
                     // Добавление новых данных
@@ -129,11 +119,11 @@ namespace UpRestEye3.Services
 
 
         // Прогнозирование
-        public ImageProcessingParameters Predict(ImageDigest digest)
+        public ImageProcessingPipeline Predict(ImageDigest digest)
         {
             try
             {
-                var prediction = new ImageProcessingParameters();
+                var prediction = new ImageProcessingPipeline();
 
                 foreach (var _label in _labels)
                 {
@@ -145,7 +135,7 @@ namespace UpRestEye3.Services
                     // Запись результата предсказания в соответствующее свойство
                     switch (_label)
                     {
-                        case nameof(ImageProcessingParameters.medianBlurKernel):
+                        /*case nameof(ImageProcessingParameters.medianBlurKernel):
                             prediction.medianBlurKernel = predictedValue;
                             break;
                         case nameof(ImageProcessingParameters.convScaleContrast):
@@ -169,6 +159,7 @@ namespace UpRestEye3.Services
                         case nameof(ImageProcessingParameters.sharpWeightB):
                             prediction.sharpWeightB = predictedValue;
                             break;
+                        */
                     }
                 }
 
@@ -183,87 +174,7 @@ namespace UpRestEye3.Services
             }
         }
         // Прогнозирование
-        public ImageProcessingParameters GetProbable(ImageDigest digest)
-        {
-            try
-            {
-                var prediction = new ImageProcessingParameters();
-
-
-                // Адаптивная коррекция яркости и контраста
-                //if (metrics.Brightness < 100)
-                //{
-                //    convScaleContrast 1.2, convScaleBrightness 10
-                //}
-                //else if (metrics.Brightness > 200)
-                //{
-                //    convScaleContrast 0.8, convScaleBrightness - 10
-                //}
-
-
-                // Вычисляем параметры на основе метрик
-                prediction.convScaleContrast = 1.0;         // начальное значение для контраста
-                prediction.convScaleBrightness = 0.0;       // начальное значение для яркости
-
-                // Настройка для темных изображений
-                if (digest.brightness < 100)
-                {
-                    // Плавная настройка alpha от 1.0 до 1.4
-                    prediction.convScaleContrast = 1.0 + ((100 - digest.brightness) / 100.0) * 0.4;
-                    // Плавная настройка beta от 0 до 30
-                    prediction.convScaleBrightness = ((100 - digest.brightness) / 100.0) * 30;
-                }
-                // Настройка для светлых изображений
-                else if (digest.brightness > 200)
-                {
-                    // Плавная настройка alpha от 1.0 до 0.6
-                    prediction.convScaleContrast = 1.0 - ((digest.brightness - 200) / 55.0) * 0.4;
-                    // Плавная настройка beta от 0 до -30
-                    prediction.convScaleBrightness = -((digest.brightness - 200) / 55.0) * 30;
-                }
-
-                // Учитываем контраст
-                if (digest.contrast < 30)
-                {
-                    // Увеличиваем alpha для повышения контраста
-                    prediction.convScaleContrast *= 1.2;
-                }
-
-
-
-                // Адаптивное шумоподавление
-                 if (digest.noiseLevel > 10) 
-                    prediction.medianBlurKernel = (int)(digest.noiseLevel / 2);
-
-                // Адаптивное усиление резкости в зависимости от уровня размытия
-                if (digest.sharpness < 10)
-                    prediction.sharpLevel = 1.0;
-                else
-                    prediction.sharpLevel = 1 + (digest.sharpness / 10.0);
-
-
-                // Адаптивная бинаризация
-                // adThreshBlock = metrics.Contrast < 30 ? 15 : 11;
-                // double C = metrics.Contrast < 30 ? 4 : 2;
-
-                // Адаптивная настройка размера блока
-                prediction.adThreshBlock = Math.Max(3, Math.Min(19, (int)(11 + (30 - digest.contrast) / 2)));
-                prediction.adThreshBlock += (prediction.adThreshBlock % 2 == 0) ? 1 : 0; // Убеждаемся что нечетное
-
-                // Адаптивная настройка константы C
-                prediction.adThreshC = Math.Max(1, Math.Min(5, 2 + (30 - digest.contrast) / 10));
-
-
-                return prediction;
-            }
-            catch (Exception ex)
-            {
-                // Log the exception (you can replace this with your logging mechanism)
-                Console.WriteLine($"An error occurred during prediction: {ex.Message}");
-                // Return default or null to indicate failure
-                return null;
-            }
-        }
+        
 
         // Загрузка существующей модели и данных
         private void LoadDataAndModel()

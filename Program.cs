@@ -30,6 +30,7 @@ builder.Services.AddScoped<IQRRecognition, QRRecognitionOpenCV>();
 builder.Services.AddScoped<IQRRecognition, QRRecognitionZXing>();
 builder.Services.AddScoped<ITextRecognition, TextRecognitionGoogleVision>();
 builder.Services.AddScoped<IGPTService, GPTService>();
+builder.Services.AddScoped<IImageProcessingPipelineHelper, ImageProcessingPipelineHelper>();
 
 // Настройка параметров формы для обработки больших файлов
 builder.Services.Configure<FormOptions>(options =>

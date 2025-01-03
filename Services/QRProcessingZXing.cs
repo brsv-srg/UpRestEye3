@@ -1,27 +1,12 @@
 ﻿using System.Drawing;
-using System.IO;
-using System.Threading.Tasks;
-using UpRestEye3.Models;
 using System.Runtime.Versioning;
-using static System.Net.Mime.MediaTypeNames;
-using Microsoft.AspNetCore.Http;
 using System.Drawing.Imaging;
 using AForge.Imaging.Filters;
 using OpenCvSharp;
-using OpenCvSharp.Extensions;
 using ZXing;
-using ZXing.QrCode;
-using ZXing.Rendering;
 using ZXing.Windows.Compatibility;
-using ZXing.QrCode.Internal;
-using Microsoft.AspNetCore.Http.HttpResults;
-using System;
 using ZXing.Common;
-using System.Text.RegularExpressions;
-using System.Reflection.PortableExecutable;
-using OpenCvSharp.XImgProc;
-using ImageMagick;
-using AForge.Imaging;
+using UpRestEye3.Models;
 
 
 namespace UpRestEye3.Services

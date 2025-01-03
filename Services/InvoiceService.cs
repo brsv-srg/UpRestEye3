@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using UpRestEye3.Data;
 using UpRestEye3.Models;
-using static UpRestEye3.Models.Invoice;
 
 namespace UpRestEye3.Services
 {
