@@ -36,6 +36,7 @@ namespace UpRestEye3.Services
             _pipelineHelper = pipelineHelper;
         }
 
+        // TODO сделать дополнитьельный суфикс к имени сохраняемого файла, чтобы отслеживать откуда запущена обработка
         public async Task<(QRCodeData?, Bitmap?)> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath)
         {
             Bitmap? resultImage = null;
@@ -48,7 +49,7 @@ namespace UpRestEye3.Services
 
             // Шаг 3. Обработка по пайплайну от модели
             var predictedPipeline = _predictor.Predict(digest);
-            if (predictedPipeline != null)
+            if (predictedPipeline != null && predictedPipeline.Any())
             {
                 var processedImagePred = _qrProcessor.ApplyImageProcessing(sourceImage, predictedPipeline, imagePath);
                 if (TryDecodeQRCode(processedImagePred, out qrCodeData))
@@ -68,7 +69,7 @@ namespace UpRestEye3.Services
             }
 
             // Шаг 5. На всякий случай пробумем по дефолтному пайплайну на основе умолчательного конструктора
-            var defaultPipeline = new ImageProcessingPipeline();
+            var defaultPipeline = _pipelineHelper.GetDefaultPipeline();
             var processedImageDef = _qrProcessor.ApplyImageProcessing(sourceImage, defaultPipeline, imagePath);
             if (TryDecodeQRCode(processedImageDef, out qrCodeData))
             { 
@@ -84,15 +85,15 @@ namespace UpRestEye3.Services
             var digest = _qrProcessor.GenerateImageDigest(sourceImage);
 
             // Шаг 2. Создание набора пайплайнов на все случаи жизни 
-            var pipelines = _pipelineHelper.BuildPipelines();
+            var pipelines = _pipelineHelper.GetPipelines();
             
             // Шаг 3. Обработка всех вариантов в цикле
             foreach (var pipeline in pipelines)
             {
-                var processedImage = _qrProcessor.ApplyImageProcessing(sourceImage, pipeline, imagePath);
+                var processedImage = _qrProcessor.ApplyImageProcessing(sourceImage, pipeline.Item2, imagePath);
                 if (TryDecodeQRCode(processedImage, out QRCodeData? qrCodeData))
                 {
-                    _predictor.UpdateModel(digest, pipeline); // Обучение модели
+                    _predictor.UpdateModel(digest, pipeline.Item2); // Обучение модели
                     return (qrCodeData, processedImage);
                 }
             }

@@ -1,4 +1,6 @@
 ﻿
+using Google.Protobuf.WellKnownTypes;
+
 namespace UpRestEye3.Models
 {
     public class ImageDigest
@@ -7,7 +9,30 @@ namespace UpRestEye3.Models
         public float contrast { get; set; }        // Уровень контраста
         public float noiseLevel { get; set; }      // Уровень шума
         public float sharpness { get; set; }       // Уровень резкости
-        public float aspectRatio { get; set; }      // Соотношение сторон
+        public float aspectRatio { get; set; }     // Соотношение сторон
+        public ImageType imageType { get; set; }   // Тип изображения
+        public ImageDigest()
+        {
+            brightness = 0;
+            contrast = 0;
+            noiseLevel = 0;
+            sharpness = 0;
+            aspectRatio = 0;
+            imageType = ImageType.Clean;
+        }
+
+        [Flags]
+        public enum ImageType
+        {
+            Dark = 1,
+            Light = 2,
+            Contrast = 4,
+            UnContrast = 8,
+            Blurred = 16,
+            Focused = 32,
+            Noisy = 64,
+            Clean = 128
+        }
 
     }
 
@@ -117,8 +142,8 @@ namespace UpRestEye3.Models
     // выстраиваем конвейер обработки изображения
     // 0. Оттенки серого: CvtColor
     // 1. Изменение размера: Resize
-    // 2. Удаление шумов: GaussianBlur / MedianBlur / FastNlMeansDenoising
-    // 3. Увеличение контраста и яркости: ConvertScaleAbs
+    // 2. Увеличение контраста и яркости: ConvertScaleAbs
+    // 3. Удаление шумов: GaussianBlur / MedianBlur / FastNlMeansDenoising
     // 4. Повышение резкости: Filter2D / Laplacian
     // 5. Бинаризация: Threshold / AdaptiveThreshold
     // 6. Удаление шумов: GaussianBlur / MedianBlur / FastNlMeansDenoising
@@ -126,14 +151,25 @@ namespace UpRestEye3.Models
     {
         public ImageProcessingStage Grayscale { get; set; } = new ImageProcessingStage();
         public ImageProcessingStage Resize { get; set; } = new ImageProcessingStage();
-        public ImageProcessingStage NoiseRemoval { get; set; } = new ImageProcessingStage();
         public ImageProcessingStage ContrastBrightnessAdjustment { get; set; } = new ImageProcessingStage();
+        public ImageProcessingStage NoiseRemoval { get; set; } = new ImageProcessingStage();
         public ImageProcessingStage Sharpening { get; set; } = new ImageProcessingStage();
         public ImageProcessingStage Binarization { get; set; } = new ImageProcessingStage();
         public ImageProcessingStage FinalNoiseRemoval { get; set; } = new ImageProcessingStage();
 
         public ImageProcessingPipeline()
         {
+        }
+
+        public bool Any()
+        {
+            return Grayscale.Execute || 
+                    Resize.Execute || 
+                    ContrastBrightnessAdjustment.Execute || 
+                    NoiseRemoval.Execute || 
+                    Sharpening.Execute || 
+                    Binarization.Execute || 
+                    FinalNoiseRemoval.Execute;
         }
     }
     public class CvtColorStage : ImageProcessingStage

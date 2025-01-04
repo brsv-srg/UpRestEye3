@@ -117,7 +117,7 @@ namespace UpRestEye3.Services
             }
         }
 
-
+        // TODO сделать модели нормальными
         // Прогнозирование
         public ImageProcessingPipeline Predict(ImageDigest digest)
         {
@@ -162,6 +162,7 @@ namespace UpRestEye3.Services
                         */
                     }
                 }
+
 
                 return prediction;
             }

@@ -45,8 +45,17 @@ namespace UpRestEye3.Models
         {
             if (qrCode != null)
             {
-                Supplier.Name = qrCode.SupplierTaxNumber;
-                Supplier.TaxNumber = qrCode.SupplierTaxNumber;
+                if (Consumer.TaxNumber != qrCode.CustomerTaxNumber)
+                {
+                    Consumer.TaxNumber = qrCode.CustomerTaxNumber;
+                    Consumer.Id = null;
+                }
+
+                if (Supplier.TaxNumber != qrCode.SupplierTaxNumber)
+                {
+                    Supplier.TaxNumber = qrCode.SupplierTaxNumber;
+                    Supplier.Id = null;
+                }
 
                 Info.InvoiceNumber = qrCode.DocNumber;
                 Info.InvoiceDate = qrCode.DocDate;

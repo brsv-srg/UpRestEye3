@@ -25,52 +25,67 @@ namespace UpRestEye3.Services
             _imageProcessor = imageProcessor;
         }
 
+
+// TODO сделать в отдельном потоке
         public async Task<bool> FileProcessAsync(string filePath)
         {
             try
             {
-                // Шаг 0. Загрузка изображения
+                // Загрузка изображения
                 var image = new Bitmap(filePath);
                 if (image == null)
                     throw new Exception("Failed to load image.");
 
-                // Шаг 1. Распознование QR-кода "в лоб" и с помощью предсказания
-                var (qrCode, basicProcessedImage) = await _imageProcessor.BasicQRRecognitionAsync(image, filePath);
-                if (basicProcessedImage != null)
-                { 
-                    image.Dispose();
-                    image = basicProcessedImage;
-                }
+                // Сохранение пустой накладной в базу данных
+                var newInvoice = new Invoice(null, filePath);
+                await _invoiceService.SaveInvoiceAsync(newInvoice);
+                
+                
+                // Распознование QR-кода "в лоб" и с помощью предсказания
+                var (basicQRCode, basicProcessedImage) = await _imageProcessor.BasicQRRecognitionAsync(image, filePath);
 
-                // Шаг 2. Сохранение предварительной накладной в базу данных
-                var basicInvoice = new Invoice(qrCode, filePath);
-                await _invoiceService.SaveInvoiceAsync(basicInvoice);
-
-                // TODO сделать в отдельном потоке
-
-                // Шаг 3. Распознавание QR-кода через подбор вариантов преобразований и обучение модели
-                var (deepQRCode, deepProcessedImage) = await _imageProcessor.DeepQRRecognitionAsync(image, filePath);
-                if (deepQRCode != null)
+                
+                if (basicQRCode != null)
                 {
-                    // Внесение изменений в существующую накладную
-                    basicInvoice.Update(deepQRCode, filePath);
-                    // Сохранение изменений в базу данных
-                    await _invoiceService.SaveInvoiceAsync(basicInvoice);
+                    // Если QR-код распознан, сохраняем изменения и идем на распознавание текста
+
+                    // Внесение изменений в существующую накладную и схранение изменений в базу данных
+                    newInvoice.Update(basicQRCode, filePath);
+                    await _invoiceService.SaveInvoiceAsync(newInvoice);
+
+                    // Если есть улучшенное изображение берем его
+                    if (basicProcessedImage != null)
+                    {
+                        image.Dispose();
+                        image = basicProcessedImage;
+                    }
                 }
-                if (deepProcessedImage != null)
+                else
                 {
-                    image.Dispose();
-                    image = deepProcessedImage;
+                    // Если QR-код в лоб и с предсказанием не распознан, идем на распознавание через подбор вариантов
+                    var (deepQRCode, deepProcessedImage) = await _imageProcessor.DeepQRRecognitionAsync(image, filePath);
+                    if (deepQRCode != null)
+                    {
+                        // Внесение изменений в существующую накладную и сохранение изменений в базу данных
+                        newInvoice.Update(deepQRCode, filePath);
+                        await _invoiceService.SaveInvoiceAsync(newInvoice);
+
+                        // Если есть улучшенное изображение берем его
+                        if (deepProcessedImage != null)
+                        {
+                            image.Dispose();
+                            image = deepProcessedImage;
+                        }
+                    }
                 }
 
-                // Шаг 3. Распознование текста и формирование полной накладной  
+                // Распознование текста и формирование полной накладной  
                 var fullInvoice = await _imageProcessor.DeepTextRecognitionAsync(image, filePath);
-                // Обработка результатов выполнения
+                // Если текст распознан, то сохраняем полный документ
                 if (fullInvoice != null)
                 {
-                    // Внесение изменений в существующую накладную
-                    basicInvoice.Update(fullInvoice);
-                    // СОхранение изменений в базу данных
+                    // Внесение изменений в существующую накладную и сохранение изменений в базу данных
+                    newInvoice.Update(fullInvoice);
                     await _invoiceService.SaveInvoiceAsync(fullInvoice);
                 }
                 return true;

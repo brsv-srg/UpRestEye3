@@ -1,307 +1,107 @@
-﻿using System.Collections.Generic;
+﻿using OpenCvSharp;
+using System.Collections.Generic;
 using System.Drawing;
+using Tensorflow;
 using UpRestEye3.Models;
 
 namespace UpRestEye3.Services
 {
     public interface IImageProcessingPipelineHelper
     {
-        List<ImageProcessingPipeline> BuildPipelines();
+        List<(ImageDigest.ImageType, ImageProcessingPipeline)> GetPipelines();
         ImageProcessingPipeline GetCalculatedPipeline(ImageDigest digest);
+        ImageProcessingPipeline GetDefaultPipeline();
     }
 
     // Класс обработки изображения
-    public class ImageProcessingPipelineHelper: IImageProcessingPipelineHelper
+    public class ImageProcessingPipelineHelper : IImageProcessingPipelineHelper
     {
-        ImageProcessingPipelineHelper()
+        private readonly List<(ImageDigest.ImageType, ImageProcessingPipeline)> _pipelines;
+
+        public ImageProcessingPipelineHelper()
         {
+            _pipelines = new List<(ImageDigest.ImageType, ImageProcessingPipeline)>();
+            BuildPipelines();
         }
 
-        public List<ImageProcessingPipeline> BuildPipelines()
-        {
-            var pipelines = new List<ImageProcessingPipeline>();
 
+        // TODO сделать множество пайплайнов
+        private void BuildPipelines()
+        {
             // Темное + в фокусе
-            pipelines.Add(new ImageProcessingPipeline
+            var darkFocusedPipeline = new ImageProcessingPipeline
             {
                 Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                NoiseRemoval = new MedianBlurStage(5),
+                Resize = new ResizeStage(1.2, 1.2),
                 ContrastBrightnessAdjustment = new ConvertScaleAbsStage(1.5, 50),
+                NoiseRemoval = new MedianBlurStage(5),
                 Sharpening = new Filter2DStage(-1, 1.0),
                 Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
                 FinalNoiseRemoval = new GaussianBlurStage(5, 1.5)
-            });
+            };
+            _pipelines.Add((ImageDigest.ImageType.Dark | ImageDigest.ImageType.Focused, darkFocusedPipeline));
 
             // Темное + в фокусе + чистое
-            pipelines.Add(new ImageProcessingPipeline
+            var darkFocusedCleanPipeline = new ImageProcessingPipeline
             {
                 Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
+                Resize = new ResizeStage(1.2, 1.2),
                 ContrastBrightnessAdjustment = new ConvertScaleAbsStage(1.2, 30),
                 Sharpening = new Filter2DStage(-1, 0.7),
                 Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2)
-            });
+            };
+            _pipelines.Add((ImageDigest.ImageType.Dark | ImageDigest.ImageType.Focused | ImageDigest.ImageType.Clean, darkFocusedCleanPipeline));
 
             // Светлое + в фокусе
-            pipelines.Add(new ImageProcessingPipeline
+            var lightFocusedPipeline = new ImageProcessingPipeline
             {
                 Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                NoiseRemoval = new MedianBlurStage(5),
+                Resize = new ResizeStage(1.2, 1.2),
                 ContrastBrightnessAdjustment = new ConvertScaleAbsStage(0.8, -30),
+                NoiseRemoval = new MedianBlurStage(5),
                 Sharpening = new Filter2DStage(-1, 1.0),
                 Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
                 FinalNoiseRemoval = new GaussianBlurStage(5, 1.5)
-            });
+            };
+            _pipelines.Add((ImageDigest.ImageType.Light | ImageDigest.ImageType.Focused, lightFocusedPipeline));
 
             // Светлое + в фокусе + чистое
-            pipelines.Add(new ImageProcessingPipeline
+            var lightFocusedCleanPipeline = new ImageProcessingPipeline
             {
                 Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
+                Resize = new ResizeStage(1.2, 1.2),
                 ContrastBrightnessAdjustment = new ConvertScaleAbsStage(1.0, -10),
                 Sharpening = new Filter2DStage(-1, 0.7),
                 Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2)
-            });
+            };
+            _pipelines.Add((ImageDigest.ImageType.Light | ImageDigest.ImageType.Focused | ImageDigest.ImageType.Clean, lightFocusedCleanPipeline));
 
-            // Темное + в расфокусе
-            pipelines.Add(new ImageProcessingPipeline
-            {
-                Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                NoiseRemoval = new MedianBlurStage(7),
-                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(1.2, 50),
-                Sharpening = new Filter2DStage(-1, 1.5),
-                Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
-                FinalNoiseRemoval = new GaussianBlurStage(7, 1.5)
-            });
+            // Add other pipelines similarly...
 
-            // Светлое + в расфокусе
-            pipelines.Add(new ImageProcessingPipeline
-            {
-                Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                NoiseRemoval = new MedianBlurStage(7),
-                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(0.8, -30),
-                Sharpening = new Filter2DStage(-1, 1.5),
-                Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
-                FinalNoiseRemoval = new GaussianBlurStage(7, 1.5)
-            });
-
-            // Темное + зашумленное
-            pipelines.Add(new ImageProcessingPipeline
-            {
-                Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                NoiseRemoval = new FastNlMeansDenoisingStage(5, 7, 21),
-                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(1.5, 50),
-                Sharpening = new Filter2DStage(-1, 1.0),
-                Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
-                FinalNoiseRemoval = new GaussianBlurStage(5, 1.5)
-            });
-
-            // Светлое + зашумленное
-            pipelines.Add(new ImageProcessingPipeline
-            {
-                Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                NoiseRemoval = new FastNlMeansDenoisingStage(5, 7, 21),
-                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(0.8, -30),
-                Sharpening = new Filter2DStage(-1, 1.0),
-                Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
-                FinalNoiseRemoval = new GaussianBlurStage(5, 1.5)
-            });
-
-            // Темное + в расфокусе + зашумленное
-            pipelines.Add(new ImageProcessingPipeline
-            {
-                Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                NoiseRemoval = new FastNlMeansDenoisingStage(7, 7, 21),
-                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(1.2, 50),
-                Sharpening = new Filter2DStage(-1, 1.5),
-                Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
-                FinalNoiseRemoval = new GaussianBlurStage(7, 1.5)
-            });
-
-            // Светлое + в расфокусе + зашумленное
-            pipelines.Add(new ImageProcessingPipeline
-            {
-                Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                NoiseRemoval = new FastNlMeansDenoisingStage(7, 7, 21),
-                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(0.8, -30),
-                Sharpening = new Filter2DStage(-1, 1.5),
-                Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
-                FinalNoiseRemoval = new GaussianBlurStage(7, 1.5)
-            });
-
-            // Темное + в фокусе + зашумленное
-            pipelines.Add(new ImageProcessingPipeline
-            {
-                Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                NoiseRemoval = new FastNlMeansDenoisingStage(5, 7, 21),
-                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(1.5, 50),
-                Sharpening = new Filter2DStage(-1, 1.0),
-                Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
-                FinalNoiseRemoval = new GaussianBlurStage(5, 1.5)
-            });
-
-            // Светлое + в фокусе + зашумленное
-            pipelines.Add(new ImageProcessingPipeline
-            {
-                Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                NoiseRemoval = new FastNlMeansDenoisingStage(5, 7, 21),
-                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(0.8, -30),
-                Sharpening = new Filter2DStage(-1, 1.0),
-                Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
-                FinalNoiseRemoval = new GaussianBlurStage(5, 1.5)
-            });
-
-            // Темное + в расфокусе + чистое
-            pipelines.Add(new ImageProcessingPipeline
-            {
-                Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(1.2, 50),
-                Sharpening = new Filter2DStage(-1, 1.5),
-                Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
-                FinalNoiseRemoval = new GaussianBlurStage(7, 1.5)
-            });
-
-            // Светлое + в расфокусе + чистое
-            pipelines.Add(new ImageProcessingPipeline
-            {
-                Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(0.8, -30),
-                Sharpening = new Filter2DStage(-1, 1.5),
-                Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
-                FinalNoiseRemoval = new GaussianBlurStage(7, 1.5)
-            });
-
-            return pipelines;
         }
 
-        // TODO сделать подбор параметров на основе метрик
+        public List<(ImageDigest.ImageType, ImageProcessingPipeline)> GetPipelines()
+        {
+            return _pipelines;
+        }
+
         public ImageProcessingPipeline GetCalculatedPipeline(ImageDigest digest)
         {
-            return new ImageProcessingPipeline
-            {
-                Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(0.8, -30),
-                Sharpening = new Filter2DStage(-1, 1.5),
-                Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
-                FinalNoiseRemoval = new GaussianBlurStage(7, 1.5)
-            };
-
+            // Implement logic to select the best pipeline based on the digest
+            return _pipelines.Where(a => a.Item1 == digest.imageType).FirstOrDefault().Item2;
         }
 
-        // TODO сделать умолчательный пайплайн
         public ImageProcessingPipeline GetDefaultPipeline()
         {
+            // Умолчательный безобидный пайплайн
             return new ImageProcessingPipeline
             {
                 Grayscale = new CvtColorStage(6),
-                Resize = new ResizeStage(800, 600),
-                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(0.8, -30),
-                Sharpening = new Filter2DStage(-1, 1.5),
-                Binarization = new AdaptiveThresholdStage(255, 0, 0, 11, 2),
-                FinalNoiseRemoval = new GaussianBlurStage(7, 1.5)
+                ContrastBrightnessAdjustment = new ConvertScaleAbsStage(1.2, 0),
+                NoiseRemoval = new FastNlMeansDenoisingStage(3, 7, 21),
+                Binarization = new ThresholdStage(0, 255, (double)(ThresholdTypes.Binary | ThresholdTypes.Otsu)),
             };
-
         }
-
     }
 }
 
-
-
-/*
-
-public ImageProcessingParameters GetProbable(ImageDigest digest)
-        {
-            try
-            {
-                var prediction = new ImageProcessingParameters();
-
-
-                // Адаптивная коррекция яркости и контраста
-                //if (metrics.Brightness < 100)
-                //{
-                //    convScaleContrast 1.2, convScaleBrightness 10
-                //}
-                //else if (metrics.Brightness > 200)
-                //{
-                //    convScaleContrast 0.8, convScaleBrightness - 10
-                //}
-
-
-                // Вычисляем параметры на основе метрик
-                prediction.convScaleContrast = 1.0;         // начальное значение для контраста
-                prediction.convScaleBrightness = 0.0;       // начальное значение для яркости
-
-                // Настройка для темных изображений
-                if (digest.brightness < 100)
-                {
-                    // Плавная настройка alpha от 1.0 до 1.4
-                    prediction.convScaleContrast = 1.0 + ((100 - digest.brightness) / 100.0) * 0.4;
-                    // Плавная настройка beta от 0 до 30
-                    prediction.convScaleBrightness = ((100 - digest.brightness) / 100.0) * 30;
-                }
-                // Настройка для светлых изображений
-                else if (digest.brightness > 200)
-                {
-                    // Плавная настройка alpha от 1.0 до 0.6
-                    prediction.convScaleContrast = 1.0 - ((digest.brightness - 200) / 55.0) * 0.4;
-                    // Плавная настройка beta от 0 до -30
-                    prediction.convScaleBrightness = -((digest.brightness - 200) / 55.0) * 30;
-                }
-
-                // Учитываем контраст
-                if (digest.contrast < 30)
-                {
-                    // Увеличиваем alpha для повышения контраста
-                    prediction.convScaleContrast *= 1.2;
-                }
-
-
-
-                // Адаптивное шумоподавление
-                 if (digest.noiseLevel > 10) 
-                    prediction.medianBlurKernel = (int)(digest.noiseLevel / 2);
-
-                // Адаптивное усиление резкости в зависимости от уровня размытия
-                if (digest.sharpness < 10)
-                    prediction.sharpLevel = 1.0;
-                else
-                    prediction.sharpLevel = 1 + (digest.sharpness / 10.0);
-
-
-                // Адаптивная бинаризация
-                // adThreshBlock = metrics.Contrast < 30 ? 15 : 11;
-                // double C = metrics.Contrast < 30 ? 4 : 2;
-
-                // Адаптивная настройка размера блока
-                prediction.adThreshBlock = Math.Max(3, Math.Min(19, (int)(11 + (30 - digest.contrast) / 2)));
-                prediction.adThreshBlock += (prediction.adThreshBlock % 2 == 0) ? 1 : 0; // Убеждаемся что нечетное
-
-                // Адаптивная настройка константы C
-                prediction.adThreshC = Math.Max(1, Math.Min(5, 2 + (30 - digest.contrast) / 10));
-
-
-                return prediction;
-            }
-            catch (Exception ex)
-            {
-                // Log the exception (you can replace this with your logging mechanism)
-                Console.WriteLine($"An error occurred during prediction: {ex.Message}");
-                // Return default or null to indicate failure
-                return null;
-            }
-        }
- */

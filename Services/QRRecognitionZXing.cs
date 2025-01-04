@@ -11,6 +11,7 @@ namespace UpRestEye3.Services
 { 
 public class QRRecognitionZXing: IQRRecognition
     {
+        // TODO распознавание разными способами
         public QRCodeData DecodeQRCode(Bitmap sourceImage)
         {
             // Распознавание ZXing

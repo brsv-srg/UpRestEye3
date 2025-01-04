@@ -13,7 +13,7 @@ namespace UpRestEye3.Services
     
     public class QRRecognitionOpenCV: IQRRecognition
     {
-
+        // TODO распознавание разными способами
         public QRCodeData DecodeQRCode(Bitmap sourceImage)
         {
             var detector = new QRCodeDetector();

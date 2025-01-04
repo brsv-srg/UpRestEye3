@@ -51,13 +51,15 @@ namespace UpRestEye3.Services
 
             if (existingSupplier != null)
             {
-                // Если поставщик найден, возвращаем его
-                supplier.Id = existingSupplier.Id;
-                supplier.Name = existingSupplier.Name;
-                supplier.BankAccount = existingSupplier.BankAccount;
-                
-                _context.Entry(existingSupplier).State = EntityState.Detached;
-                _context.Attach(supplier);
+                // Если поставщик найден,берем его
+                supplier = existingSupplier;
+
+                //supplier.Id = existingSupplier.Id;
+                //supplier.Name = existingSupplier.Name;
+                //supplier.BankAccount = existingSupplier.BankAccount;
+
+                //_context.Entry(existingSupplier).State = EntityState.Detached;
+                //_context.Attach(supplier);
 
                 return supplier.Id;
             }
@@ -76,12 +78,14 @@ namespace UpRestEye3.Services
                 .FirstOrDefaultAsync(c => c.TaxNumber == consumer.TaxNumber);
             if (existingConsumer != null)
             {
-                // Если потребитель найден, то возвращаем его
-                consumer.Id = existingConsumer.Id;
-                consumer.Name = existingConsumer.Name;
-                
-                _context.Entry(existingConsumer).State = EntityState.Detached;
-                _context.Attach(consumer);
+                // Если потребитель найден, то берем его
+                consumer = existingConsumer;
+
+                //consumer.Id = existingConsumer.Id;
+                //consumer.Name = existingConsumer.Name;
+
+                //_context.Entry(existingConsumer).State = EntityState.Detached;
+                //_context.Attach(consumer);
 
                 return consumer.Id;
             }
@@ -93,8 +97,10 @@ namespace UpRestEye3.Services
 
         public async Task SaveInvoiceAsync(Invoice invoice, bool isList = false )
         {
-            invoice.SupplierId = await GetOrCreateSupplierIdAsync(invoice.Supplier);
-            invoice.ConsumerId = await GetOrCreateConsumerIdAsync(invoice.Consumer);
+            //invoice.SupplierId = 
+            await GetOrCreateSupplierIdAsync(invoice.Supplier);
+            //invoice.ConsumerId = 
+            await GetOrCreateConsumerIdAsync(invoice.Consumer);
             
             if (invoice.Id == null)
                 _context.Invoices.Add(invoice);
