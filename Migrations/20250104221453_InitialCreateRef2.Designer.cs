@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UpRestEye3.Data;
 
@@ -10,9 +11,11 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250104221453_InitialCreateRef2")]
+    partial class InitialCreateRef2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
@@ -142,7 +145,7 @@ namespace UpRestEye3.Migrations
                             b1.Property<int>("InvoiceId")
                                 .HasColumnType("INTEGER");
 
-                            b1.Property<DateTime>("InvoiceDate")
+                            b1.Property<DateOnly>("InvoiceDate")
                                 .HasColumnType("TEXT");
 
                             b1.Property<string>("InvoiceNumber")

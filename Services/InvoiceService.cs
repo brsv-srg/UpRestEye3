@@ -45,62 +45,73 @@ namespace UpRestEye3.Services
 
         public async Task<int?> GetOrCreateSupplierIdAsync(SupplierInfo supplier)
         {
+            if (supplier == null)
+                return null;
             // Проверяем существование поставщика
             var existingSupplier = await _context.Suppliers
                 .FirstOrDefaultAsync(s => s.TaxNumber == supplier.TaxNumber);
-
+            // TODO сделать апдейт имени существующего поставщика (и потребителя)
             if (existingSupplier != null)
             {
                 // Если поставщик найден,берем его
+                _context.Entry(supplier).State = EntityState.Detached;
                 supplier = existingSupplier;
 
                 //supplier.Id = existingSupplier.Id;
                 //supplier.Name = existingSupplier.Name;
                 //supplier.BankAccount = existingSupplier.BankAccount;
 
-                //_context.Entry(existingSupplier).State = EntityState.Detached;
                 //_context.Attach(supplier);
 
                 return supplier.Id;
             }
+            else
+            {
+                // Если поставщика еще нет, создаём нового
+                _context.Suppliers.Add(supplier);
+                //await _context.SaveChangesAsync();
 
-            // Если поставщика нет, создаём нового
-            _context.Suppliers.Add(supplier);
-            await _context.SaveChangesAsync();
-
-            return supplier.Id;
+                return supplier.Id;
+            }
         }
 
         public async Task<int?> GetOrCreateConsumerIdAsync(ConsumerInfo consumer)
         {
+            if (consumer == null)
+                return null;
             // Проверяем существование потребителя
             var existingConsumer = await _context.Consumers
                 .FirstOrDefaultAsync(c => c.TaxNumber == consumer.TaxNumber);
             if (existingConsumer != null)
             {
                 // Если потребитель найден, то берем его
+
+                _context.Entry(consumer).State = EntityState.Detached;
                 consumer = existingConsumer;
 
                 //consumer.Id = existingConsumer.Id;
                 //consumer.Name = existingConsumer.Name;
 
-                //_context.Entry(existingConsumer).State = EntityState.Detached;
                 //_context.Attach(consumer);
 
                 return consumer.Id;
             }
-            // Если потребителя нет, создаём нового
-            _context.Consumers.Add(consumer);
-            await _context.SaveChangesAsync();
-            return consumer.Id;
+            else
+            {
+                // Если потребителя еще нет, создаём нового
+                _context.Consumers.Add(consumer);
+                //await _context.SaveChangesAsync();
+                
+                return consumer.Id;
+            }
         }
 
         public async Task SaveInvoiceAsync(Invoice invoice, bool isList = false )
         {
-            //invoice.SupplierId = 
-            await GetOrCreateSupplierIdAsync(invoice.Supplier);
-            //invoice.ConsumerId = 
-            await GetOrCreateConsumerIdAsync(invoice.Consumer);
+            invoice.SupplierId = 
+                await GetOrCreateSupplierIdAsync(invoice.Supplier);
+            invoice.ConsumerId = 
+                await GetOrCreateConsumerIdAsync(invoice.Consumer);
             
             if (invoice.Id == null)
                 _context.Invoices.Add(invoice);

@@ -14,12 +14,12 @@ namespace UpRestEye3.Services
     }
 
     // Класс обработки изображения
-    public class InvoiceFileService: IInvoiceFileService
+    public class FileService: IInvoiceFileService
     {
         private readonly IImageFileProcessor _imageProcessor;
         private readonly IInvoiceService _invoiceService;
 
-        public InvoiceFileService(IInvoiceService invoiceService, IImageFileProcessor imageProcessor)
+        public FileService(IInvoiceService invoiceService, IImageFileProcessor imageProcessor)
         {
             _invoiceService = invoiceService;
             _imageProcessor = imageProcessor;
@@ -37,7 +37,8 @@ namespace UpRestEye3.Services
                     throw new Exception("Failed to load image.");
 
                 // Сохранение пустой накладной в базу данных
-                var newInvoice = new Invoice(null, filePath);
+                var newInvoice = new Invoice();
+                InvoiceHelper.UpdateInvoice(newInvoice, null, filePath);
                 await _invoiceService.SaveInvoiceAsync(newInvoice);
                 
                 
@@ -50,7 +51,7 @@ namespace UpRestEye3.Services
                     // Если QR-код распознан, сохраняем изменения и идем на распознавание текста
 
                     // Внесение изменений в существующую накладную и схранение изменений в базу данных
-                    newInvoice.Update(basicQRCode, filePath);
+                    InvoiceHelper.UpdateInvoice(newInvoice, basicQRCode, filePath);
                     await _invoiceService.SaveInvoiceAsync(newInvoice);
 
                     // Если есть улучшенное изображение берем его
@@ -67,7 +68,8 @@ namespace UpRestEye3.Services
                     if (deepQRCode != null)
                     {
                         // Внесение изменений в существующую накладную и сохранение изменений в базу данных
-                        newInvoice.Update(deepQRCode, filePath);
+                        InvoiceHelper.UpdateInvoice(newInvoice, deepQRCode, filePath);
+
                         await _invoiceService.SaveInvoiceAsync(newInvoice);
 
                         // Если есть улучшенное изображение берем его
@@ -80,12 +82,13 @@ namespace UpRestEye3.Services
                 }
 
                 // Распознование текста и формирование полной накладной  
-                var fullInvoice = await _imageProcessor.DeepTextRecognitionAsync(image, filePath);
+                var fullInvoice = await _imageProcessor.DeepTextRecognitionAsync(image, newInvoice);
                 // Если текст распознан, то сохраняем полный документ
                 if (fullInvoice != null)
                 {
                     // Внесение изменений в существующую накладную и сохранение изменений в базу данных
-                    newInvoice.Update(fullInvoice);
+                    InvoiceHelper.UpdateInvoice(newInvoice, fullInvoice);
+
                     await _invoiceService.SaveInvoiceAsync(fullInvoice);
                 }
                 return true;

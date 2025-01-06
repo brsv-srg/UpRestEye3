@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http.Features; 
 using UpRestEye3.Data;
 using UpRestEye3.Services;
+using UpRestEye3.Models;
 
 // TODO добавить логирование
 
@@ -23,14 +24,14 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connectionString));
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<ILocalMLService, LocalMLService>();
-builder.Services.AddScoped<IInvoiceFileService, InvoiceFileService>();
-builder.Services.AddScoped<IImageFileProcessor, ImageFileProcessor>();
+builder.Services.AddScoped<IInvoiceFileService, FileService>();
+builder.Services.AddScoped<IImageFileProcessor, ImageProcessor>();
 builder.Services.AddScoped<IQRProcessing, QRProcessingOpenCV>();
 builder.Services.AddScoped<IQRRecognition, QRRecognitionOpenCV>();
 builder.Services.AddScoped<IQRRecognition, QRRecognitionZXing>();
 builder.Services.AddScoped<ITextRecognition, TextRecognitionGoogleVision>();
 builder.Services.AddScoped<IGPTService, GPTService>();
-builder.Services.AddScoped<IImageProcessingPipelineHelper, ImageProcessingPipelineHelper>();
+builder.Services.AddScoped<IImageProcessingPipelineHelper, ImagePipelineHelper>();
 
 // Настройка параметров формы для обработки больших файлов
 builder.Services.Configure<FormOptions>(options =>
@@ -75,6 +76,9 @@ using (var scope = app.Services.CreateScope())
     var seedData = new SeedData(services.GetRequiredService<IInvoiceService>());
     seedData.Initialize(services);
 
+    // Валидация схемы и класса Invoice
+    InvoiceJsonHelper.ValidateInvoiceSchema();
+    InvoiceJsonHelper.ValidateInvoiceObject();
 }
 
 

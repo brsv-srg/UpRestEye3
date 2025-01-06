@@ -8,30 +8,36 @@ namespace UpRestEye3.Services
 
     public interface IGPTService
     {
-        Task<Invoice> ParseReceiptWithLLM(RecognizedDocument invoiceText);
+        Task<Invoice> ParseReceiptWithLLM(RecognizedDocument invoiceText, Invoice currentInvoice);
 
     }
 
-    //Класс создает и обучает модель машинного обучения
     public class GPTService : IGPTService
     {
         private static readonly string _apiKey = "sk-svcacct-NcF9TOe3CkWN0BHA0BDKjap-EDHI0abjP4Az40fjpw5QpqhQtStDuJWojvu9mOoKH6OT3BlbkFJHCJrfsShSxh4n365KhkW6fypNHJzq-qOrA8ulaFqjgM3qXUAFsbARJ0vWvF6JmnFSAA";
 
-        public async Task<Invoice> ParseReceiptWithLLM(RecognizedDocument invoiceText)
+        public async Task<Invoice> ParseReceiptWithLLM(RecognizedDocument invoiceText, Invoice currentInvoice)
         {
             // URL API OpenAI
-            // TODO Убрать в параметры, а поставщика доставать из QR кода и добавлять в запрос
-            string url = "https://api.openai.com/v1/chat/completions";
-            var env = new GPTEnvironment(ConsumerName: "Figueiredo", ConsumerNIF: "515409723");
+            // TODO Убрать URL в параметры 
 
+            string url = "https://api.openai.com/v1/chat/completions";
+
+            
+
+
+
+            var env = new GPTEnvironment();
+
+            // TODO: Убрать в environment
             // Формируем запрос
             var requestBody = new
             {
                 model = "gpt-4o-mini", // "o1 -preview-2024-09-12",
                 messages = new object[]
                 {
-                    new { role = "system", content = env.GetSystemPrompt() },
-                    new { role = "user", content = $@"Extract structured data from this receipt: { JsonSerializer.Serialize(invoiceText)}"} // env.GetTestRequestPrompt()}" }
+                    new { role = "system", content = env.GetSystemPrompt(currentInvoice) },
+                    new { role = "user", content = $@"Extract structured data from this receipt: {JsonSerializer.Serialize(invoiceText)}"} // env.GetTestRequestPrompt()}" }
             },
                 response_format = new
                 {
@@ -46,14 +52,16 @@ namespace UpRestEye3.Services
             };
 
             // Сериализация тела запроса
-            var jsonBody = JsonSerializer.Serialize(requestBody);
+            var jsonBody = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions { WriteIndented = true });
+
+
             var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
             
             // Конфигурация HTTP-клиента
             using var httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
-            Console.WriteLine($"Sending request to OpenAI API:..{httpContent}");
+            Console.WriteLine($"Sending request to OpenAI API:..{httpContent.ToString()}");
             // Отправка POST-запроса
             var response = await httpClient.PostAsync(url, httpContent);
 
@@ -88,12 +96,18 @@ namespace UpRestEye3.Services
                     {
                         var options = new JsonSerializerOptions
                         {
-                            Converters = { new DateTimeJsonConverter(), new DecimalJsonConverter(), new IntegerJsonConverter() },
+                            Converters = { new DateTimeJsonConverter(), 
+                                            new DecimalJsonConverter(), 
+                                            new IntegerJsonConverter(), 
+                                            new TaxCategoryJsonConverter()},
                             PropertyNameCaseInsensitive = true
                         };
 
+                        Console.WriteLine($"Received response from OpenAI API: {rootContent.GetRawText()}");
+
                         using var invoiceDocument = JsonDocument.Parse(rootContent.GetRawText());
                         Invoice invoice = JsonSerializer.Deserialize<Invoice>(invoiceDocument, options);
+
                         return invoice;
                     }
                     else
@@ -106,7 +120,7 @@ namespace UpRestEye3.Services
                     throw new Exception("Invalid JSON structure");
                 }
             }
-            catch (JsonException ex)
+            catch (Exception ex)
             {
                 throw new Exception("Error parsing JSON response to Invoice object", ex);
             }

@@ -1,4 +1,6 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Globalization;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace UpRestEye3.Models
 {
@@ -19,7 +21,7 @@ namespace UpRestEye3.Models
         public string E { get; set; } = string.Empty;
         //------------
         public string F { get; set; } = string.Empty;
-        public DateOnly DocDate { get => ParseDate(F); }
+        public DateTime DocDate { get => ParseDate(F); }
         //------------
         public string G { get; set; } = string.Empty;
         public string DocNumber { get => G; set => G = value; }
@@ -116,26 +118,63 @@ namespace UpRestEye3.Models
             }
         }
 
-        private static DateOnly ParseDate(string value)
+        private static DateTime ParseDate(string value)
         {
-            try
-            {
-                if (DateOnly.TryParse(value, out DateOnly result))
-                {
-                    return result;
-                }
-                return DateOnly.MinValue;
-            }
-            catch (Exception)
-            {
-                return DateOnly.MinValue;
-            }
+            return StringToDate.Convert(value);
         }
 
         public static bool IsMatchingATQRCode(string input)
         {
             string pattern = @"^A:.*\*B:.*\*C:.*\*D:.*\*E:.*\*F:.*\*G:.*\*H:.*$";
             return Regex.IsMatch(input, pattern);
+        }
+
+    }
+
+    public static class StringToDate
+    {
+        // Список распространённых форматов даты и времени
+        private static readonly string[] DateFormats = new[]
+        {
+        "MM-dd-yyyy",        // 12-31-2024
+        "dd/MM/yyyy",        // 31/12/2024
+        "yyyy-MM-dd",        // 2024-12-31
+        "yyyy/MM/dd",        // 2024/12/31
+        "yyyy.MM.dd",        // 2024.12.31
+        "dd-MM-yyyy",        // 31-12-2024
+        "MM/dd/yyyy",        // 12/31/2024
+        "yyyyMMdd",          // 20241231
+        "MM-dd-yyyy HH:mm",  // 12-31-2024 23:59
+        "yyyy-MM-ddTHH:mm:ss", // 2024-12-31T23:59:59
+        "yyyy-MM-ddTHH:mm:ssZ", // 2024-12-31T23:59:59Z (UTC)
+        "MM/dd/yyyy h:mm tt", // 12/31/2024 11:59 PM
+        "dd.MM.yy",          // 31.12.24
+        "dd.MM.yyyy"         // 31.12.2024
+        };
+
+        public static DateTime Convert(string stringDateTime)
+        {
+            try
+            {
+                // Пробуем преобразовать строку в DateTime с помощью разных форматов
+                foreach (var format in DateFormats)
+                {
+                    if (DateTime.TryParseExact(
+                            stringDateTime,
+                            format,
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.None,
+                            out var date))
+                    {
+                        return date;
+                    }
+                }
+                return DateTime.Now;
+            }
+            catch (Exception)
+            {
+                return DateTime.Now;
+            }
         }
 
     }

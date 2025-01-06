@@ -13,7 +13,7 @@ namespace UpRestEye3.Services
     {
         Task<Bitmap> GrayScale(Bitmap sourceImage);
         ImageDigest GenerateImageDigest(Bitmap sourceImage);
-        Bitmap ApplyImageProcessing(Bitmap sourceImage, ImageProcessingPipeline pipeline, string imagePath);
+        Bitmap ApplyImageProcessing(Bitmap sourceImage, ImageProcessingPipeline pipeline, string imagePath, string callStack="");
 
 
     }
@@ -94,14 +94,17 @@ namespace UpRestEye3.Services
             return resDigest;
         }
 
-
+        // TODO поправить классификацию
         private void InitImageType(ImageDigest digest)
         {
             // TODO проверить классификацию, поправить критерии
             // Классификация изображения на основе метрик
+
+            // Очистка флагов
+            digest.imageType = 0; 
+            
             // Темное / светлое
-            digest.imageType = ImageDigest.ImageType.Clean;
-            if (digest.brightness < 150)
+            if (digest.brightness < 200)
                 digest.imageType |= ImageDigest.ImageType.Dark;
             else
                 digest.imageType |= ImageDigest.ImageType.Light;
@@ -127,20 +130,20 @@ namespace UpRestEye3.Services
         }
 
 
-        public Bitmap ApplyImageProcessing (Bitmap sourceImage, ImageProcessingPipeline pipeline, string imagePath)
+        public Bitmap ApplyImageProcessing (Bitmap sourceImage, ImageProcessingPipeline pipeline, string imagePath, string callStack = "")
         {
             using Mat matImage = BitmapConverter.ToMat(sourceImage);
             Mat processedImage = matImage;
 
             try
             {
-                processedImage = ApplyGrayscale(processedImage, pipeline.Grayscale, imagePath);
-                processedImage = ApplyResize(processedImage, pipeline.Resize, imagePath);
-                processedImage = ApplyContrastBrightnessAdjustment(processedImage, pipeline.ContrastBrightnessAdjustment, imagePath);
-                processedImage = ApplyNoiseRemoval(processedImage, pipeline.NoiseRemoval, imagePath);
-                processedImage = ApplySharpening(processedImage, pipeline.Sharpening, imagePath);
-                processedImage = ApplyBinarization(processedImage, pipeline.Binarization, imagePath);
-                processedImage = ApplyNoiseRemoval(processedImage, pipeline.FinalNoiseRemoval, imagePath);
+                processedImage = ApplyGrayscale(processedImage, pipeline.Grayscale, imagePath, callStack+"-gray");
+                processedImage = ApplyResize(processedImage, pipeline.Resize, imagePath, callStack + "-resize");
+                processedImage = ApplyContrastBrightnessAdjustment(processedImage, pipeline.ContrastBrightnessAdjustment, imagePath, callStack + "-contrBright");
+                processedImage = ApplyNoiseRemoval(processedImage, pipeline.NoiseRemoval, imagePath, callStack + "-noiseRem");
+                processedImage = ApplySharpening(processedImage, pipeline.Sharpening, imagePath, callStack + "-shape");
+                processedImage = ApplyBinarization(processedImage, pipeline.Binarization, imagePath, callStack + "-binar");
+                processedImage = ApplyNoiseRemoval(processedImage, pipeline.FinalNoiseRemoval, imagePath, callStack + "-finNoiseRem");
             }
             catch (Exception ex)
             {
@@ -151,62 +154,62 @@ namespace UpRestEye3.Services
         }
 
 
-        private Mat ApplyGrayscale(Mat image, ImageProcessingStage stage, string imagePath)
+        private Mat ApplyGrayscale(Mat image, ImageProcessingStage stage, string imagePath, string callStack = "")
         {
             if (stage.Execute && stage.FunctionName == "CvtColor")
             {
                 Cv2.CvtColor(image, image, (ColorConversionCodes)stage.Parameters["code"]);
-                SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"CvtColor-{stage.Parameters["code"]}");
+                SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"CvtColor-{stage.Parameters["code"]}", callStack);
             }
             return image;
         }
 
-        private Mat ApplyResize(Mat image, ImageProcessingStage stage, string imagePath)
+        private Mat ApplyResize(Mat image, ImageProcessingStage stage, string imagePath, string callStack = "")
         {
             if (stage.Execute && stage.FunctionName == "Resize")
             {
                 Cv2.Resize(image, image, new OpenCvSharp.Size(0, 0), 
                     fx:stage.Parameters["fx"], fy: stage.Parameters["fy"], 
                     interpolation: InterpolationFlags.Cubic);
-                SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"Resize-{stage.Parameters["fx"]}-{stage.Parameters["fy"]}");
+                SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"Resize-{stage.Parameters["fx"]}-{stage.Parameters["fy"]}", callStack);
             }
             return image;
         }
 
-        private Mat ApplyNoiseRemoval(Mat image, ImageProcessingStage stage, string imagePath)
+        private Mat ApplyNoiseRemoval(Mat image, ImageProcessingStage stage, string imagePath, string callStack="")
         {
             if (stage.Execute)
             {
                 if (stage.FunctionName == "GaussianBlur")
                 {
                     Cv2.GaussianBlur(image, image, new OpenCvSharp.Size(stage.Parameters["ksize"], stage.Parameters["ksize"]), stage.Parameters["sigmaX"]);
-                    SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"GaussianBlur-{stage.Parameters["ksize"]}-{stage.Parameters["ksize"]}-{stage.Parameters["sigmaX"]}");
+                    SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"GaussianBlur-{stage.Parameters["ksize"]}-{stage.Parameters["ksize"]}-{stage.Parameters["sigmaX"]}", callStack);
                 }
                 else if (stage.FunctionName == "MedianBlur")
                 {
                     Cv2.MedianBlur(image, image, (int)stage.Parameters["ksize"]);
-                    SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"MedianBlur-{(int)stage.Parameters["ksize"]}");
+                    SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"MedianBlur-{(int)stage.Parameters["ksize"]}", callStack);
                 }
                 else if (stage.FunctionName == "FastNlMeansDenoising")
                 {
                     Cv2.FastNlMeansDenoising(image, image, (float)stage.Parameters["h"], (int)stage.Parameters["templateWindowSize"], (int)stage.Parameters["searchWindowSize"]);
-                    SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"FastNlMeansDenoising-{(float)stage.Parameters["h"]}-{(int)stage.Parameters["templateWindowSize"]}-{(int)stage.Parameters["searchWindowSize"]}");
+                    SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"FastNlMeansDenoising-{(float)stage.Parameters["h"]}-{(int)stage.Parameters["templateWindowSize"]}-{(int)stage.Parameters["searchWindowSize"]}", callStack);
                 }
             }
             return image;
         }
 
-        private Mat ApplyContrastBrightnessAdjustment(Mat image, ImageProcessingStage stage, string imagePath)
+        private Mat ApplyContrastBrightnessAdjustment(Mat image, ImageProcessingStage stage, string imagePath, string callStack = "")
         {
             if (stage.Execute && stage.FunctionName == "ConvertScaleAbs")
             {
                 Cv2.ConvertScaleAbs(image, image, alpha: stage.Parameters["alpha"], beta: stage.Parameters["beta"]);
-                SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"ConvertScaleAbs-{stage.Parameters["alpha"]}-{stage.Parameters["beta"]}");
+                SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"ConvertScaleAbs-{stage.Parameters["alpha"]}-{stage.Parameters["beta"]}", callStack);
             }
             return image;
         }
 
-        private Mat ApplySharpening(Mat image, ImageProcessingStage stage, string imagePath)
+        private Mat ApplySharpening(Mat image, ImageProcessingStage stage, string imagePath, string callStack = "")
         {
             if (stage.Execute)
             {
@@ -224,28 +227,28 @@ namespace UpRestEye3.Services
                     kernel.Create(new OpenCvSharp.Size(3, 3), MatType.CV_32F);
                     Marshal.Copy(data.Cast<float>().ToArray(), 0, kernel.Data, 9);
                     Cv2.Filter2D(image, image, (int)stage.Parameters["ddepth"], kernel, new OpenCvSharp.Point(-1, -1));
-                    SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"Filter2D-{stage.Parameters["kernelCentralValue"]}");
+                    SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"Filter2D-{stage.Parameters["kernelCentralValue"]}", callStack);
                 }
                 else if (stage.FunctionName == "Laplacian")
                 {
                     Cv2.Laplacian(image, image, MatType.CV_64F);
-                    SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"Laplacian-{MatType.CV_64F}");
+                    SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"Laplacian-{MatType.CV_64F}", callStack);
                 }
             }
             return image;
         }
 
-        private Mat ApplyBinarization(Mat image, ImageProcessingStage stage, string imagePath)
+        private Mat ApplyBinarization(Mat image, ImageProcessingStage stage, string imagePath, string callStack = "")
         {
             if (stage.Execute && stage.FunctionName == "AdaptiveThreshold")
             {
                 Cv2.AdaptiveThreshold(image, image, stage.Parameters["maxValue"], (AdaptiveThresholdTypes)stage.Parameters["adaptiveMethod"], (ThresholdTypes)stage.Parameters["thresholdType"], (int)stage.Parameters["blockSize"], stage.Parameters["C"]);
-                SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"AdaptiveThreshold-{stage.Parameters["maxValue"]}-{stage.Parameters["adaptiveMethod"]}-{stage.Parameters["thresholdType"]}-{stage.Parameters["blockSize"]}-{stage.Parameters["C"]}");
+                SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"AdaptiveThreshold-{stage.Parameters["maxValue"]}-{stage.Parameters["adaptiveMethod"]}-{stage.Parameters["thresholdType"]}-{stage.Parameters["blockSize"]}-{stage.Parameters["C"]}", callStack);
             }
             else if (stage.Execute && stage.FunctionName == "Threshold")
             {
                 Cv2.Threshold(image, image, stage.Parameters["thresh"], stage.Parameters["maxval"], (ThresholdTypes)stage.Parameters["type"]);
-                SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"Threshold-{stage.Parameters["thresh"]}-{stage.Parameters["maxval"]}-{stage.Parameters["type"]}");
+                SaveImage(BitmapConverter.ToBitmap(image), imagePath, @$"Threshold-{stage.Parameters["thresh"]}-{stage.Parameters["maxval"]}-{stage.Parameters["type"]}", callStack);
             }
             return image;
         }
@@ -253,13 +256,13 @@ namespace UpRestEye3.Services
 
 
 
-        public void SaveImage(Bitmap image, string imagePath, string nameModif)
+        public void SaveImage(Bitmap image, string imagePath, string nameModif, string callStack = "")
         {// запись
             
             string processedFilePath = Path.Combine(
                                         Path.GetDirectoryName(imagePath), 
                                         "processed", 
-                                        $"{Path.GetFileNameWithoutExtension(imagePath)}-{nameModif}{Path.GetExtension(imagePath)}");
+                                        $"{Path.GetFileNameWithoutExtension(imagePath)}-{callStack}-{nameModif}{Path.GetExtension(imagePath)}");
 
             Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
             image.Save(processedFilePath, ImageFormat.Png);

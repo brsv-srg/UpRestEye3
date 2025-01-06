@@ -43,13 +43,13 @@ namespace UpRestEye3.Data
                                 Info = new Invoice.InvoiceInfo
                                 {
                                     InvoiceNumber = "INV-001",
-                                    InvoiceDate = DateOnly.FromDateTime(DateTime.Now),
+                                    InvoiceDate = DateTime.Now,
                                     TotalIVA = 2.00m*0.13m,
                                     TotalAmount = 2.00m + 2.00m*0.13m
                                 },
                                 TaxCategories = new List<Taxes>
                                 {
-                                    new Taxes { Category = Taxes.GetCategory("13%"), Base = 2.00m, IVA = 2.00m*0.13m, Total = 2.00m + 2.00m*0.13m }
+                                    new Taxes { Category = InvoiceHelper.GetTaxCategory("13%"), Base = 2.00m, IVA = 2.00m*0.13m, Total = 2.00m + 2.00m*0.13m }
                                 },
                                 Products = new List<Product>
                                 {
@@ -74,13 +74,13 @@ namespace UpRestEye3.Data
                                 Info = new Invoice.InvoiceInfo
                                 {
                                     InvoiceNumber = "INV-002",
-                                    InvoiceDate =  DateOnly.FromDateTime(DateTime.Now),
+                                    InvoiceDate =  DateTime.Now,
                                     TotalIVA = 4.00m*0.23m,
                                     TotalAmount = 4.00m + 4.00m*0.23m
                                 },
                                 TaxCategories = new List<Taxes>
                                 {
-                                    new Taxes { Category = Taxes.GetCategory("23%"), Base = 4.00m, IVA = 4.00m*0.23m, Total = 4.00m + 4.00m*0.23m }
+                                    new Taxes { Category = InvoiceHelper.GetTaxCategory("23%"), Base = 4.00m, IVA = 4.00m*0.23m, Total = 4.00m + 4.00m*0.23m }
                                 },
                                 Products = new List<Product>
                                 {

@@ -38,8 +38,8 @@ else
                         <td>@invoice.UploadTime.ToString("g")</td> 
                         <td>@invoice.Info.InvoiceNumber</td>
                         <td>@invoice.Info.InvoiceDate.ToShortDateString()</td>
-                        <td>@invoice.Supplier.Name</td>
-                        <td>@invoice.Supplier.TaxNumber</td>
+                        <td>@(invoice.Supplier != null ? invoice.Supplier.Name : "")</td>
+                        <td>@(invoice.Supplier != null ? invoice.Supplier.TaxNumber : "")</td>
                         <td>@invoice.Info.TotalIVA</td>
                         <td>@invoice.Info.TotalAmount</td>
                         <td>

@@ -234,11 +234,11 @@ namespace UpRestEye3.Models
 
     public class Filter2DStage : ImageProcessingStage
     {
-        public Filter2DStage(double ddepth, double kernel)
+        public Filter2DStage(double ddepth, double kernelCentralValue)
         {
             Execute = true;
             FunctionName = "Filter2D";
-            Parameters = new Dictionary<string, double> { { "ddepth", ddepth }, { "kernel", kernel } };
+            Parameters = new Dictionary<string, double> { { "ddepth", ddepth }, { "kernelCentralValue", kernelCentralValue } };
         }
     }
 

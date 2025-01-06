@@ -12,12 +12,12 @@ namespace UpRestEye3.Services
     {
         Task<(QRCodeData?, Bitmap?)> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath);
         Task<(QRCodeData?, Bitmap?)> DeepQRRecognitionAsync(Bitmap sourceImage, string imagePath);
-        Task<Invoice> DeepTextRecognitionAsync(Bitmap sourceImage, string imagePath);
+        Task<Invoice> DeepTextRecognitionAsync(Bitmap sourceImage, Invoice currentInvoice);
 
     }
 
     // Класс обработки изображения
-    public class ImageFileProcessor: IImageFileProcessor
+    public class ImageProcessor: IImageFileProcessor
     {
         private readonly ILocalMLService _predictor;
         private readonly IGPTService _gptParser;
@@ -26,7 +26,7 @@ namespace UpRestEye3.Services
         private readonly ITextRecognition _textRecognizer;
         private readonly IImageProcessingPipelineHelper _pipelineHelper;
 
-        public ImageFileProcessor(IQRProcessing qrProcessor, ILocalMLService predictor, IGPTService gptParser, IEnumerable<IQRRecognition> qrRecognizers, ITextRecognition textRecognizer, IImageProcessingPipelineHelper pipelineHelper)
+        public ImageProcessor(IQRProcessing qrProcessor, ILocalMLService predictor, IGPTService gptParser, IEnumerable<IQRRecognition> qrRecognizers, ITextRecognition textRecognizer, IImageProcessingPipelineHelper pipelineHelper)
         {
             _predictor = predictor;
             _qrProcessor = qrProcessor;
@@ -36,7 +36,6 @@ namespace UpRestEye3.Services
             _pipelineHelper = pipelineHelper;
         }
 
-        // TODO сделать дополнитьельный суфикс к имени сохраняемого файла, чтобы отслеживать откуда запущена обработка
         public async Task<(QRCodeData?, Bitmap?)> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath)
         {
             Bitmap? resultImage = null;
@@ -51,7 +50,7 @@ namespace UpRestEye3.Services
             var predictedPipeline = _predictor.Predict(digest);
             if (predictedPipeline != null && predictedPipeline.Any())
             {
-                var processedImagePred = _qrProcessor.ApplyImageProcessing(sourceImage, predictedPipeline, imagePath);
+                var processedImagePred = _qrProcessor.ApplyImageProcessing(sourceImage, predictedPipeline, imagePath, "basicQR-predPL");
                 if (TryDecodeQRCode(processedImagePred, out qrCodeData))
                     return (qrCodeData, processedImagePred);
             }
@@ -60,7 +59,7 @@ namespace UpRestEye3.Services
             var calculatedPipeline = _pipelineHelper.GetCalculatedPipeline(digest);
             if (calculatedPipeline != null)
             {
-                var processedImageCalc = _qrProcessor.ApplyImageProcessing(sourceImage, calculatedPipeline, imagePath);
+                var processedImageCalc = _qrProcessor.ApplyImageProcessing(sourceImage, calculatedPipeline, imagePath, "basicQR-calcPL");
                 if (TryDecodeQRCode(processedImageCalc, out qrCodeData))
                 {
                     _predictor.UpdateModel(digest, calculatedPipeline); // Обучение
@@ -70,7 +69,7 @@ namespace UpRestEye3.Services
 
             // Шаг 5. На всякий случай пробумем по дефолтному пайплайну на основе умолчательного конструктора
             var defaultPipeline = _pipelineHelper.GetDefaultPipeline();
-            var processedImageDef = _qrProcessor.ApplyImageProcessing(sourceImage, defaultPipeline, imagePath);
+            var processedImageDef = _qrProcessor.ApplyImageProcessing(sourceImage, defaultPipeline, imagePath, "basicQR-defPL");
             if (TryDecodeQRCode(processedImageDef, out qrCodeData))
             { 
                 _predictor.UpdateModel(digest, defaultPipeline); // Обучение
@@ -90,7 +89,7 @@ namespace UpRestEye3.Services
             // Шаг 3. Обработка всех вариантов в цикле
             foreach (var pipeline in pipelines)
             {
-                var processedImage = _qrProcessor.ApplyImageProcessing(sourceImage, pipeline.Item2, imagePath);
+                var processedImage = _qrProcessor.ApplyImageProcessing(sourceImage, pipeline.Item2, imagePath, @$"deepQR-allPLs-{pipeline.Item1}");
                 if (TryDecodeQRCode(processedImage, out QRCodeData? qrCodeData))
                 {
                     _predictor.UpdateModel(digest, pipeline.Item2); // Обучение модели
@@ -100,13 +99,13 @@ namespace UpRestEye3.Services
             return (null, null);
         }
 
-        public async Task<Invoice?> DeepTextRecognitionAsync(Bitmap sourceImage, string imagePath)
+        public async Task<Invoice?> DeepTextRecognitionAsync(Bitmap sourceImage, Invoice currentInvoice)
         {
             // Обращение к внешней модели
             var recognizedText = await _textRecognizer.TextRecognize(sourceImage);
             if (recognizedText != null)
             {
-                return await _gptParser.ParseReceiptWithLLM(recognizedText);
+                return await _gptParser.ParseReceiptWithLLM(recognizedText, currentInvoice);
             }
             return null;
         }

@@ -18,7 +18,7 @@ namespace UpRestEye3.Services
         public TextRecognitionGoogleVision()
         {
             // загрузка кредов TODO: вынести в конфиг
-            Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", ".\\Properties\\GInvoiceRecognition.json");
+            Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", ".\\Properties\\VisionAccount.json");
         }
 
        
