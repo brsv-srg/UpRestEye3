@@ -53,24 +53,27 @@ namespace UpRestEye3.Services
             // TODO сделать апдейт имени существующего поставщика (и потребителя)
             if (existingSupplier != null)
             {
-                // Если поставщик найден,берем его
-                _context.Entry(supplier).State = EntityState.Detached;
-                supplier = existingSupplier;
-
-                //supplier.Id = existingSupplier.Id;
-                //supplier.Name = existingSupplier.Name;
-                //supplier.BankAccount = existingSupplier.BankAccount;
-
-                //_context.Attach(supplier);
-
+                if (existingSupplier.Id == supplier.Id &&
+                    (string.IsNullOrWhiteSpace(existingSupplier.Name) &&  !string.IsNullOrWhiteSpace(supplier.Name) ||
+                    string.IsNullOrWhiteSpace(existingSupplier.BankAccount) &&  !string.IsNullOrWhiteSpace(supplier.BankAccount)))
+                {
+                    // Если потребитель найден, и его имя или счет отличаются от имени в базе, то обновляем
+                    _context.Suppliers.Update(supplier);
+                    _context.Entry(existingSupplier).State = EntityState.Detached;
+                }
+                else
+                if (existingSupplier.Id != supplier.Id)
+                {
+                    // Если потребитель найден, то берем его
+                    _context.Entry(supplier).State = EntityState.Detached;
+                    supplier = existingSupplier;
+                }
                 return supplier.Id;
             }
             else
             {
                 // Если поставщика еще нет, создаём нового
                 _context.Suppliers.Add(supplier);
-                //await _context.SaveChangesAsync();
-
                 return supplier.Id;
             }
         }
@@ -84,24 +87,27 @@ namespace UpRestEye3.Services
                 .FirstOrDefaultAsync(c => c.TaxNumber == consumer.TaxNumber);
             if (existingConsumer != null)
             {
-                // Если потребитель найден, то берем его
-
-                _context.Entry(consumer).State = EntityState.Detached;
-                consumer = existingConsumer;
-
-                //consumer.Id = existingConsumer.Id;
-                //consumer.Name = existingConsumer.Name;
-
-                //_context.Attach(consumer);
-
+                if (existingConsumer.Id == consumer.Id &&
+                    string.IsNullOrWhiteSpace(existingConsumer.Name) && 
+                    !string.IsNullOrWhiteSpace(consumer.Name))
+                {
+                    // Если потребитель найден, и его имя отличается от имени в базе, то обновляем имя
+                    _context.Consumers.Update(consumer);
+                    _context.Entry(existingConsumer).State = EntityState.Detached;
+                }
+                else
+                if (existingConsumer.Id != consumer.Id)
+                {
+                    // Если потребитель найден, то берем его
+                    _context.Entry(consumer).State = EntityState.Detached;
+                    consumer = existingConsumer;   
+                }
                 return consumer.Id;
             }
             else
             {
                 // Если потребителя еще нет, создаём нового
                 _context.Consumers.Add(consumer);
-                //await _context.SaveChangesAsync();
-                
                 return consumer.Id;
             }
         }

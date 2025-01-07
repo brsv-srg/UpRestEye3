@@ -29,7 +29,6 @@ namespace UpRestEye3.Models
                 if (invoice.Consumer.TaxNumber != qrCode.CustomerTaxNumber)
                 {
                     invoice.Consumer.TaxNumber = qrCode.CustomerTaxNumber;
-                    invoice.Consumer.Id = null;
                 }
 
                 if (invoice.Supplier == null)
@@ -41,7 +40,6 @@ namespace UpRestEye3.Models
                 if (invoice.Supplier.TaxNumber != qrCode.SupplierTaxNumber)
                 {
                     invoice.Supplier.TaxNumber = qrCode.SupplierTaxNumber;
-                    invoice.Supplier.Id = null;
                 }
 
                 invoice.Info.InvoiceNumber = qrCode.DocNumber;
@@ -54,10 +52,14 @@ namespace UpRestEye3.Models
                 else
                     invoice.TaxCategories.Clear();
 
-                invoice.TaxCategories.Add(new Taxes { Category = GetTaxCategory("0%"), Base = qrCode.Base0, IVA = qrCode.Base0, Total = qrCode.Base0 });
-                invoice.TaxCategories.Add(new Taxes { Category = GetTaxCategory("6%"), Base = qrCode.Base6, IVA = qrCode.IVA6, Total = qrCode.Base6 + qrCode.IVA6 });
-                invoice.TaxCategories.Add(new Taxes { Category = GetTaxCategory("13%"), Base = qrCode.Base13, IVA = qrCode.IVA13, Total = qrCode.Base13 + qrCode.IVA13 });
-                invoice.TaxCategories.Add(new Taxes { Category = GetTaxCategory("23%"), Base = qrCode.Base23, IVA = qrCode.IVA23, Total = qrCode.Base23 + qrCode.IVA23 });
+                if (qrCode.Base0 > 0)
+                    invoice.TaxCategories.Add(new Taxes { Category = GetTaxCategory("0%"), Base = qrCode.Base0, IVA = qrCode.Base0, Total = qrCode.Base0 });
+                if (qrCode.Base6 > 0)
+                    invoice.TaxCategories.Add(new Taxes { Category = GetTaxCategory("6%"), Base = qrCode.Base6, IVA = qrCode.IVA6, Total = qrCode.Base6 + qrCode.IVA6 });
+                if (qrCode.Base13 > 0)
+                    invoice.TaxCategories.Add(new Taxes { Category = GetTaxCategory("13%"), Base = qrCode.Base13, IVA = qrCode.IVA13, Total = qrCode.Base13 + qrCode.IVA13 });
+                if (qrCode.Base23 > 0)
+                    invoice.TaxCategories.Add(new Taxes { Category = GetTaxCategory("23%"), Base = qrCode.Base23, IVA = qrCode.IVA23, Total = qrCode.Base23 + qrCode.IVA23 });
 
                 invoice.Status = InvoiceStatus.QRCodeProcessed;
                 invoice.FilePath = filePath;
@@ -82,44 +84,42 @@ namespace UpRestEye3.Models
                 invoiceOld.Supplier.TaxNumber == invoiceNew.Consumer.TaxNumber)
             {
                 invoiceOld.Supplier.Name = invoiceNew.Consumer.Name;
-                invoiceOld.Supplier.Id = null;
             }
-            else
-            if (invoiceOld.Supplier.TaxNumber == invoiceNew.Supplier.TaxNumber)
+            else 
+            if (invoiceOld.Supplier.TaxNumber == invoiceNew.Supplier.TaxNumber &&
+                invoiceOld.Supplier.Name != invoiceNew.Supplier.Name)
             {
                 invoiceOld.Supplier.Name = invoiceNew.Supplier.Name;
-                invoiceOld.Supplier.Id = null;
             }
             else
             if (invoiceOld.Supplier.TaxNumber == null)
             {
                 invoiceOld.Supplier.Name = invoiceNew.Supplier.Name;
                 invoiceOld.Supplier.TaxNumber = invoiceNew.Supplier.TaxNumber;
-                invoiceOld.Supplier.Id = null;
+            }
+            if (!string.IsNullOrWhiteSpace(invoiceNew.Supplier.BankAccount) &&
+                invoiceOld.Supplier.BankAccount != invoiceNew.Supplier.BankAccount)
+            {
+                invoiceOld.Supplier.BankAccount = invoiceNew.Supplier.BankAccount;
             }
 
-            invoiceOld.Supplier.BankAccount = invoiceNew.Supplier.BankAccount;
-
-            // TODO сделать апдейт поставщика и потребителя, когда корректно распознали наименование
 
             if (invoiceOld.Consumer.TaxNumber != invoiceNew.Consumer.TaxNumber &&
                invoiceOld.Consumer.TaxNumber == invoiceNew.Supplier.TaxNumber)
             {
                 invoiceOld.Consumer.Name = invoiceNew.Supplier.Name;
-                invoiceOld.Consumer.Id = null;
             }
             else
-           if (invoiceOld.Consumer.TaxNumber == invoiceNew.Consumer.TaxNumber)
+           if (invoiceOld.Consumer.TaxNumber == invoiceNew.Consumer.TaxNumber &&
+                invoiceOld.Consumer.Name != invoiceNew.Consumer.Name)
             {
                 invoiceOld.Consumer.Name = invoiceNew.Consumer.Name;
-                invoiceOld.Consumer.Id = null;
             }
             else
            if (invoiceOld.Consumer.TaxNumber == null)
             {
                 invoiceOld.Consumer.Name = invoiceNew.Consumer.Name;
                 invoiceOld.Consumer.TaxNumber = invoiceNew.Consumer.TaxNumber;
-                invoiceOld.Consumer.Id = null;
             }
             // TODO перенести инфо в тело инвойса
             invoiceOld.Info.InvoiceNumber = invoiceNew.Info.InvoiceNumber;
@@ -129,10 +129,16 @@ namespace UpRestEye3.Models
 
             invoiceOld.Products = invoiceNew.Products;
             invoiceOld.TaxCategories = invoiceNew.TaxCategories;
-            // TODO сделать норм учет статусов
-            invoiceOld.Status = invoiceNew.Status;
-            // TODO также нормально обновлять имя файла
-            invoiceOld.FilePath = invoiceNew.FilePath;
+
+            if (invoiceNew.Status != null)
+            {
+                invoiceOld.Status = invoiceNew.Status;
+            }
+
+            if (!string.IsNullOrWhiteSpace(invoiceNew.FilePath))
+            {
+                invoiceOld.FilePath = invoiceNew.FilePath;
+            }
 
         }
 

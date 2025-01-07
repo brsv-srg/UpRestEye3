@@ -16,6 +16,13 @@ namespace UpRestEye3.Services
     {
         private static readonly string _apiKey = "sk-svcacct-NcF9TOe3CkWN0BHA0BDKjap-EDHI0abjP4Az40fjpw5QpqhQtStDuJWojvu9mOoKH6OT3BlbkFJHCJrfsShSxh4n365KhkW6fypNHJzq-qOrA8ulaFqjgM3qXUAFsbARJ0vWvF6JmnFSAA";
 
+        private readonly GPTEnvironment _env;
+
+        public GPTService()
+        {
+            _env = new GPTEnvironment();
+        }
+
         public async Task<Invoice> ParseReceiptWithLLM(RecognizedDocument invoiceText, Invoice currentInvoice)
         {
             // URL API OpenAI
@@ -24,11 +31,6 @@ namespace UpRestEye3.Services
             string url = "https://api.openai.com/v1/chat/completions";
 
             
-
-
-
-            var env = new GPTEnvironment();
-
             // TODO: Убрать в environment
             // Формируем запрос
             var requestBody = new
@@ -36,7 +38,7 @@ namespace UpRestEye3.Services
                 model = "gpt-4o-mini", // "o1 -preview-2024-09-12",
                 messages = new object[]
                 {
-                    new { role = "system", content = env.GetSystemPrompt(currentInvoice) },
+                    new { role = "system", content = _env.GetSystemPrompt(currentInvoice) },
                     new { role = "user", content = $@"Extract structured data from this receipt: {JsonSerializer.Serialize(invoiceText)}"} // env.GetTestRequestPrompt()}" }
             },
                 response_format = new
@@ -45,7 +47,7 @@ namespace UpRestEye3.Services
                     json_schema = new
                     {
                         name = "Invoice",
-                        schema = JsonDocument.Parse(env.GetResponseFormat()).RootElement
+                        schema = JsonDocument.Parse(_env.GetResponseFormat()).RootElement
                     }
                 },
                 temperature = 0.1
