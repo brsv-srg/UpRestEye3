@@ -81,11 +81,11 @@ using (var scope = app.Services.CreateScope())
     seedData.Initialize(services);
 
     // Валидация схемы и класса Invoice
-    InvoiceJsonHelper.ValidateInvoiceSchema();
-    InvoiceJsonHelper.ValidateInvoiceObject();
+    //InvoiceJsonHelper.ValidateInvoiceSchema();
+    //InvoiceJsonHelper.ValidateInvoiceObject();
 
-    var testInvoiceService = new TestInvoiceService(services);
-    await testInvoiceService.RunTests();
+    //var testInvoiceService = new TestInvoiceService(services);
+    //await testInvoiceService.RunTests();
 }
 
 

@@ -48,20 +48,26 @@ else
                             </span>
                         </td>
                         <td>
-                            <button class="btn btn-link" @onclick="() => ShowProducts(invoice.Products)">
+                            <button class="btn btn-primary" @onclick="() => ShowProducts(invoice.Products)">
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                         </td>
                     </tr>
                 }
             </tbody>
-        </table>
-    </div>
+            
+		</table>
+        
+
+        @* <div class="fixed-bottom align-items-right bg-light shadow-sm p-3" style="position: fixed; bottom: 0; width: 100%;"> *@
+        @*     <InputFile onchange="HandleFileSelected" class="round-button" /> *@
+        @* </div> *@
+	</div>
+    <div class="upload-button-container align-items-right">
+		<InputFile onchange="HandleFileSelected" class="round-button" />
+	</div>
 }
 
-<div class="fixed-bottom align-items-right bg-light shadow-sm p-3" >
-    <InputFile onchange="HandleFileSelected" class="round-button" />
-</div>
 
 
 @if (!string.IsNullOrEmpty(uploadMessage))

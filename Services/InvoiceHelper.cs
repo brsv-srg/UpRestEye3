@@ -234,6 +234,7 @@ namespace UpRestEye3.Models
         "yyyy.MM.dd",        // 2024.12.31
         "dd-MM-yyyy",        // 31-12-2024
         "MM/dd/yyyy",        // 12/31/2024
+        "M/d/yyyy",          // 9/13/2024
         "yyyyMMdd",          // 20241231
         "MM-dd-yyyy HH:mm",  // 12-31-2024 23:59
         "yyyy-MM-ddTHH:mm:ss", // 2024-12-31T23:59:59

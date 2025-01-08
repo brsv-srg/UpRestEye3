@@ -56,10 +56,7 @@ namespace UpRestEye3.Services
 
                     // Если есть улучшенное изображение берем его
                     if (basicProcessedImage != null)
-                    {
-                        image.Dispose();
                         image = basicProcessedImage;
-                    }
                 }
                 else
                 {
@@ -74,10 +71,7 @@ namespace UpRestEye3.Services
 
                         // Если есть улучшенное изображение берем его
                         if (deepProcessedImage != null)
-                        {
-                            image.Dispose();
                             image = deepProcessedImage;
-                        }
                     }
                 }
 
