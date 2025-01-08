@@ -104,7 +104,10 @@ namespace UpRestEye3.Data
                             }
                         };
 
-                _invoiceService.SaveInvoicesAsync(invoices);
+                foreach (var invoice in invoices)
+                {
+                    _invoiceService.SaveInvoiceAsync(invoice);
+                }
             }
         }
     }

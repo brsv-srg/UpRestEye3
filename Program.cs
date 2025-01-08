@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Http.Features;
 using UpRestEye3.Data;
 using UpRestEye3.Services;
 using UpRestEye3.Models;
+using Microsoft.Extensions.DependencyInjection;
+using UpRestEye3.Tests;
 
 // TODO добавить логирование
 
@@ -25,6 +27,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<ILocalMLService, LocalMLService>();
 builder.Services.AddScoped<IInvoiceFileService, FileService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<IImageFileProcessor, ImageProcessor>();
 builder.Services.AddScoped<IQRProcessing, QRProcessingOpenCV>();
 builder.Services.AddScoped<IQRRecognition, QRRecognitionOpenCV>();
@@ -79,6 +83,9 @@ using (var scope = app.Services.CreateScope())
     // Валидация схемы и класса Invoice
     InvoiceJsonHelper.ValidateInvoiceSchema();
     InvoiceJsonHelper.ValidateInvoiceObject();
+
+    var testInvoiceService = new TestInvoiceService(services);
+    await testInvoiceService.RunTests();
 }
 
 

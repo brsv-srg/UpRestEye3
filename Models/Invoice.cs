@@ -72,7 +72,7 @@ namespace UpRestEye3.Models
     {
         [JsonIgnore]
         public int? Id { get; set; }
-        public string Name { get; set; } = string.Empty;
+        public string? Name { get; set; } = string.Empty;
         public string TaxNumber { get; set; } = string.Empty;
         public string? BankAccount { get; set; } = string.Empty;
     }
@@ -81,7 +81,7 @@ namespace UpRestEye3.Models
     {
         [JsonIgnore]
         public int? Id { get; set; }
-        public string Name { get; set; } = string.Empty;
+        public string? Name { get; set; } = string.Empty;
         public string TaxNumber { get; set; } = string.Empty;
     }
 
@@ -99,9 +99,9 @@ namespace UpRestEye3.Models
     {
         [JsonIgnore]
         public int? Id { get; set; }
-        public string ProductCode { get; set; } = string.Empty;
+        public string? ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;
-        public string Unit { get; set; } = string.Empty;
+        public string? Unit { get; set; } = string.Empty;
         public float Quantity { get; set; } = 0.0f;
         public decimal Price { get; set; } = 0.0m;
     }

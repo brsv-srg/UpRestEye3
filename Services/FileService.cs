@@ -37,9 +37,9 @@ namespace UpRestEye3.Services
                     throw new Exception("Failed to load image.");
 
                 // Сохранение пустой накладной в базу данных
-                var newInvoice = new Invoice();
-                InvoiceHelper.UpdateInvoice(newInvoice, null, filePath);
-                await _invoiceService.SaveInvoiceAsync(newInvoice);
+                var workingInvoice = new Invoice();
+                InvoiceHelper.UpdateInvoiceFromQRCode(workingInvoice, null, filePath);
+                await _invoiceService.SaveInvoiceAsync(workingInvoice);
                 
                 
                 // Распознование QR-кода "в лоб" и с помощью предсказания
@@ -51,8 +51,8 @@ namespace UpRestEye3.Services
                     // Если QR-код распознан, сохраняем изменения и идем на распознавание текста
 
                     // Внесение изменений в существующую накладную и схранение изменений в базу данных
-                    InvoiceHelper.UpdateInvoice(newInvoice, basicQRCode, filePath);
-                    await _invoiceService.SaveInvoiceAsync(newInvoice);
+                    InvoiceHelper.UpdateInvoiceFromQRCode(workingInvoice, basicQRCode, filePath);
+                    await _invoiceService.SaveInvoiceAsync(workingInvoice);
 
                     // Если есть улучшенное изображение берем его
                     if (basicProcessedImage != null)
@@ -68,9 +68,9 @@ namespace UpRestEye3.Services
                     if (deepQRCode != null)
                     {
                         // Внесение изменений в существующую накладную и сохранение изменений в базу данных
-                        InvoiceHelper.UpdateInvoice(newInvoice, deepQRCode, filePath);
+                        InvoiceHelper.UpdateInvoiceFromQRCode(workingInvoice, deepQRCode, filePath);
 
-                        await _invoiceService.SaveInvoiceAsync(newInvoice);
+                        await _invoiceService.SaveInvoiceAsync(workingInvoice);
 
                         // Если есть улучшенное изображение берем его
                         if (deepProcessedImage != null)
@@ -82,14 +82,14 @@ namespace UpRestEye3.Services
                 }
 
                 // Распознование текста и формирование полной накладной  
-                var fullInvoice = await _imageProcessor.DeepTextRecognitionAsync(image, newInvoice);
+                var recognisedInvoice = await _imageProcessor.DeepTextRecognitionAsync(image, workingInvoice);
                 // Если текст распознан, то сохраняем полный документ
-                if (fullInvoice != null)
+                if (recognisedInvoice != null)
                 {
                     // Внесение изменений в существующую накладную и сохранение изменений в базу данных
-                    InvoiceHelper.UpdateInvoice(newInvoice, fullInvoice);
+                    InvoiceHelper.CheckAndUpdateInvoice(workingInvoice, recognisedInvoice);
 
-                    await _invoiceService.SaveInvoiceAsync(fullInvoice);
+                    await _invoiceService.SaveInvoiceAsync(workingInvoice);
                 }
                 return true;
             }

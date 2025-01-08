@@ -27,12 +27,5 @@ namespace UpRestEye3.Controllers
             await _invoiceService.SaveInvoiceAsync(invoice);
             return CreatedAtAction(nameof(GetInvoices), new { id = invoice.Id }, invoice);
         }
-
-        [HttpPost("batch")]
-        public async Task<ActionResult<IEnumerable<Invoice>>> SaveInvoices(List<Invoice> invoices)
-        {
-            await _invoiceService.SaveInvoicesAsync(invoices);
-            return CreatedAtAction(nameof(GetInvoices), invoices);
-        }
     }
 }

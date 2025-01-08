@@ -16,57 +16,67 @@ namespace UpRestEye3.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+
             base.OnModelCreating(modelBuilder);
 
-            // Настройка таблицы Invoice
+            // Configure Invoice relationships
             modelBuilder.Entity<Invoice>()
-                .HasKey(i => i.Id); // Указываем первичный ключ для Invoice
+                .HasOne(i => i.Supplier)
+                .WithMany()
+                .HasForeignKey(i => i.SupplierId)
+                .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<Invoice>()
+                .HasOne(i => i.Consumer)
+                .WithMany()
+                .HasForeignKey(i => i.ConsumerId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // Настраиваем уникальный индекс для Поставщика
+            // Configure owned types
+            modelBuilder.Entity<Invoice>()
+                .OwnsOne(i => i.Info);
+
+            // Configure unique index for SupplierInfo
             modelBuilder.Entity<SupplierInfo>()
                 .HasIndex(s => s.TaxNumber)
                 .IsUnique();
 
-            modelBuilder.Entity<Invoice>()
-                .HasOne(i => i.Supplier)  // Навигационное свойство
-                .WithMany()              // Связь "один-ко-многим"
-                .HasForeignKey(p => p.SupplierId )      // Указываем внешний ключ
-                .OnDelete(DeleteBehavior.Restrict);     // Поведение при удалении поставщика
-
-            // Игнорируем объект SupplierInfo
-            //modelBuilder.Entity<Invoice>().Ignore(i => i.Supplier);
-
-
-
-
-            // Настраиваем уникальный индекс для Потребителя
+            // Configure unique index for ConsumerInfo
             modelBuilder.Entity<ConsumerInfo>()
-                .HasIndex(s => s.TaxNumber)
+                .HasIndex(c => c.TaxNumber)
                 .IsUnique();
 
+            // Configure auto-generated IDs
             modelBuilder.Entity<Invoice>()
-                .HasOne(i => i.Consumer)  // Навигационное свойство
-                .WithMany()              // Связь "один-ко-многим"
-                .HasForeignKey(p => p.ConsumerId)       // Указываем внешний ключ
-                .OnDelete(DeleteBehavior.Restrict);     // Поведение при удалении потребителя
+                .Property(i => i.Id)
+                .ValueGeneratedOnAdd();
 
-            // Игнорируем объект ConsumerInfo
-            //modelBuilder.Entity<Invoice>().Ignore(i => i.Consumer);
+            modelBuilder.Entity<SupplierInfo>()
+                .Property(s => s.Id)
+                .ValueGeneratedOnAdd();
 
+            modelBuilder.Entity<ConsumerInfo>()
+                .Property(c => c.Id)
+                .ValueGeneratedOnAdd();
 
-
-            // Настройка Owned Entity Types для коллекции
+            // Configure owned types for Products collection
             modelBuilder.Entity<Invoice>()
                 .OwnsMany(i => i.Products, p =>
                 {
-                    // Указываем имя таблицы для коллекции
                     p.ToTable("Products");
-                    // Настраиваем внешний ключ, привязывающий коллекцию к Invoice
                     p.WithOwner().HasForeignKey("InvoiceId");
-                    // Дополнительный первичный ключ для таблицы Products
                     p.HasKey("Id");
-                    p.Property<int?>("Id").ValueGeneratedOnAdd(); 
+                    p.Property<int?>("Id").ValueGeneratedOnAdd();
+                });
+
+            // Configure owned types for Taxes collection
+            modelBuilder.Entity<Invoice>()
+                .OwnsMany(i => i.TaxCategories, t =>
+                {
+                    t.ToTable("TaxCategories");
+                    t.WithOwner().HasForeignKey("InvoiceId");
+                    t.HasKey("Id");
+                    t.Property<int?>("Id").ValueGeneratedOnAdd();
                 });
         }
     }

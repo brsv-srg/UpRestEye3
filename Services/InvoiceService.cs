@@ -11,25 +11,32 @@ namespace UpRestEye3.Services
     {
         Task<Invoice> GetInvoiceByIdAsync(int id);
         Task<ActionResult<IEnumerable<Invoice>>> GetInvoicesAsync();
-        Task SaveInvoiceAsync(Invoice invoice, bool isList = false);
-        Task SaveInvoicesAsync(List<Invoice> invoices);
-        Task<int?> GetOrCreateSupplierIdAsync(SupplierInfo supplier);
-        Task<int?> GetOrCreateConsumerIdAsync(ConsumerInfo consumer);
+        Task SaveInvoiceAsync(Invoice invoice);
+       
 
     }
 
     public class InvoiceService : IInvoiceService
     {
         private readonly ApplicationDbContext _context;
+        private readonly ICustomerService _customerService;
+        private readonly ISupplierService _supplierService;
 
-        public InvoiceService(ApplicationDbContext context)
+        public InvoiceService(ApplicationDbContext context, ICustomerService customerService, ISupplierService supplierService)
         {
             _context = context;
+            _customerService = customerService;
+            _supplierService = supplierService;
         }
 
         public async Task<Invoice> GetInvoiceByIdAsync(int id)
         {
-            return await _context.Invoices.FindAsync(id);
+            return await _context.Invoices
+                .Include(i => i.TaxCategories)
+                .Include(i => i.Products)
+                .Include(i => i.Supplier)
+                .Include(i => i.Consumer)
+                .FirstOrDefaultAsync(i => i.Id == id);
         }
 
         public async Task<ActionResult<IEnumerable<Invoice>>> GetInvoicesAsync()
@@ -43,98 +50,49 @@ namespace UpRestEye3.Services
             return invoices;
         }
 
-        public async Task<int?> GetOrCreateSupplierIdAsync(SupplierInfo supplier)
+        
+
+        public async Task SaveInvoiceAsync(Invoice invoice)
         {
-            if (supplier == null)
-                return null;
-            // Проверяем существование поставщика
-            var existingSupplier = await _context.Suppliers
-                .FirstOrDefaultAsync(s => s.TaxNumber == supplier.TaxNumber);
-            // TODO сделать апдейт имени существующего поставщика (и потребителя)
-            if (existingSupplier != null)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                if (existingSupplier.Id == supplier.Id &&
-                    (string.IsNullOrWhiteSpace(existingSupplier.Name) &&  !string.IsNullOrWhiteSpace(supplier.Name) ||
-                    string.IsNullOrWhiteSpace(existingSupplier.BankAccount) &&  !string.IsNullOrWhiteSpace(supplier.BankAccount)))
+                // Save or update Supplier
+                if (invoice.Supplier != null)
                 {
-                    // Если потребитель найден, и его имя или счет отличаются от имени в базе, то обновляем
-                    _context.Suppliers.Update(supplier);
-                    _context.Entry(existingSupplier).State = EntityState.Detached;
+                    invoice.SupplierId = await _supplierService.GetOrCreateSupplierIdAsync(invoice.Supplier);
+                    _context.Entry(invoice.Supplier).State = EntityState.Unchanged;
+                }
+
+                // Save or update Consumer
+                if (invoice.Consumer != null)
+                {
+                    invoice.ConsumerId = await _customerService.GetOrCreateConsumerIdAsync(invoice.Consumer);
+                    _context.Entry(invoice.Consumer).State = EntityState.Unchanged;
+                }
+
+                // Save or update Invoice
+                var existingInvoice = await _context.Invoices
+                    .FirstOrDefaultAsync(i => i.Id == invoice.Id);
+                if (existingInvoice == null)
+                {
+                    _context.Invoices.Add(invoice);
                 }
                 else
-                if (existingSupplier.Id != supplier.Id)
                 {
-                    // Если потребитель найден, то берем его
-                    _context.Entry(supplier).State = EntityState.Detached;
-                    supplier = existingSupplier;
+                    _context.Entry(existingInvoice).CurrentValues.SetValues(invoice);
                 }
-                return supplier.Id;
-            }
-            else
-            {
-                // Если поставщика еще нет, создаём нового
-                _context.Suppliers.Add(supplier);
-                return supplier.Id;
-            }
-        }
 
-        public async Task<int?> GetOrCreateConsumerIdAsync(ConsumerInfo consumer)
-        {
-            if (consumer == null)
-                return null;
-            // Проверяем существование потребителя
-            var existingConsumer = await _context.Consumers
-                .FirstOrDefaultAsync(c => c.TaxNumber == consumer.TaxNumber);
-            if (existingConsumer != null)
-            {
-                if (existingConsumer.Id == consumer.Id &&
-                    string.IsNullOrWhiteSpace(existingConsumer.Name) && 
-                    !string.IsNullOrWhiteSpace(consumer.Name))
-                {
-                    // Если потребитель найден, и его имя отличается от имени в базе, то обновляем имя
-                    _context.Consumers.Update(consumer);
-                    _context.Entry(existingConsumer).State = EntityState.Detached;
-                }
-                else
-                if (existingConsumer.Id != consumer.Id)
-                {
-                    // Если потребитель найден, то берем его
-                    _context.Entry(consumer).State = EntityState.Detached;
-                    consumer = existingConsumer;   
-                }
-                return consumer.Id;
-            }
-            else
-            {
-                // Если потребителя еще нет, создаём нового
-                _context.Consumers.Add(consumer);
-                return consumer.Id;
-            }
-        }
-
-        public async Task SaveInvoiceAsync(Invoice invoice, bool isList = false )
-        {
-            invoice.SupplierId = 
-                await GetOrCreateSupplierIdAsync(invoice.Supplier);
-            invoice.ConsumerId = 
-                await GetOrCreateConsumerIdAsync(invoice.Consumer);
-            
-            if (invoice.Id == null)
-                _context.Invoices.Add(invoice);
-            else
-                _context.Invoices.Update(invoice);
-
-            if(!isList)
                 await _context.SaveChangesAsync();
-        }
+                await transaction.CommitAsync();
 
-        public async Task SaveInvoicesAsync(List<Invoice> invoices)
-        {
-            foreach (var invoice in invoices)
-                await SaveInvoiceAsync(invoice, true);
 
-            //_context.Invoices.AddRange(invoices);
-            await _context.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
     }
 }

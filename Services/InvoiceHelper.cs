@@ -16,30 +16,36 @@ namespace UpRestEye3.Models
 
 
         // TODO Перенести в сервис
-        public static void UpdateInvoice(Invoice invoice, QRCodeData? qrCode, string? filePath)
+        public static void UpdateInvoiceFromQRCode(Invoice invoice, QRCodeData qrCode, string? filePath)
         {
             if (qrCode != null)
             {
                 if (invoice.Consumer == null)
                 {
-                    invoice.Consumer = new ConsumerInfo();
-                    invoice.Consumer.TaxNumber = qrCode.CustomerTaxNumber;
+                    invoice.Consumer = new ConsumerInfo
+                    {
+                        TaxNumber = qrCode.CustomerTaxNumber
+                    };
                 }
                 else
                 if (invoice.Consumer.TaxNumber != qrCode.CustomerTaxNumber)
                 {
                     invoice.Consumer.TaxNumber = qrCode.CustomerTaxNumber;
+                    invoice.Consumer.Id = null;// todo ???
                 }
 
                 if (invoice.Supplier == null)
                 {
-                    invoice.Supplier = new SupplierInfo();
-                    invoice.Supplier.TaxNumber = qrCode.SupplierTaxNumber;
+                    invoice.Supplier = new SupplierInfo
+                    {
+                        TaxNumber = qrCode.SupplierTaxNumber
+                    };
                 }
                 else
                 if (invoice.Supplier.TaxNumber != qrCode.SupplierTaxNumber)
                 {
                     invoice.Supplier.TaxNumber = qrCode.SupplierTaxNumber;
+                    invoice.Supplier.Id = null;// todo ???
                 }
 
                 invoice.Info.InvoiceNumber = qrCode.DocNumber;
@@ -78,66 +84,46 @@ namespace UpRestEye3.Models
         }
 
         // TODO Перенести в сервис
-        public static void UpdateInvoice(Invoice invoiceOld, Invoice invoiceNew)
+        public static void CheckAndUpdateInvoice(Invoice invoiceTarget, Invoice invoiceSource)
         {
-            if (invoiceOld.Supplier.TaxNumber != invoiceNew.Supplier.TaxNumber &&
-                invoiceOld.Supplier.TaxNumber == invoiceNew.Consumer.TaxNumber)
+            if (invoiceTarget.Supplier == null)
             {
-                invoiceOld.Supplier.Name = invoiceNew.Consumer.Name;
+                invoiceTarget.Supplier = new SupplierInfo();
             }
-            else 
-            if (invoiceOld.Supplier.TaxNumber == invoiceNew.Supplier.TaxNumber &&
-                invoiceOld.Supplier.Name != invoiceNew.Supplier.Name)
+            if (invoiceSource.Supplier != null)
             {
-                invoiceOld.Supplier.Name = invoiceNew.Supplier.Name;
-            }
-            else
-            if (invoiceOld.Supplier.TaxNumber == null)
-            {
-                invoiceOld.Supplier.Name = invoiceNew.Supplier.Name;
-                invoiceOld.Supplier.TaxNumber = invoiceNew.Supplier.TaxNumber;
-            }
-            if (!string.IsNullOrWhiteSpace(invoiceNew.Supplier.BankAccount) &&
-                invoiceOld.Supplier.BankAccount != invoiceNew.Supplier.BankAccount)
-            {
-                invoiceOld.Supplier.BankAccount = invoiceNew.Supplier.BankAccount;
+                invoiceTarget.Supplier.Name = invoiceSource.Supplier.Name;
+                invoiceTarget.Supplier.TaxNumber = invoiceSource.Supplier.TaxNumber;
+                invoiceTarget.Supplier.BankAccount = invoiceSource.Supplier.BankAccount;
             }
 
-
-            if (invoiceOld.Consumer.TaxNumber != invoiceNew.Consumer.TaxNumber &&
-               invoiceOld.Consumer.TaxNumber == invoiceNew.Supplier.TaxNumber)
+            if (invoiceTarget.Consumer == null)
             {
-                invoiceOld.Consumer.Name = invoiceNew.Supplier.Name;
+                invoiceTarget.Consumer = new ConsumerInfo();
             }
-            else
-           if (invoiceOld.Consumer.TaxNumber == invoiceNew.Consumer.TaxNumber &&
-                invoiceOld.Consumer.Name != invoiceNew.Consumer.Name)
+            if (invoiceSource.Consumer != null)
             {
-                invoiceOld.Consumer.Name = invoiceNew.Consumer.Name;
-            }
-            else
-           if (invoiceOld.Consumer.TaxNumber == null)
-            {
-                invoiceOld.Consumer.Name = invoiceNew.Consumer.Name;
-                invoiceOld.Consumer.TaxNumber = invoiceNew.Consumer.TaxNumber;
-            }
-            // TODO перенести инфо в тело инвойса
-            invoiceOld.Info.InvoiceNumber = invoiceNew.Info.InvoiceNumber;
-            invoiceOld.Info.InvoiceDate = invoiceNew.Info.InvoiceDate;
-            invoiceOld.Info.TotalIVA = invoiceNew.Info.TotalIVA;
-            invoiceOld.Info.TotalAmount = invoiceNew.Info.TotalAmount;
-
-            invoiceOld.Products = invoiceNew.Products;
-            invoiceOld.TaxCategories = invoiceNew.TaxCategories;
-
-            if (invoiceNew.Status != null)
-            {
-                invoiceOld.Status = invoiceNew.Status;
+                invoiceTarget.Consumer.Name = invoiceSource.Consumer.Name;
+                invoiceTarget.Consumer.TaxNumber = invoiceSource.Consumer.TaxNumber;
             }
 
-            if (!string.IsNullOrWhiteSpace(invoiceNew.FilePath))
+            invoiceTarget.Info.InvoiceNumber = invoiceSource.Info.InvoiceNumber;
+            invoiceTarget.Info.InvoiceDate = invoiceSource.Info.InvoiceDate;
+            invoiceTarget.Info.TotalIVA = invoiceSource.Info.TotalIVA;
+            invoiceTarget.Info.TotalAmount = invoiceSource.Info.TotalAmount;
+
+            invoiceTarget.Products = invoiceSource.Products;
+            invoiceTarget.TaxCategories = invoiceSource.TaxCategories;
+
+
+            if (invoiceSource.Status != null)
             {
-                invoiceOld.FilePath = invoiceNew.FilePath;
+                invoiceTarget.Status = invoiceSource.Status;
+            }
+
+            if (!string.IsNullOrWhiteSpace(invoiceSource.FilePath))
+            {
+                invoiceTarget.FilePath = invoiceSource.FilePath;
             }
 
         }

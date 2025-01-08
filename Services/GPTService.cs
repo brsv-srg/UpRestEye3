@@ -109,6 +109,7 @@ namespace UpRestEye3.Services
 
                         using var invoiceDocument = JsonDocument.Parse(rootContent.GetRawText());
                         Invoice invoice = JsonSerializer.Deserialize<Invoice>(invoiceDocument, options);
+                        invoice.Status = InvoiceStatus.TextProcessed;
 
                         return invoice;
                     }
