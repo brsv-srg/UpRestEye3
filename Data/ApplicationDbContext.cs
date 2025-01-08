@@ -16,6 +16,7 @@ namespace UpRestEye3.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
 
             // Настройка таблицы Invoice
             modelBuilder.Entity<Invoice>()
