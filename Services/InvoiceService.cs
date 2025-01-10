@@ -57,18 +57,29 @@ namespace UpRestEye3.Services
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                // Сперва очистим автоматическое отслеживание статусов, т.к. у нас ручное управление статусами
+
+                if (invoice.Supplier != null && 
+                        (_context.Entry(invoice.Supplier).State == EntityState.Added || 
+                        _context.Entry(invoice.Supplier).State == EntityState.Modified))
+                    _context.Entry(invoice.Supplier).State = EntityState.Unchanged;
+                
+                if (invoice.Consumer != null &&
+                        (_context.Entry(invoice.Consumer).State == EntityState.Added ||
+                        _context.Entry(invoice.Consumer).State == EntityState.Modified))
+                    _context.Entry(invoice.Consumer).State = EntityState.Unchanged;
+
+
                 // Save or update Supplier
                 if (invoice.Supplier != null)
                 {
                     invoice.SupplierId = await _supplierService.GetOrCreateSupplierIdAsync(invoice.Supplier);
-                    _context.Entry(invoice.Supplier).State = EntityState.Unchanged;
                 }
 
                 // Save or update Consumer
                 if (invoice.Consumer != null)
                 {
                     invoice.ConsumerId = await _customerService.GetOrCreateConsumerIdAsync(invoice.Consumer);
-                    _context.Entry(invoice.Consumer).State = EntityState.Unchanged;
                 }
 
                 // Save or update Invoice

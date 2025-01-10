@@ -109,7 +109,10 @@ Extract structured data from given receipts.
 10. Verify that the sum of the items in the Products list is equal to the sum in the Total section.
 11. Add your comments about recognized data in the Comments element of the response JSON.
 ";
-
+        // todo добавить описание распознанного объекта - что он из параграфов, блоков и т.д.
+        // todo описать более подробно модель чека, в том числе какая бумага может быть, какие данные в каким виде
+        // todo добавить описание всех полей в таблице товаров, какие могут быть сокращения
+        // todo подавать на вход все, что распознали в QR - суммы и налоговые категории. в промпте указать, чтобы сверил с тем что распознает
 
         public string ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;

@@ -27,7 +27,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<ILocalMLService, LocalMLService>();
 builder.Services.AddScoped<IInvoiceFileService, FileService>();
-builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<ICustomerService, ConsumerService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<IImageFileProcessor, ImageProcessor>();
 builder.Services.AddScoped<IQRProcessing, QRProcessingOpenCV>();

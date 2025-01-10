@@ -8,12 +8,12 @@ namespace UpRestEye3.Services
     {
         Task<int?> GetOrCreateConsumerIdAsync(ConsumerInfo consumer);
     }
-
-    public class CustomerService : ICustomerService
+    // todo сделать создание объекта ConsumerInfo сразу с проверкой в БД, через билдер
+    public class ConsumerService : ICustomerService
     {
         private readonly ApplicationDbContext _context;
 
-        public CustomerService(ApplicationDbContext context)
+        public ConsumerService(ApplicationDbContext context)
         {
             _context = context;
         }
@@ -37,8 +37,8 @@ namespace UpRestEye3.Services
                 {
                     consumer.Id = existingConsumer.Id;
                     _context.Entry(consumer).State = EntityState.Modified;
-                    await _context.SaveChangesAsync();
-                    _context.Entry(consumer).State = EntityState.Unchanged;
+                    //await _context.SaveChangesAsync();
+                    //_context.Entry(consumer).State = EntityState.Unchanged;
                 }
                 else
                 // если новый потребитель с другим id (но тем же TaxNumber),
@@ -54,7 +54,7 @@ namespace UpRestEye3.Services
             {
                 // если потребитель новый, то добавляем его в БД
                 _context.Consumers.Add(consumer);
-                await _context.SaveChangesAsync();
+                //await _context.SaveChangesAsync();
                 return consumer.Id;
             }
         }

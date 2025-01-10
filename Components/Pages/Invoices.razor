@@ -16,9 +16,9 @@
 }
 else
 {
-    <div style="overflow-y: auto; max-height: 70vh;">
-        <table class="table">
-            <thead style="position: sticky; top: 0; background-color: white; z-index: 1;">
+    <div style="overflow-y: auto; max-height: 70vh; ">
+        <table class="table" style="background-color: white; ">
+            <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
                 <tr>
                     <th>Upload Time</th>
                     <th>Invoice Number</th>
@@ -48,24 +48,22 @@ else
                             </span>
                         </td>
                         <td>
-                            <button class="btn btn-primary" @onclick="() => ShowProducts(invoice.Products)">
+                            <button class="btn btn-secondary" @onclick="() => ShowProducts(invoice.Products)">
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                         </td>
                     </tr>
                 }
             </tbody>
-            
-		</table>
-        
-
-        @* <div class="fixed-bottom align-items-right bg-light shadow-sm p-3" style="position: fixed; bottom: 0; width: 100%;"> *@
-        @*     <InputFile onchange="HandleFileSelected" class="round-button" /> *@
-        @* </div> *@
-	</div>
-    <div class="upload-button-container align-items-right">
-		<InputFile onchange="HandleFileSelected" class="round-button" />
-	</div>
+        </table>
+    </div>
+    <div class="upload-button-container align-items-right" style="padding: 15px;">
+        <InputFile onchange="HandleFileSelected" class="round-button" style="width: 90px; height: 90px;">
+            <label for="file-upload" class="custom-file-upload">
+                <i class="fas fa-file-upload fa-3x"></i> Upload File
+            </label>
+        </InputFile>
+    </div>
 }
 
 
