@@ -11,7 +11,6 @@
 
 <PageTitle>Invoices</PageTitle>
 
-<script src="js/tableResizer.js"></script>
 
 <h1>Invoices</h1>
 
@@ -22,18 +21,18 @@
 else
 {
     <div style="overflow-y: auto; max-height: 70vh; ">
-        <table id="resizableTable" class="table" style="background-color: white; ">
+        <table class="table" style="background-color: white; ">
             <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
                 <tr>
-                    <th>Upload Time<div class="resizer" @onmousedown="@(e => StartResize(e, 0))"></div></th>
-                    <th>Invoice Number<div class="resizer" @onmousedown="@(e => StartResize(e, 1))"></div></th>
-                    <th>Invoice Date<div class="resizer" @onmousedown="@(e => StartResize(e, 2))"></div></th>
-                    <th>Supplier Name<div class="resizer" @onmousedown="@(e => StartResize(e, 3))"></div></th>
-                    <th>Supplier TaxID<div class="resizer" @onmousedown="@(e => StartResize(e, 4))"></div></th>
-                    <th>Total IVA<div class="resizer" @onmousedown="@(e => StartResize(e, 5))"></div></th>
-                    <th>Total Amount<div class="resizer" @onmousedown="@(e => StartResize(e, 6))"></div></th>
-                    <th>Status<div class="resizer" @onmousedown="@(e => StartResize(e, 7))"></div></th>
-                    <th>Actions<div class="resizer" @onmousedown="@(e => StartResize(e, 8))"></div></th>
+                    <th>Upload Time</th>
+                    <th>Invoice Number</th>
+                    <th>Invoice Date</th>
+                    <th>Supplier Name</th>
+                    <th>Supplier TaxID</th>
+                    <th>Total IVA</th>
+                    <th>Total Amount</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -69,13 +68,6 @@ else
         </label> 
      </div>
 
-    @* <div class="upload-button-container align-items-right" style="padding: 15px;">  *@
-    @*      <InputFile onchange="HandleFileSelected" class="round-button" style="width: 90px; height: 90px;">  *@
-    @*          <label for="file-upload" class="custom-file-upload">  *@
-    @*              <i class="fas fa-file-upload fa-3x"></i> Upload File  *@
-    @*          </label>  *@
-    @*      </InputFile>  *@
-    @*  </div> *@
 }
 
 
@@ -221,37 +213,5 @@ else
             _ => "text-warning",
         };
     }
-
-    // protected override async Task OnAfterRenderAsync(bool firstRender)
-    // {
-    //     if (firstRender)
-    //     {
-    //         await JS.InvokeVoidAsync("initializeTableResizer", "invoicesTable");
-    //     }
-    // }
-
-
-    private int currentColumn = -1;
-    private IJSObjectReference _jsModule;
-
-	protected override async Task OnAfterRenderAsync(bool firstRender)
-	{
-		if(firstRender)
-        {
-            var versionedScriptUrl = $"./js/tableResizer.js?v=1.0.1"; // Update version number as needed
-            _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", versionedScriptUrl); // Import the JavaScript module with versioning
-            await _jsModule.InvokeVoidAsync("initResizableTable", "resizableTable");
-		}
-	}
-
-	private async Task StartResize(MouseEventArgs e, int columnIndex)
-    {
-        if (_jsModule != null)
-		{
-            currentColumn = columnIndex;
-			await _jsModule.InvokeVoidAsync("startResize", columnIndex);
-		}
-	}
-
 }
 
