@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="Components\Pages\Invoices.css" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="AForge.Imaging" Version="2.2.5" />
     <PackageReference Include="Google.Cloud.Vision.V1" Version="3.7.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">

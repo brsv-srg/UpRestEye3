@@ -1,4 +1,4 @@
-html, body {
+﻿html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
@@ -50,6 +50,9 @@ h1:focus {
     border-color: #929292;
 }
 
+
+
+/*
 .round-button {
     background: linear-gradient(45deg, #ff6ec4, #7873f5);
     display: flex;
@@ -81,3 +84,5 @@ h1:focus {
     right: 10px;
     color: aqua;
 }
+*/
+
