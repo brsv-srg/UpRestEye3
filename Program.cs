@@ -1,11 +1,17 @@
-﻿using UpRestEye3.Components;
+﻿using System.Text;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Http.Features; 
-using UpRestEye3.Data;
-using UpRestEye3.Services;
-using UpRestEye3.Models;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.DependencyInjection;
-using UpRestEye3.Tests;
+using UpRestEye3.Components;
+using UpRestEye3.Data;
+using UpRestEye3.Models.DTO;
+using UpRestEye3.Services.DataLayer;
+using UpRestEye3.Services.Recognition;
+using UpRestEye3.Services.BusinessLogic;
+using UpRestEye3.Services.MLServices;
 
 // TODO добавить логирование
 
@@ -24,10 +30,36 @@ builder.Services.AddSignalR();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connectionString));
+
+builder.Services.AddIdentity<UserDTO, IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    };
+});
+
+
+
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<ILocalMLService, LocalMLService>();
 builder.Services.AddScoped<IInvoiceFileService, FileService>();
-builder.Services.AddScoped<ICustomerService, ConsumerService>();
+builder.Services.AddScoped<IConsumerService, ConsumerService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<IImageFileProcessor, ImageProcessor>();
 builder.Services.AddScoped<IQRProcessing, QRProcessingOpenCV>();
@@ -36,6 +68,8 @@ builder.Services.AddScoped<IQRRecognition, QRRecognitionZXing>();
 builder.Services.AddScoped<ITextRecognition, TextRecognitionGoogleVision>();
 builder.Services.AddScoped<IGPTService, GPTService>();
 builder.Services.AddScoped<IImageProcessingPipelineHelper, ImagePipelineHelper>();
+builder.Services.AddScoped<IConnectionParameterService, ConnectionParameterService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 // Настройка параметров формы для обработки больших файлов
 builder.Services.Configure<FormOptions>(options =>

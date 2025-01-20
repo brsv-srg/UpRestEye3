@@ -1,0 +1,115 @@
+﻿@page "/edit-user"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using UpRestEye3.Models.DTO
+@using System.Net.Http.Json
+
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject HttpClient Http
+
+<AuthorizeView>
+	<Authorized>
+        <h3>Edit User</h3>
+        <EditForm Model="userModel" OnValidSubmit="HandleUpdate" Context="editFormContext">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div>
+                <label>Login:</label>
+                <InputText @bind-Value="userModel.Login" />
+            </div>
+            <div>
+                <label>Password:</label>
+                <InputText @bind-Value="userModel.Password" type="password" />
+            </div>
+           
+            <div>
+                <label>API URL:</label>
+                <InputText @bind-Value="connectionParameterModel.ApiUrl" />
+            </div>
+            <div>
+                <label>API Login:</label>
+                <InputText @bind-Value="connectionParameterModel.ApiLogin" />
+            </div>
+            <div>
+                <label>API Password:</label>
+                <InputText @bind-Value="connectionParameterModel.ApiPassword" type="password" />
+            </div>
+            <button type="submit">Save</button>
+        </EditForm>
+	</Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private UserDTO userModel = new UserDTO();
+    private ConnectionParameterDTO connectionParameterModel = new ConnectionParameterDTO();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            var userId = int.Parse(user.FindFirst(c => c.Type == "sub")?.Value);
+
+            var baseUri = Navigation.BaseUri;
+            if (baseUri.EndsWith('/'))
+            {
+                baseUri = baseUri.Substring(0, baseUri.Length - 1);
+            }
+
+            userModel = await Http.GetFromJsonAsync<UserDTO>($"{baseUri}/api/user/{userId}");
+
+            connectionParameterModel = await Http.GetFromJsonAsync<ConnectionParameterDTO>($"{baseUri}/api/connectionparameter/{userModel.ConsumerId}");
+        }
+        else
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+
+
+    private async Task HandleUpdate()
+    {
+        int result = 0;
+        var baseUri = Navigation.BaseUri;
+        if (baseUri.EndsWith('/'))
+        {
+            baseUri = baseUri.Substring(0, baseUri.Length - 1);
+        }
+
+        var response = await Http.PostAsJsonAsync($"{baseUri}/api/connectionparameter/save", connectionParameterModel);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Console.WriteLine("Parameters saved successfully.");
+			result = 1;
+        }
+        else
+        {
+            Console.WriteLine("Parameters save failed.");
+        }
+
+        response = await Http.PostAsJsonAsync($"{baseUri}/api/user/save", userModel);
+
+		if (response.IsSuccessStatusCode)
+		{
+			Console.WriteLine("User saved successfully.");
+			result = 1;
+		}
+		else
+		{
+			Console.WriteLine("User save failed.");
+		}
+		if (result == 1)
+		{
+			Navigation.NavigateTo("/");
+		}
+    }
+}

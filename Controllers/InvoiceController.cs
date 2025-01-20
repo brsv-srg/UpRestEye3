@@ -1,11 +1,13 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using UpRestEye3.Models;
-using UpRestEye3.Services;
+using UpRestEye3.Models.DTO;
+using UpRestEye3.Services.DataLayer;
 
 namespace UpRestEye3.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    //[Authorize]
     public class InvoicesController : ControllerBase
     {
         private readonly IInvoiceService _invoiceService;
@@ -16,16 +18,16 @@ namespace UpRestEye3.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Invoice>>> GetInvoices()
+        public async Task<ActionResult<IEnumerable<InvoiceDTO>>> GetInvoices()
         {
-            return await _invoiceService.GetInvoicesAsync();
+            return await _invoiceService.GetInvoicesDTOAsync();
         }
 
         [HttpPost]
-        public async Task<ActionResult<Invoice>> SaveInvoice(Invoice invoice)
+        public async Task<ActionResult<InvoiceDTO>> SaveInvoice(InvoiceDTO invoice)
         {
-            await _invoiceService.SaveInvoiceAsync(invoice);
-            return CreatedAtAction(nameof(GetInvoices), new { id = invoice.Id }, invoice);
+            var invoiceId = await _invoiceService.SaveInvoiceAsync(invoice);
+            return CreatedAtAction(nameof(GetInvoices), new { id = invoiceId }, invoice);
         }
     }
 }

@@ -1,134 +1,147 @@
 ﻿@page "/invoices"
 @rendermode InteractiveServer
 
+@using Microsoft.AspNetCore.Components.Authorization
+@using UpRestEye3.Models.DTO
+@using UpRestEye3.Models.BLO
+
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 
-@using UpRestEye3.Models
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
-
-<PageTitle>Invoices</PageTitle>
-
-
-<h1>Invoices</h1>
-
-@if (invoices == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <div style="overflow-y: auto; max-height: 70vh; ">
-        <table class="table" style="background-color: white; ">
-            <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
-                <tr>
-                    <th>Upload Time</th>
-                    <th>Invoice Number</th>
-                    <th>Invoice Date</th>
-                    <th>Supplier Name</th>
-                    <th>Supplier TaxID</th>
-                    <th>Total IVA</th>
-                    <th>Total Amount</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var invoice in invoices.OrderByDescending(i => i.UploadTime))
-                {
-                    <tr>
-                        <td>@invoice.UploadTime.ToString("g")</td> 
-                        <td>@invoice.Info.InvoiceNumber</td>
-                        <td>@invoice.Info.InvoiceDate.ToShortDateString()</td>
-                        <td>@(invoice.Supplier != null ? invoice.Supplier.Name : "")</td>
-                        <td>@(invoice.Supplier != null ? invoice.Supplier.TaxNumber : "")</td>
-                        <td>@invoice.Info.TotalIVA</td>
-                        <td>@invoice.Info.TotalAmount</td>
-                        <td>
-                            <span class="@GetStatusClass(invoice.Status)">
-                                @invoice.Status.ToString()
-                            </span>
-                        </td>
-                        <td>
-                            <button class="custom-btn" @onclick ="() => ShowProducts(invoice.Products)">
-                                <i class="fas fa-ellipsis-v"></i>
-                            </button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-    <div class="upload-button-container"> 
-         <label class="upload-button"> 
-            <span class="plus-icon">+</span>
-            <InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.png" />
-        </label> 
-     </div>
-
-}
+<AuthorizeView>
+	<Authorized>
+        <PageTitle>Invoices</PageTitle>
 
 
+        <h1>Invoices</h1>
 
 
-
-@if (!string.IsNullOrEmpty(uploadMessage))
-{
-    <div class="alert @uploadMessageClass" role="alert" style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
-        @uploadMessage
-    </div>
-}
-
-@if (showProductsModal)
-{
-    <div class="modal-backdrop"></div>
-    <div class="modal show d-block" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Products</h5>
-                </div>
-                <div class="modal-body">
-                    <table class="table">
-                        <thead>
+ 
+        @if (invoices == null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else
+        {
+            <div style="overflow-y: auto; max-height: 70vh; ">
+                <table class="table" style="background-color: white; ">
+                    <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
+                        <tr>
+                            <th>Upload Time</th>
+                            <th>Invoice Number</th>
+                            <th>Invoice Date</th>
+                            <th>Supplier Name</th>
+                            <th>Supplier TaxID</th>
+                            <th>Total IVA</th>
+                            <th>Total Amount</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var invoice in invoices.OrderByDescending(i => i.UploadTime))
+                        {
                             <tr>
-                                <th>Code</th>
-                                <th>Name</th>
-                                <th>Quantity</th>
-                                <th>Price</th>
+                                <td>@invoice.UploadTime.ToString("g")</td> 
+                                <td>@invoice.InvoiceNumber</td>
+                                <td>@invoice.InvoiceDate.ToShortDateString()</td>
+                                <td>@(invoice.Supplier != null ? invoice.Supplier.Name : "")</td>
+                                <td>@(invoice.Supplier != null ? invoice.Supplier.TaxNumber : "")</td>
+                                <td>@invoice.TotalIVA</td>
+                                <td>@invoice.TotalAmount</td>
+                                <td>
+                                    <span class="@GetStatusClass(invoice.Status)">
+                                        @invoice.Status.ToString()
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="custom-btn" @onclick ="() => ShowProducts(invoice.Products)">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var product in selectedProducts)
-                            {
-                                <tr>
-                                    <td>@product.ProductCode</td>
-                                    <td>@product.ProductName</td>
-                                    <td>@product.Quantity</td>
-                                    <td>@product.Price</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseProductsModal">Close</button>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="upload-button-container"> 
+                 <label class="upload-button"> 
+                    <span class="plus-icon">+</span>
+                    <InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.png" />
+                </label> 
+             </div>
+
+        }
+
+
+
+
+
+        @if (!string.IsNullOrEmpty(uploadMessage))
+        {
+            <div class="alert @uploadMessageClass" role="alert" style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
+                @uploadMessage
+            </div>
+        }
+
+        @if (showProductsModal)
+        {
+            <div class="modal-backdrop"></div>
+            <div class="modal show d-block" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Products</h5>
+                        </div>
+                        <div class="modal-body">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Name</th>
+                                        <th>Quantity</th>
+                                        <th>Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var product in selectedProducts)
+                                    {
+                                        <tr>
+                                            <td>@product.ProductCode</td>
+                                            <td>@product.ProductName</td>
+                                            <td>@product.Quantity</td>
+                                            <td>@product.Price</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseProductsModal">Close</button>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-}
+        }
+
+    </Authorized>
+    <NotAuthorized>
+        <p>You are not authorized to view this content.</p>
+    </NotAuthorized>
+</AuthorizeView>
 
 @code {
-    private Invoice[]? invoices;
+    private InvoiceDTO[]? invoices;
     private IBrowserFile? selectedFile;
     private string? uploadMessage;
     private string? uploadMessageClass;
     private bool showProductsModal = false;
-    private List<Product>? selectedProducts;
+    private List<ProductDTO>? selectedProducts;
 
     protected override async Task OnInitializedAsync()
     {
@@ -137,7 +150,7 @@ else
         {
             baseUri = baseUri.Substring(0, baseUri.Length - 1);
         }
-        invoices = await Http.GetFromJsonAsync<Invoice[]>($"{baseUri}/api/invoices");
+        invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices");
     }
 
     private void HandleFileSelected(InputFileChangeEventArgs e)
@@ -169,7 +182,7 @@ else
                 Console.WriteLine("File uploaded successfully.");
                 uploadMessage = "File uploaded successfully.";
                 uploadMessageClass = "alert-success";
-                invoices = await Http.GetFromJsonAsync<Invoice[]>($"{baseUri}/api/invoices");
+                invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices");
             } 
             else 
             { 
@@ -193,7 +206,7 @@ else
         StateHasChanged();
     }
 
-    private void ShowProducts(List<Product> products)
+    private void ShowProducts(List<ProductDTO> products)
     {
         selectedProducts = products;
         showProductsModal = true;
