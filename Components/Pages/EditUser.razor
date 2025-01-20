@@ -70,7 +70,8 @@
         }
         else
         {
-            Navigation.NavigateTo("/login");
+            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+            Navigation.NavigateTo($"/login?returnUrl={returnUrl}");
         }
     }
 

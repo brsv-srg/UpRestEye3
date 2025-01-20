@@ -28,7 +28,20 @@
 </EditForm>
 
 @code {
+    [Parameter]
+    public string? returnUrl { get; set; }
+
     private LoginModel loginModel = new LoginModel();
+
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("returnUrl", out var returnUrl))
+        {
+            this.returnUrl = returnUrl;
+        }
+    }
 
     private async Task HandleLogin()
     {
@@ -38,12 +51,13 @@
             baseUri = baseUri.Substring(0, baseUri.Length - 1);
         }
 
-        var response = await Http.PostAsJsonAsync($"{baseUri}/api/user/authenticate", new { loginModel.Login, loginModel.Password });
-
+        var response = await Http.PostAsJsonAsync($"{baseUri}/api/user/authenticate", loginModel);
+        
         if (response.IsSuccessStatusCode)
         {
+            var user = await response.Content.ReadFromJsonAsync<UserDTO>();
             Console.WriteLine("Successful authentication.");
-            Navigation.NavigateTo("/");
+            Navigation.NavigateTo(returnUrl ?? "/"); 
         }
         else
         {
@@ -57,3 +71,9 @@
         public string Password { get; set; }
     }
 }
+
+   
+    
+
+    
+   

@@ -38,6 +38,7 @@ namespace UpRestEye3.Services.DataLayer
         public async Task<InvoiceDAO?> GetInvoiceDAOByIdAsync(int id)
         {
             return await _context.Invoices
+                .AsNoTracking()
                 .Include(i => i.TaxCategories)
                 .Include(i => i.Products)
                 .Include(i => i.Supplier)
@@ -53,6 +54,7 @@ namespace UpRestEye3.Services.DataLayer
         public async Task<ActionResult<IEnumerable<InvoiceDAO>>> GetInvoicesDAOAsync()
         {
             var invoices = await _context.Invoices
+                .AsNoTracking()
                 .Include(i => i.TaxCategories)
                 .Include(i => i.Products)
                 .Include(i => i.Supplier)
@@ -87,11 +89,13 @@ namespace UpRestEye3.Services.DataLayer
                 if (invoice.ConsumerId == null && invoice.Consumer != null)
                 {
                     invoice.ConsumerId = await _consumerService.GetConsumerIdAsync(invoice.Consumer.TaxNumber);
+                    invoice.Consumer.Id = invoice.ConsumerId;
                 }
                 if (invoice.ConsumerId == null)
-                {
                     throw new Exception("Consumer not found");
-                }
+                else
+                    _context.Entry(invoice.Consumer).State = EntityState.Unchanged;
+
 
 
                 // Attach and set state for Supplier
@@ -99,8 +103,8 @@ namespace UpRestEye3.Services.DataLayer
                 {
                     var existingSupplier = await _context.Suppliers
                         .AsNoTracking()
-                        .FirstOrDefaultAsync(s => invoice.SupplierId != null && s.Id == invoice.SupplierId ||
-                                                    invoice.SupplierId == null && s.TaxNumber == invoice.Supplier.TaxNumber);
+                        .FirstOrDefaultAsync(s => invoice.SupplierId != null && s.Id == invoice.SupplierId && s.ConsumerId == invoice.ConsumerId ||
+                                                    invoice.SupplierId == null && s.TaxNumber == invoice.Supplier.TaxNumber && s.ConsumerId == invoice.ConsumerId);
 
                     if (existingSupplier == null)
                     {
@@ -108,29 +112,16 @@ namespace UpRestEye3.Services.DataLayer
                     }
                     else
                     {
-                        existingSupplier.Name = invoice.Supplier.Name;
-                        existingSupplier.BankAccount = invoice.Supplier.BankAccount;
-                        _context.Entry(existingSupplier).State = EntityState.Modified;
                         invoice.SupplierId = existingSupplier.Id;
+                        invoice.Supplier.Id = invoice.SupplierId;
+
+                        if (string.IsNullOrWhiteSpace(existingSupplier.Name) || string.IsNullOrWhiteSpace(existingSupplier.BankAccount))
+                            _context.Entry(invoice.Supplier).State = EntityState.Modified;
+                        else
+                            _context.Entry(invoice.Supplier).State = EntityState.Unchanged;
                     }
                 }
                 
-
-                // Attach and set state for Products
-                foreach (var product in invoice.Products)
-                {
-                    var existingProduct = await _context.Products
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(p => p.Id == product.Id);
-                    if (existingProduct == null)
-                    {
-                        _context.Products.Add(product);
-                    }
-                    else
-                    {
-                        _context.Entry(product).State = EntityState.Modified;
-                    }
-                }
 
                 // Attach and set state for Invoice
                 var existingInvoice = await _context.Invoices
@@ -146,21 +137,7 @@ namespace UpRestEye3.Services.DataLayer
                 else
                 {
                     // Update specific fields
-                    existingInvoice.InvoiceNumber = invoice.InvoiceNumber;
-                    existingInvoice.InvoiceDate = invoice.InvoiceDate;
-                    existingInvoice.TotalIVA = invoice.TotalIVA;
-                    existingInvoice.ConsumerId = invoice.ConsumerId;
-                    existingInvoice.SupplierId = invoice.SupplierId;
-                    existingInvoice.FilePath = invoice.FilePath;
-                    existingInvoice.UploadTime = invoice.UploadTime;
-                    existingInvoice.Comments = invoice.Comments;
-                    existingInvoice.Status = invoice.Status;
-
-                    // Update related entities if necessary
-                    existingInvoice.Products = new List<ProductDAO>(invoice.Products);
-                    existingInvoice.TaxCategories = new List<TaxesDAO>(invoice.TaxCategories);
-
-                    _context.Entry(existingInvoice).State = EntityState.Modified;
+                    _context.Entry(existingInvoice).CurrentValues.SetValues(invoice);
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();

@@ -35,11 +35,7 @@ builder.Services.AddIdentity<UserDTO, IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
@@ -71,6 +67,8 @@ builder.Services.AddScoped<IImageProcessingPipelineHelper, ImagePipelineHelper>(
 builder.Services.AddScoped<IConnectionParameterService, ConnectionParameterService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
+builder.Services.AddAuthorizationCore();
+
 // Настройка параметров формы для обработки больших файлов
 builder.Services.Configure<FormOptions>(options =>
 {
@@ -97,6 +95,9 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAntiforgery();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 //app.MapBlazorHub();
 app.MapControllers();

@@ -14,14 +14,11 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
 <AuthorizeView>
-	<Authorized>
+    <Authorized>
         <PageTitle>Invoices</PageTitle>
-
 
         <h1>Invoices</h1>
 
-
- 
         @if (invoices == null)
         {
             <p><em>Loading...</em></p>
@@ -70,15 +67,13 @@
                 </table>
             </div>
             <div class="upload-button-container"> 
-                 <label class="upload-button"> 
+                <label class="upload-button"> 
                     <span class="plus-icon">+</span>
                     <InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.png" />
                 </label> 
-             </div>
+            </div>
 
         }
-
-
 
 
 
@@ -131,6 +126,7 @@
 
     </Authorized>
     <NotAuthorized>
+        <RedirectToLogin />
         <p>You are not authorized to view this content.</p>
     </NotAuthorized>
 </AuthorizeView>
@@ -145,12 +141,26 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var baseUri = Navigation.BaseUri;
-        if (baseUri.EndsWith('/'))
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
         {
-            baseUri = baseUri.Substring(0, baseUri.Length - 1);
+
+
+            var baseUri = Navigation.BaseUri;
+            if (baseUri.EndsWith('/'))
+            {
+                baseUri = baseUri.Substring(0, baseUri.Length - 1);
+            }
+            invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices");
+
         }
-        invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices");
+        else
+        {
+            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+            Navigation.NavigateTo($"/login?returnUrl={returnUrl}");
+        }
     }
 
     private void HandleFileSelected(InputFileChangeEventArgs e)

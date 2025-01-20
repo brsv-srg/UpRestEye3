@@ -29,10 +29,10 @@ namespace UpRestEye3.Services.DataLayer
             _context = context;
         }
 
-
         public async Task<SupplierDAO?> GetSupplierDAOByIdAsync(int id)
         {
             return await _context.Suppliers
+                .AsNoTracking()
                 .Include(s => s.Invoices)
                 .Include(s => s.Consumer)
                 .FirstOrDefaultAsync(s => s.Id == id);
@@ -41,6 +41,7 @@ namespace UpRestEye3.Services.DataLayer
         public async Task<SupplierDTO?> GetSupplierDTOByIdAsync(int id)
         {
             var supplierDAO = await _context.Suppliers
+                .AsNoTracking()
                 .Include(s => s.Invoices)
                 .FirstOrDefaultAsync(s => s.Id == id);
             return supplierDAO != null ? new SupplierDTO
@@ -55,6 +56,7 @@ namespace UpRestEye3.Services.DataLayer
         {
 
             return await _context.Suppliers
+                .AsNoTracking()
                 .Include(i => i.Invoices)
                 .Include(i => i.Consumer)
                 .Where(s => consumer != null && 

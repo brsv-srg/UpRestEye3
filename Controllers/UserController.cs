@@ -7,7 +7,7 @@ namespace UpRestEye3.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize]
+    [Authorize]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
@@ -31,15 +31,23 @@ namespace UpRestEye3.Controllers
         }
 
 
+        [AllowAnonymous]
         [HttpPost("authenticate")]
-        public async Task<ActionResult<UserDTO>> Authenticate(string login, string password)
+        public async Task<ActionResult<UserDTO>> Authenticate([FromBody] LoginModel loginModel)
         {
-            var user = await _userService.AuthenticateAsync(login, password);
+            var user = await _userService.AuthenticateAsync(loginModel.Login, loginModel.Password);
             if (user == null)
             {
                 return Unauthorized();
             }
             return Ok(user);
+        }
+
+
+        public class LoginModel
+        {
+            public string Login { get; set; } = string.Empty;
+            public string Password { get; set; } = string.Empty;
         }
     }
 }

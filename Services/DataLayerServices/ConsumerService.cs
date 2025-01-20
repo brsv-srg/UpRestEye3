@@ -35,6 +35,7 @@ namespace UpRestEye3.Services.DataLayer
         public async Task<ConsumerDAO?> GetConsumerDAOByIdAsync(int id)
         {
             return await _context.Consumers
+                .AsNoTracking()
                 .Include(s => s.Invoices)
                 .Include(s => s.Suppliers)
                 .FirstOrDefaultAsync(s => s.Id == id);
@@ -43,6 +44,7 @@ namespace UpRestEye3.Services.DataLayer
         public async Task<ConsumerDTO?> GetConsumerDTOByIdAsync(int id)
         {
             var consumerDAO = await _context.Consumers
+                .AsNoTracking()
                 .Include(s => s.Invoices)
                 .FirstOrDefaultAsync(s => s.Id == id);
             return consumerDAO != null ? new ConsumerDTO
@@ -55,6 +57,7 @@ namespace UpRestEye3.Services.DataLayer
         public async Task<int?> GetConsumerIdAsync(string taxNumber)
         {
             var consumerDAO = await _context.Consumers
+                .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.TaxNumber == taxNumber);
             return consumerDAO?.Id;
         }
@@ -63,6 +66,7 @@ namespace UpRestEye3.Services.DataLayer
         {
 
             return await _context.Consumers
+                .AsNoTracking()
                 .Include(i => i.Invoices)
                 .Include(i => i.Suppliers)
                 .ToListAsync();
@@ -73,7 +77,7 @@ namespace UpRestEye3.Services.DataLayer
 
             var consumersDAO = await GetConsumerDAOAsync();
             return new ActionResult<IEnumerable<ConsumerDTO>>(
-                    consumersDAO.Value.Select(s => new ConsumerDTO
+                consumersDAO.Value.Select(s => new ConsumerDTO
                     {
                         Name = s.Name,
                         TaxNumber = s.TaxNumber
