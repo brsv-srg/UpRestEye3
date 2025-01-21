@@ -1,7 +1,10 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.DataLayer;
+using UpRestEye3.Services.BusinessLogic;
 
 namespace UpRestEye3.Controllers
 {
@@ -11,10 +14,15 @@ namespace UpRestEye3.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly UserManager<UserDTO> _userManager;
+        private readonly IServerAuthService _serverAuthService;
 
-        public UserController(IUserService userService)
+        public UserController(IUserService userService, UserManager<UserDTO> userManager, IServerAuthService serverAuthService)
         {
             _userService = userService;
+            _userManager = userManager;
+            _serverAuthService = serverAuthService;
+
         }
 
         [HttpGet("{id}")]
@@ -30,24 +38,28 @@ namespace UpRestEye3.Controllers
             return CreatedAtAction(nameof(GetUser), new { id = userId }, user);
         }
 
+        // todo вынести в отдельный контроллер
 
         [AllowAnonymous]
         [HttpPost("authenticate")]
-        public async Task<ActionResult<UserDTO>> Authenticate([FromBody] LoginModel loginModel)
+        public async Task<ActionResult<LoginResponseDTO>> Authenticate([FromBody] LoginRequestDTO loginModel)
         {
             var user = await _userService.AuthenticateAsync(loginModel.Login, loginModel.Password);
             if (user == null)
             {
-                return Unauthorized();
+                return Unauthorized(new { message = "Invalid email or password" });
             }
-            return Ok(user);
+
+            var token = _serverAuthService.GenerateJwtToken(user);
+
+            return Ok(new LoginResponseDTO
+            {
+                Token = token,
+                Login = user.Login,
+                ConsumerId = user.ConsumerId,
+                ConsumerTaxNumber = user.ConsumerTaxNumber
+            });
         }
 
-
-        public class LoginModel
-        {
-            public string Login { get; set; } = string.Empty;
-            public string Password { get; set; } = string.Empty;
-        }
     }
 }

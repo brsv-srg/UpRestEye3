@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations;
 
 namespace UpRestEye3.Models.DTO
 {
@@ -10,4 +11,20 @@ namespace UpRestEye3.Models.DTO
         public string ConsumerTaxNumber { get; set; } = string.Empty;
     }
 
+
+    public class LoginRequestDTO
+    {
+        [Required]
+        [EmailAddress]
+        public string Login { get; set; } = string.Empty;
+
+
+        [Required]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class LoginResponseDTO : UserDTO
+    {
+        public string Token { get; set; } = string.Empty;
+    }
 }

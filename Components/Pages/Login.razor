@@ -1,37 +1,48 @@
 ﻿@page "/login"
 @rendermode InteractiveServer
 
-@using Microsoft.AspNetCore.Components.Authorization
-@using System.Net.Http.Json
-@using UpRestEye3.Models.DTO
 
 @inject NavigationManager Navigation
-@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IClientAuthService AuthClient
 @inject HttpClient Http
 
 
 <h3>Login</h3>
-
-<EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+<div class="login-container">
+<EditForm Model="@loginModel" OnValidSubmit="HandleLogin">
     <DataAnnotationsValidator />
     <ValidationSummary />
 
-    <div>
-        <label>Login:</label>
-        <InputText @bind-Value="loginModel.Login" />
-    </div>
-    <div>
-        <label>Password:</label>
-        <InputText @bind-Value="loginModel.Password" type="password" />
-    </div>
-    <button type="submit">Login</button>
+    
+        <div class="form-group">
+            <label>Login:</label>
+            <InputText @bind-Value="loginModel.Login" class="form-control" />
+            <ValidationMessage For="@(() => loginModel.Login)" />
+        </div>
+
+
+        <div class="form-group">
+            <label>Password:</label>
+            <InputText type="password" @bind-Value="loginModel.Password" class="form-control" />
+            <ValidationMessage For="@(() => loginModel.Password)" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <button type="submit" class="btn btn-primary">Login</button>
 </EditForm>
+</div>
 
 @code {
     [Parameter]
     public string? returnUrl { get; set; }
 
-    private LoginModel loginModel = new LoginModel();
+    private LoginRequestDTO loginModel = new LoginRequestDTO();
+    private string errorMessage;
 
     protected override void OnInitialized()
     {
@@ -45,31 +56,39 @@
 
     private async Task HandleLogin()
     {
-        var baseUri = Navigation.BaseUri;
-        if (baseUri.EndsWith('/'))
+        try
         {
-            baseUri = baseUri.Substring(0, baseUri.Length - 1);
-        }
+            var baseUri = Navigation.BaseUri;
 
-        var response = await Http.PostAsJsonAsync($"{baseUri}/api/user/authenticate", loginModel);
+            if (baseUri.EndsWith('/'))
+            {
+                baseUri = baseUri.Substring(0, baseUri.Length - 1);
+            }
+            errorMessage = null;
+            var result = await AuthClient.LoginAsync(baseUri, loginModel);
         
-        if (response.IsSuccessStatusCode)
-        {
-            var user = await response.Content.ReadFromJsonAsync<UserDTO>();
-            Console.WriteLine("Successful authentication.");
-            Navigation.NavigateTo(returnUrl ?? "/"); 
+            if (!string.IsNullOrEmpty(result.Login))
+            {
+                var httpContext = HttpContextAccessor.HttpContext;
+                if (httpContext != null)
+                {
+                    await AuthClient.SetAuthenticationCookie(result, httpContext);
+				}
+                Console.WriteLine("Successful authentication.");
+                Navigation.NavigateTo(returnUrl ?? "/"); 
+            }
+            else
+            {
+                Console.WriteLine("Authentication failed.");
+            }
         }
-        else
+        catch (ApplicationException ex)
         {
-            Console.WriteLine("Authentication failed.");
+            errorMessage = ex.Message;
         }
     }
 
-    public class LoginModel
-    {
-        public string Login { get; set; }
-        public string Password { get; set; }
-    }
+   
 }
 
    

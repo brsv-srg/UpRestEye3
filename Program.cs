@@ -12,10 +12,15 @@ using UpRestEye3.Services.DataLayer;
 using UpRestEye3.Services.Recognition;
 using UpRestEye3.Services.BusinessLogic;
 using UpRestEye3.Services.MLServices;
+using Blazored.LocalStorage;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 // TODO добавить логирование
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
 
 //----------------------------------------------------------------------------------------
 // Add services to the container
@@ -67,7 +72,22 @@ builder.Services.AddScoped<IImageProcessingPipelineHelper, ImagePipelineHelper>(
 builder.Services.AddScoped<IConnectionParameterService, ConnectionParameterService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
+builder.Services.AddScoped<IServerAuthService, ServerAuthService>();
+builder.Services.AddScoped<IClientAuthService, ClientAuthService>();
+
+builder.Services.AddBlazoredLocalStorage();
+
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/login";
+    });
+
+
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddAuthorizationCore();
+
 
 // Настройка параметров формы для обработки больших файлов
 builder.Services.Configure<FormOptions>(options =>

@@ -1,6 +1,4 @@
-﻿@using UpRestEye3.Components.Layout
-@using Microsoft.AspNetCore.Components.Authorization
-@using UpRestEye3.Components.Pages
+﻿@inject IClientAuthService AuthClient
 @inject NavigationManager Navigation
 
 <!DOCTYPE html>
@@ -23,7 +21,10 @@
             <Found Context="routeData">
                 <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                     <NotAuthorized>
-                            <RedirectToLogin />
+                        @{
+                            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+                            Navigation.NavigateTo($"/login?returnUrl={returnUrl}");
+                        }
                     </NotAuthorized>
                     <Authorizing>
                         <p>Checking authorization...</p>
