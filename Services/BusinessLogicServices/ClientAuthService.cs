@@ -1,12 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Blazored.LocalStorage;
-using Microsoft.AspNetCore.Components;
+﻿using Blazored.LocalStorage;
 using System.Net.Http.Headers;
 using UpRestEye3.Models.DTO;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
 using System.Security.Claims;
-using Microsoft.AspNetCore.Components.Authorization;
+
+using Microsoft.AspNetCore.Mvc;
 
 
 namespace UpRestEye3.Services.BusinessLogic
@@ -88,6 +87,8 @@ namespace UpRestEye3.Services.BusinessLogic
                     IsPersistent = true,
                     ExpiresUtc = DateTimeOffset.UtcNow.AddDays(1)
                 };
+
+                await HttpContext.SignInAsync("MyCookieAuth", new ClaimsPrincipal(claimsIdentity));
 
                 if (httpContext != null)
                 {

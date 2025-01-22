@@ -1,7 +1,4 @@
-﻿@inject IClientAuthService AuthClient
-@inject NavigationManager Navigation
-
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -16,29 +13,7 @@
 </head>
 
 <body>
-    <CascadingAuthenticationState>
-        <Router AppAssembly="@typeof(Program).Assembly">
-            <Found Context="routeData">
-                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                    <NotAuthorized>
-                        @{
-                            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
-                            Navigation.NavigateTo($"/login?returnUrl={returnUrl}");
-                        }
-                    </NotAuthorized>
-                    <Authorizing>
-                        <p>Checking authorization...</p>
-                    </Authorizing>
-                </AuthorizeRouteView>
-                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-            </Found>
-            <NotFound>
-                <LayoutView Layout="@typeof(MainLayout)">
-                    <p>Sorry, there's nothing at this address.</p>
-                </LayoutView>
-            </NotFound>
-        </Router>
-    </CascadingAuthenticationState>
+    <Routes />
     <script src="_framework/blazor.web.js"></script>
 </body>
 
