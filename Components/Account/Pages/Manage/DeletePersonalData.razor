@@ -2,10 +2,10 @@
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
-@using UpRestEye3.Models.DTO
+@using UpRestEye3.Models.Account
 
-@inject UserManager<UserDTO> UserManager
-@inject SignInManager<UserDTO> SignInManager
+@inject UserManager<AppUser> UserManager
+@inject SignInManager<AppUser> SignInManager
 @inject IdentityUserAccessor UserAccessor
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<DeletePersonalData> Logger
@@ -40,7 +40,7 @@
 
 @code {
     private string? message;
-    private UserDTO user = default!;
+    private AppUser user = default!;
     private bool requirePassword;
 
     [CascadingParameter]

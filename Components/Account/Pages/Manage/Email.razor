@@ -5,10 +5,10 @@
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
-@using UpRestEye3.Models.DTO
+@using UpRestEye3.Models.Account
 
-@inject UserManager<UserDTO> UserManager
-@inject IEmailSender<UserDTO> EmailSender
+@inject UserManager<AppUser> UserManager
+@inject IEmailSender<AppUser> EmailSender
 @inject IdentityUserAccessor UserAccessor
 @inject NavigationManager NavigationManager
 
@@ -55,7 +55,7 @@
 
 @code {
     private string? message;
-    private UserDTO user = default!;
+    private AppUser user = default!;
     private string? email;
     private bool isEmailConfirmed;
 

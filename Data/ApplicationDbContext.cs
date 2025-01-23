@@ -1,20 +1,21 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using UpRestEye3.Models.DAO;
+using UpRestEye3.Models.Account;
+
 
 
 namespace UpRestEye3.Data
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<AppUser>(options)
     {
-        
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
         public DbSet<InvoiceDAO> Invoices { get; set; }
         public DbSet<TaxesDAO> TaxCategories { get; set; }
         public DbSet<ProductDAO> Products { get; set; }
         public DbSet<SupplierDAO> Suppliers { get; set; }
         public DbSet<ConsumerDAO> Consumers { get; set; }
-        public DbSet<UserDAO> Users { get; set; }
+        //public DbSet<AppUser> Users { get; set; }
         public DbSet<ConnectionParameterDAO> ConnectionParameters { get; set; }
 
 
@@ -117,11 +118,6 @@ namespace UpRestEye3.Data
                 .HasForeignKey(i => i.ConsumerId);
 
             modelBuilder.Entity<ConsumerDAO>()
-                .HasMany(c => c.Users)
-                .WithOne(u => u.Consumer)
-                .HasForeignKey(u => u.ConsumerId);
-
-            modelBuilder.Entity<ConsumerDAO>()
                 .HasMany(c => c.Suppliers)
                 .WithOne(s => s.Consumer)
                 .HasForeignKey(s => s.ConsumerId);
@@ -131,27 +127,23 @@ namespace UpRestEye3.Data
                 .WithOne(cp => cp.Consumer)
                 .HasForeignKey<ConnectionParameterDAO>(cp => cp.ConsumerId);
 
-            ////////////////////////////////////////////////////////////////
-            /// User
-            ////////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////
+            ///// User
+            //////////////////////////////////////////////////////////////////
 
 
-            modelBuilder.Entity<UserDAO>()
-                .HasIndex(u => u.Login)
-                .IsUnique();
-
-            modelBuilder.Entity<UserDAO>()
-                .HasKey(u => u.Id);
+            //modelBuilder.Entity<AppUser>()
+            //    .HasKey(u => u.Id);
             
-            // Configure auto-generated IDs
-            modelBuilder.Entity<UserDAO>()
-                .Property(u => u.Id)
-                .ValueGeneratedOnAdd();
+            //// Configure auto-generated IDs
+            //modelBuilder.Entity<AppUser>()
+            //    .Property(u => u.Id)
+            //    .ValueGeneratedOnAdd();
 
-            modelBuilder.Entity<UserDAO>()
-                .HasOne(u => u.Consumer)
-                .WithMany(c => c.Users)
-                .HasForeignKey(u => u.ConsumerId);
+            //modelBuilder.Entity<AppUser>()
+            //    .HasIndex(u => u.Login)
+            //    .IsUnique();
+
 
 
             ////////////////////////////////////////////////////////////////

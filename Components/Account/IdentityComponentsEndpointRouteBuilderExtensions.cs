@@ -8,8 +8,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using UpRestEye3.Components.Account.Pages;
 using UpRestEye3.Components.Account.Pages.Manage;
-using UpRestEye3.Models.DTO;
-using UpRestEye3.Data;
+using UpRestEye3.Models.Account;
 
 namespace UpRestEye3.Components.Account
 {
@@ -24,7 +23,7 @@ namespace UpRestEye3.Components.Account
 
             accountGroup.MapPost("/PerformExternalLogin", (
                 HttpContext context,
-                [FromServices] SignInManager<UserDTO> signInManager,
+                [FromServices] SignInManager<AppUser> signInManager,
                 [FromForm] string provider,
                 [FromForm] string returnUrl) =>
             {
@@ -43,7 +42,7 @@ namespace UpRestEye3.Components.Account
 
             accountGroup.MapPost("/Logout", async (
                 ClaimsPrincipal user,
-                SignInManager<UserDTO> signInManager,
+                SignInManager<AppUser> signInManager,
                 [FromForm] string returnUrl) =>
             {
                 await signInManager.SignOutAsync();
@@ -54,7 +53,7 @@ namespace UpRestEye3.Components.Account
 
             manageGroup.MapPost("/LinkExternalLogin", async (
                 HttpContext context,
-                [FromServices] SignInManager<UserDTO> signInManager,
+                [FromServices] SignInManager<AppUser> signInManager,
                 [FromForm] string provider) =>
             {
                 // Clear the existing external cookie to ensure a clean login process
@@ -74,7 +73,7 @@ namespace UpRestEye3.Components.Account
 
             manageGroup.MapPost("/DownloadPersonalData", async (
                 HttpContext context,
-                [FromServices] UserManager<UserDTO> userManager,
+                [FromServices] UserManager<AppUser> userManager,
                 [FromServices] AuthenticationStateProvider authenticationStateProvider) =>
             {
                 var user = await userManager.GetUserAsync(context.User);
@@ -88,7 +87,7 @@ namespace UpRestEye3.Components.Account
 
                 // Only include personal data for download
                 var personalData = new Dictionary<string, string>();
-                var personalDataProps = typeof(UserDTO).GetProperties().Where(
+                var personalDataProps = typeof(AppUser).GetProperties().Where(
                     prop => Attribute.IsDefined(prop, typeof(PersonalDataAttribute)));
                 foreach (var p in personalDataProps)
                 {

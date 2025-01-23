@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Identity;
-using UpRestEye3.Models.DTO;
+using UpRestEye3.Models.Account;
 
 namespace UpRestEye3.Components.Account
 {
-    internal sealed class IdentityUserAccessor(UserManager<UserDTO> userManager, IdentityRedirectManager redirectManager)
+    internal sealed class IdentityUserAccessor(UserManager<AppUser> userManager, IdentityRedirectManager redirectManager)
     {
-        public async Task<UserDTO> GetRequiredUserAsync(HttpContext context)
+        public async Task<AppUser> GetRequiredUserAsync(HttpContext context)
         {
             var user = await userManager.GetUserAsync(context.User);
 

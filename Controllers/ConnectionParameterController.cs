@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using UpRestEye3.Models.Account;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.DataLayer;
 
@@ -24,7 +25,7 @@ namespace UpRestEye3.Controllers
         }
 
         [HttpPost("save")]
-        public async Task<ActionResult<UserDTO>> SaveConnectionParameter(ConnectionParameterDTO connectionParameter)
+        public async Task<ActionResult<AppUser>> SaveConnectionParameter(ConnectionParameterDTO connectionParameter)
         {
             await _connectionParameterService.SaveConnectionParameterAsync(connectionParameter);
             return CreatedAtAction(nameof(GetConnectionParameter), new { id = connectionParameter.ConsumerId }, connectionParameter);

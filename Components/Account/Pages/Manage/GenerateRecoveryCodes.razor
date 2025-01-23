@@ -1,9 +1,9 @@
 ﻿@page "/Account/Manage/GenerateRecoveryCodes"
 
 @using Microsoft.AspNetCore.Identity
-@using UpRestEye3.Models.DTO
+@using UpRestEye3.Models.Account
 
-@inject UserManager<UserDTO> UserManager
+@inject UserManager<AppUser> UserManager
 @inject IdentityUserAccessor UserAccessor
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<GenerateRecoveryCodes> Logger
@@ -40,7 +40,7 @@ else
 
 @code {
     private string? message;
-    private UserDTO user = default!;
+    private AppUser user = default!;
     private IEnumerable<string>? recoveryCodes;
 
     [CascadingParameter]

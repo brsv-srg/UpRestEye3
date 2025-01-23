@@ -77,7 +77,7 @@ namespace UpRestEye3.Data
                                 {
                                     Name = "Supplier B",
                                     TaxNumber = "987654321",
-                                    BankAccount = null
+                                    BankAccount = ""
                                 },
                                 InvoiceNumber = "INV-002",
                                 InvoiceDate =  DateTime.Now,

@@ -5,12 +5,13 @@ using Microsoft.AspNetCore.Http.Features;
 
 using UpRestEye3.Components;
 using UpRestEye3.Data;
-using UpRestEye3.Models.DTO;
+using UpRestEye3.Models.Account;
 using UpRestEye3.Services.DataLayer;
 using UpRestEye3.Services.Recognition;
 using UpRestEye3.Services.BusinessLogic;
 using UpRestEye3.Services.MLServices;
 using UpRestEye3.Components.Account;
+
 
 // TODO добавить логирование
 
@@ -43,7 +44,7 @@ builder.Services.AddAuthentication(options =>
 })
     .AddIdentityCookies();
 
-builder.Services.AddIdentityCore<UserDTO>(options => options.SignIn.RequireConfirmedAccount = true)
+builder.Services.AddIdentityCore<AppUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
@@ -54,7 +55,7 @@ builder.Services.AddIdentityCore<UserDTO>(options => options.SignIn.RequireConfi
 /// 
 //// Старая аутентификация и авторизация
 ///
-///builder.Services.AddIdentity<UserDTO, IdentityRole>()
+///builder.Services.AddIdentity<AppUser, IdentityRole>()
 //.AddEntityFrameworkStores<ApplicationDbContext>()
 //.AddDefaultTokenProviders();
 
@@ -89,6 +90,9 @@ builder.Services.AddIdentityCore<UserDTO>(options => options.SignIn.RequireConfi
 //app.UseAuthentication();
 //app.UseAuthorization();
 ///
+//builder.Services.AddScoped<IServerAuthService, ServerAuthService>();
+//builder.Services.AddScoped<IClientAuthService, ClientAuthService>();
+//builder.Services.AddScoped<IUserService, UserService>();
 ///
 
 
@@ -109,10 +113,8 @@ builder.Services.AddScoped<ITextRecognition, TextRecognitionGoogleVision>();
 builder.Services.AddScoped<IGPTService, GPTService>();
 builder.Services.AddScoped<IImageProcessingPipelineHelper, ImagePipelineHelper>();
 builder.Services.AddScoped<IConnectionParameterService, ConnectionParameterService>();
-builder.Services.AddScoped<IUserService, UserService>();
 
-builder.Services.AddScoped<IServerAuthService, ServerAuthService>();
-builder.Services.AddScoped<IClientAuthService, ClientAuthService>();
+builder.Services.AddSingleton<IEmailSender<AppUser>, IdentityNoOpEmailSender>();
 
 
 // Настройка параметров формы для обработки больших файлов

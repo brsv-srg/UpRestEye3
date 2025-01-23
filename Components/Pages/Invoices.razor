@@ -153,11 +153,11 @@
             invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices");
 
         }
-        else
-        {
-            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
-            Navigation.NavigateTo($"/login?returnUrl={returnUrl}");
-        }
+        // else
+        // {
+        //     var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+        //     Navigation.NavigateTo($"/login?returnUrl={returnUrl}");
+        // }
     }
 
     private void HandleFileSelected(InputFileChangeEventArgs e)

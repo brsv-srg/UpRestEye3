@@ -5,12 +5,13 @@
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
-@using UpRestEye3.Models.DTO
+@using Microsoft.AspNetCore.Components.Forms
+@using UpRestEye3.Models.Account
 
-@inject UserManager<UserDTO> UserManager
-@inject IUserStore<UserDTO> UserStore
-@inject SignInManager<UserDTO> SignInManager
-@inject IEmailSender<UserDTO> EmailSender
+@inject UserManager<AppUser> UserManager
+@inject IUserStore<AppUser> UserStore
+@inject SignInManager<AppUser> SignInManager
+@inject IEmailSender<AppUser> EmailSender
 @inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
@@ -102,26 +103,26 @@
         RedirectManager.RedirectTo(ReturnUrl);
     }
 
-    private UserDTO CreateUser()
+    private AppUser CreateUser()
     {
         try
         {
-            return Activator.CreateInstance<UserDTO>();
+            return Activator.CreateInstance<AppUser>();
         }
         catch
         {
-            throw new InvalidOperationException($"Can't create an instance of '{nameof(UserDTO)}'. " +
-                $"Ensure that '{nameof(UserDTO)}' is not an abstract class and has a parameterless constructor.");
+            throw new InvalidOperationException($"Can't create an instance of '{nameof(AppUser)}'. " +
+                $"Ensure that '{nameof(AppUser)}' is not an abstract class and has a parameterless constructor.");
         }
     }
 
-    private IUserEmailStore<UserDTO> GetEmailStore()
+    private IUserEmailStore<AppUser> GetEmailStore()
     {
         if (!UserManager.SupportsUserEmail)
         {
             throw new NotSupportedException("The default UI requires a user store with email support.");
         }
-        return (IUserEmailStore<UserDTO>)UserStore;
+        return (IUserEmailStore<AppUser>)UserStore;
     }
 
     private sealed class InputModel

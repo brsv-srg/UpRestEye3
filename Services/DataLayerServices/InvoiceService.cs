@@ -101,6 +101,7 @@ namespace UpRestEye3.Services.DataLayer
                 // Attach and set state for Supplier
                 if (invoice.Supplier != null)
                 {
+                    invoice.Supplier.ConsumerId = (int)invoice.ConsumerId;
                     var existingSupplier = await _context.Suppliers
                         .AsNoTracking()
                         .FirstOrDefaultAsync(s => invoice.SupplierId != null && s.Id == invoice.SupplierId && s.ConsumerId == invoice.ConsumerId ||

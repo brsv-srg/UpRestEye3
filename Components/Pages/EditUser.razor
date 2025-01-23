@@ -43,7 +43,7 @@
 </AuthorizeView>
 
 @code {
-    private UserDTO userModel = new UserDTO();
+    private AppUser userModel = new AppUser();
     private ConnectionParameterDTO connectionParameterModel = new ConnectionParameterDTO();
 
     protected override async Task OnInitializedAsync()
@@ -61,7 +61,7 @@
                 baseUri = baseUri.Substring(0, baseUri.Length - 1);
             }
 
-            userModel = await Http.GetFromJsonAsync<UserDTO>($"{baseUri}/api/user/{userId}");
+            userModel = await Http.GetFromJsonAsync<AppUser>($"{baseUri}/api/user/{userId}");
 
             connectionParameterModel = await Http.GetFromJsonAsync<ConnectionParameterDTO>($"{baseUri}/api/connectionparameter/{userModel.ConsumerId}");
         }

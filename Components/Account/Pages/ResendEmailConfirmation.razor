@@ -5,10 +5,10 @@
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
-@using UpRestEye3.Models.DTO
+@using UpRestEye3.Models.Account
 
-@inject UserManager<UserDTO> UserManager
-@inject IEmailSender<UserDTO> EmailSender
+@inject UserManager<AppUser> UserManager
+@inject IEmailSender<AppUser> EmailSender
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
 
