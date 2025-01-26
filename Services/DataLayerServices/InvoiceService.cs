@@ -15,8 +15,8 @@ namespace UpRestEye3.Services.DataLayer
         Task<InvoiceDAO?> GetInvoiceDAOByIdAsync(int id);
         Task<InvoiceDTO?> GetInvoiceDTOByIdAsync(int id);
 
-        Task<ActionResult<IEnumerable<InvoiceDAO>>> GetInvoicesDAOAsync();
-        Task<ActionResult<IEnumerable<InvoiceDTO>>> GetInvoicesDTOAsync();
+        Task<IEnumerable<InvoiceDAO>> GetInvoicesDAOAsync(int? consumerId);
+        Task<IEnumerable<InvoiceDTO>> GetInvoicesDTOAsync(int? consumerId);
 
         Task<int?> SaveInvoiceAsync(InvoiceDTO invoice);
         Task<int?> SaveInvoiceAsync(InvoiceDAO invoice);
@@ -51,7 +51,7 @@ namespace UpRestEye3.Services.DataLayer
             return InvoiceHelper.BuildInvoiceDTO(await GetInvoiceDAOByIdAsync(id));
         }
 
-        public async Task<ActionResult<IEnumerable<InvoiceDAO>>> GetInvoicesDAOAsync()
+        public async Task<IEnumerable<InvoiceDAO>> GetInvoicesDAOAsync(int? consumerId)
         {
             var invoices = await _context.Invoices
                 .AsNoTracking()
@@ -59,18 +59,19 @@ namespace UpRestEye3.Services.DataLayer
                 .Include(i => i.Products)
                 .Include(i => i.Supplier)
                 .Include(i => i.Consumer)
+                .Where(i => i.ConsumerId == consumerId)
                 .ToListAsync();
             return invoices;
         }
 
-        public async Task<ActionResult<IEnumerable<InvoiceDTO>>> GetInvoicesDTOAsync()
+        public async Task<IEnumerable<InvoiceDTO>> GetInvoicesDTOAsync(int? consumerId)
         {
-            var invoices = await GetInvoicesDAOAsync();
-            if (invoices.Value == null)
+            var invoices = await GetInvoicesDAOAsync(consumerId);
+            if (invoices == null)
             {
-                return new ActionResult<IEnumerable<InvoiceDTO>>(new List<InvoiceDTO>());
+                return new List<InvoiceDTO>();
             }
-            return new ActionResult<IEnumerable<InvoiceDTO>>(invoices.Value.Select(InvoiceHelper.BuildInvoiceDTO)
+            return new List<InvoiceDTO>(invoices.Select(InvoiceHelper.BuildInvoiceDTO)
                                                                 .Where(dto => dto != null)
                                                                 .Cast<InvoiceDTO>()
                                                                 .ToList());

@@ -8,7 +8,7 @@ namespace UpRestEye3.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize(Policy = "RequireAuthenticatedUser")]
     public class InvoicesFilesController : ControllerBase
     {
         private readonly IInvoiceService _invoiceService;

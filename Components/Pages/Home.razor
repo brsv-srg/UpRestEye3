@@ -2,6 +2,13 @@
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
 
-Тут будет аналитика, сообщения и избранные действия 
+<AuthorizeView>
+    <Authorized>
+        <h2>Скоро здесь будет статистика и аналитика</h2>
+    </Authorized>
+    <NotAuthorized>
+        <h1>Hello!</h1>
+        <p>You must be authorised to continue working. Please <a href="/Account/Login">login</a>.</p>
+    </NotAuthorized>
+</AuthorizeView>

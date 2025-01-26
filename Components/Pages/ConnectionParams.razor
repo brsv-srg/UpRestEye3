@@ -1,0 +1,127 @@
+﻿@page "/connectionParams"
+@* @rendermode InteractiveServer *@
+
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject HttpClient Http
+@inject UserManager<AppUser> UserManager
+<PageTitle>API Connection Parameters</PageTitle>
+
+<AuthorizeView>
+	<Authorized>
+        <div class="row">
+            <div class="col-md-4">
+                <section>
+
+                    <StatusMessage Message="@errorMessage" />
+                    <EditForm Model="connectionParameterModel" method="post" OnValidSubmit="HandleUpdate" FormName="connectionParams" Context="editFormContext">
+                        <DataAnnotationsValidator />
+                        <h2>Enter Syrve API parameters</h2>
+                        <hr />
+                        <ValidationSummary class="text-danger" role="alert" />
+
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="connectionParameterModel.ApiUrl" class="form-control" id="apiUrl" autocomplete="url" aria-required="true" placeholder="https://example.com" />
+                            <label for="apiUrl" class="form-label">API URL:</label>
+                            <ValidationMessage For="() => connectionParameterModel.ApiUrl" class="text-danger" />
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="connectionParameterModel.ApiLogin" class="form-control" id="apiLogin" autocomplete="username" aria-required="true" placeholder="username" />
+                            <label for="apiLogin" class="form-label">API Login:</label>
+                            <ValidationMessage For="() => connectionParameterModel.ApiLogin" class="text-danger" />
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="connectionParameterModel. ApiPassword" class="form-control" id="apiPassword" autocomplete="off" aria-required="true" placeholder="API Password Hash" />
+                            <label for="apiPassword" class="form-label">API Password Hash:</label>
+                            <ValidationMessage For="() => connectionParameterModel.ApiPassword" class="text-danger" />
+                        </div>
+                        <div>
+                            <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
+                        </div>
+                    </EditForm>
+		        </section>
+			</div>
+		</div>
+	</Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private ConnectionParameterDTO connectionParameterModel = new ConnectionParameterDTO();
+    private AppUser appUser;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        appUser = await UserManager.GetUserAsync(user);
+
+        if (user.Identity.IsAuthenticated && appUser?.ConsumerId != null)
+        {
+            var baseUri = Navigation.BaseUri;
+            if (baseUri.EndsWith('/'))
+            {
+                baseUri = baseUri.Substring(0, baseUri.Length - 1);
+            }
+
+            try
+            {
+                connectionParameterModel = await Http.GetFromJsonAsync<ConnectionParameterDTO>($"{baseUri}/api/connectionparameters/{appUser.ConsumerId}");
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                Console.WriteLine("Connection parameters not found.");
+                connectionParameterModel = new ConnectionParameterDTO();
+				connectionParameterModel.ConsumerId = appUser.ConsumerId;
+				connectionParameterModel.ConsumerTaxNumber = appUser.ConsumerTaxNumber;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
+        else
+        {
+            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+            Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+        }
+    }
+
+    private async Task HandleUpdate()
+    {
+        var baseUri = Navigation.BaseUri;
+        if (baseUri.EndsWith('/'))
+        {
+            baseUri = baseUri.Substring(0, baseUri.Length - 1);
+        }
+        try
+        {
+            var response = await Http.PostAsJsonAsync($"{baseUri}/api/connectionparameters/save", connectionParameterModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Parameters saved successfully.");
+			    Navigation.NavigateTo("/");
+            }
+            else
+            {
+                Console.WriteLine($"Parameters save failed. Status code: {response.StatusCode}");
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error content: {errorContent}");
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"Request error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An unexpected error occurred: {ex.Message}");
+        }
+    }
+}

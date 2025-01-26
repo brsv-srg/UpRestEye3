@@ -8,24 +8,29 @@ namespace UpRestEye3.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize]
-    public class ConnectionParameterDTOController : ControllerBase
+    //[Authorize(Policy = "RequireAuthenticatedUser")]
+    public class ConnectionParametersController : ControllerBase
     {
         private readonly IConnectionParameterService _connectionParameterService;
 
-        public ConnectionParameterDTOController(IConnectionParameterService connectionParameterService)
+        public ConnectionParametersController(IConnectionParameterService connectionParameterService)
         {
             _connectionParameterService = connectionParameterService;
         }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<ConnectionParameterDTO>> GetConnectionParameter(int consumerId)
+        [HttpGet("{consumerId}")]
+        public async Task<ActionResult<ConnectionParameterDTO?>> GetConnectionParameter(int consumerId)
         {
-            return await _connectionParameterService.GetConnectionParameterDTOByCustomerIdAsync(consumerId);
+            var result = await _connectionParameterService.GetConnectionParameterDTOByCustomerIdAsync(consumerId);
+            if (result == null)
+            {
+                return NotFound();
+            }
+            return Ok(result);
         }
 
         [HttpPost("save")]
-        public async Task<ActionResult<AppUser>> SaveConnectionParameter(ConnectionParameterDTO connectionParameter)
+        public async Task<ActionResult<ConnectionParameterDTO?>> SaveConnectionParameter(ConnectionParameterDTO connectionParameter)
         {
             await _connectionParameterService.SaveConnectionParameterAsync(connectionParameter);
             return CreatedAtAction(nameof(GetConnectionParameter), new { id = connectionParameter.ConsumerId }, connectionParameter);

@@ -9,10 +9,8 @@ namespace UpRestEye3.Services.DataLayer
 {
     public interface IConnectionParameterService
     {
-        Task<ConnectionParameterDTO> GetConnectionParameterDTOByCustomerIdAsync(int customerId);
-        Task<ConnectionParameterDAO> GetConnectionParameterDAOByCustomerIdAsync(int customerId);
-        Task<int?> SaveConnectionParameterAsync(ConnectionParameterDTO connectionParameter);
-        Task<int?> SaveConnectionParameterAsync(ConnectionParameterDAO connectionParameter);
+        Task<ConnectionParameterDTO?> GetConnectionParameterDTOByCustomerIdAsync(int customerId);
+        Task<ConnectionParameterDTO?> SaveConnectionParameterAsync(ConnectionParameterDTO connectionParameter);
 
     }
 
@@ -31,6 +29,7 @@ namespace UpRestEye3.Services.DataLayer
         public async Task<ConnectionParameterDTO?> GetConnectionParameterDTOByCustomerIdAsync(int consumerId)
         {
             var connectionParameterDAO = await _context.ConnectionParameters
+                .Include(p => p.Consumer)
                 .FirstOrDefaultAsync(cp => cp.ConsumerId == consumerId);
             return connectionParameterDAO != null ? new ConnectionParameterDTO
             {
@@ -42,13 +41,7 @@ namespace UpRestEye3.Services.DataLayer
             } : null;
         }
 
-        public async Task<ConnectionParameterDAO?> GetConnectionParameterDAOByCustomerIdAsync(int consumerId)
-        {
-            return await _context.ConnectionParameters
-                .FirstOrDefaultAsync(cp => cp.ConsumerId == consumerId);
-        }
-
-        public async Task<int?> SaveConnectionParameterAsync(ConnectionParameterDTO connectionParameter)
+        public async Task<ConnectionParameterDTO?> SaveConnectionParameterAsync(ConnectionParameterDTO connectionParameter)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
@@ -57,39 +50,47 @@ namespace UpRestEye3.Services.DataLayer
                 _context.ChangeTracker.Clear();
 
                 // Attach and set state for Consumer
-
-                var consumerId = await _consumerService.GetConsumerIdAsync(connectionParameter.ConsumerTaxNumber);
+                var consumerTaxNumber = connectionParameter.ConsumerTaxNumber;
+                var consumerId = await _consumerService.GetConsumerIdAsync(consumerTaxNumber);
                 if (consumerId == null)
                 {
                     throw new Exception("Consumer not found");
                 }
 
-                var existingParameter = await _context.ConnectionParameters
+                var parameters = await _context.ConnectionParameters
                     .FirstOrDefaultAsync(cp => cp.ConsumerId == consumerId);
-                if (existingParameter == null) 
+                if (parameters == null)
                 {
-                    var connectionParameterDAO = new ConnectionParameterDAO
+                    parameters = new ConnectionParameterDAO
                     {
-                        ConsumerId = consumerId.Value,
+                        ConsumerId = consumerId,
                         ApiUrl = connectionParameter.ApiUrl,
                         ApiLogin = connectionParameter.ApiLogin,
                         ApiPassword = connectionParameter.ApiPassword
                     };
-                    _context.ConnectionParameters.Add(connectionParameterDAO);
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                    return connectionParameterDAO.ConsumerId;
+                    _context.ConnectionParameters.Add(parameters);
                 }
                 else
                 {
-                    existingParameter.ApiUrl = connectionParameter.ApiUrl;
-                    existingParameter.ApiLogin = connectionParameter.ApiLogin;
-                    existingParameter.ApiPassword = connectionParameter.ApiPassword;
-                    _context.Entry(existingParameter).State = EntityState.Modified;
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                    return existingParameter.ConsumerId;
+                    parameters.ApiUrl = connectionParameter.ApiUrl;
+                    parameters.ApiLogin = connectionParameter.ApiLogin;
+                    parameters.ApiPassword = connectionParameter.ApiPassword;
+                    _context.Entry(parameters).State = EntityState.Modified;
                 }
+
+
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return new ConnectionParameterDTO
+                    {
+                        ConsumerId = (int)consumerId,
+                        ApiUrl = parameters.ApiUrl,
+                        ApiLogin = parameters.ApiLogin,
+                        ApiPassword = parameters.ApiPassword,
+                        ConsumerTaxNumber = consumerTaxNumber
+                    };
             }
             catch (Exception e)
             {
@@ -97,56 +98,5 @@ namespace UpRestEye3.Services.DataLayer
                 return null;
             }
         }
-
-        public async Task<int?> SaveConnectionParameterAsync(ConnectionParameterDAO connectionParameter)
-        {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                // Detach existing tracked entities to avoid conflicts
-                _context.ChangeTracker.Clear();
-
-                // Attach and set state for Consumer
-
-                var consumerId = await _consumerService.GetConsumerIdAsync(connectionParameter.Consumer.TaxNumber);
-                if (consumerId == null)
-                {
-                    throw new Exception("Consumer not found");
-                }
-
-                var existingParameter = await _context.ConnectionParameters
-                    .FirstOrDefaultAsync(cp => cp.ConsumerId == consumerId);
-                if (existingParameter == null)
-                {
-                    var connectionParameterDAO = new ConnectionParameterDAO
-                    {
-                        ConsumerId = consumerId.Value,
-                        ApiUrl = connectionParameter.ApiUrl,
-                        ApiLogin = connectionParameter.ApiLogin,
-                        ApiPassword = connectionParameter.ApiPassword
-                    };
-                    _context.ConnectionParameters.Add(connectionParameterDAO);
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                    return connectionParameterDAO.ConsumerId;
-                }
-                else
-                {
-                    existingParameter.ApiUrl = connectionParameter.ApiUrl;
-                    existingParameter.ApiLogin = connectionParameter.ApiLogin;
-                    existingParameter.ApiPassword = connectionParameter.ApiPassword;
-                    _context.Entry(existingParameter).State = EntityState.Modified;
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                    return existingParameter.ConsumerId;
-                }
-            }
-            catch (Exception e)
-            {
-                await transaction.RollbackAsync();
-                return null;
-            }
-        }
-
     }
 }

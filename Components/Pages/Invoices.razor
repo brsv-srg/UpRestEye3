@@ -6,7 +6,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthenticationStateProvider
-
+@inject UserManager<AppUser> UserManager
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
@@ -54,7 +54,7 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <button class="custom-btn" @onclick ="() => ShowProducts(invoice.Products)">
+                                    <button class="custom-btn" @onclick="async () => await ShowProductsAsync(invoice.Products)">
                                         <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                 </td>
@@ -114,7 +114,7 @@
                             </table>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" @onclick="CloseProductsModal">Close</button>
+                            <button type="button" class="btn btn-secondary" @onclick="async () => await CloseProductsModalAsync()">Close</button>
                         </div>
                     </div>
                 </div>
@@ -128,6 +128,25 @@
     </NotAuthorized>
 </AuthorizeView>
 
+
+<script>
+    function showModal(modalId) {
+    var modal = document.getElementById(modalId);
+    if (modal) {
+    modal.classList.add('show');
+    modal.style.display = 'block';
+    }
+    }
+
+    function hideModal(modalId) {
+    var modal = document.getElementById(modalId);
+    if (modal) {
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+    }
+    }
+</script>
+
 @code {
     private InvoiceDTO[]? invoices;
     private IBrowserFile? selectedFile;
@@ -135,29 +154,54 @@
     private string? uploadMessageClass;
     private bool showProductsModal = false;
     private List<ProductDTO>? selectedProducts;
+    private AppUser appUser;
+    private string? errorMessage;
+    private bool isInitialized = false;
 
     protected override async Task OnInitializedAsync()
     {
+        if (!isInitialized)
+        {
+            isInitialized = true;
+            await InitializeDataAsync();
+        }
+    }
+
+    private async Task InitializeDataAsync()
+    {
+      
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
+        appUser = await UserManager.GetUserAsync(user);
 
-        if (user.Identity.IsAuthenticated)
+        if (user.Identity.IsAuthenticated && appUser?.ConsumerId != null)
         {
-
-
             var baseUri = Navigation.BaseUri;
             if (baseUri.EndsWith('/'))
             {
                 baseUri = baseUri.Substring(0, baseUri.Length - 1);
             }
-            invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices");
 
+            try
+            {
+                invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices/{appUser.ConsumerId}"); 
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                Console.WriteLine("Invoices not found.");
+                    
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
         }
-        // else
-        // {
-        //     var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
-        //     Navigation.NavigateTo($"/login?returnUrl={returnUrl}");
-        // }
+        else
+        {
+            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+            Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+        }
+
     }
 
     private void HandleFileSelected(InputFileChangeEventArgs e)
@@ -213,16 +257,18 @@
         StateHasChanged();
     }
 
-    private void ShowProducts(List<ProductDTO> products)
+    private async Task ShowProductsAsync(List<ProductDTO> products)
     {
         selectedProducts = products;
         showProductsModal = true;
+        await JS.InvokeVoidAsync("showModal", "productsModal");
     }
 
-    private void CloseProductsModal()
+    private async Task CloseProductsModalAsync()
     {
         showProductsModal = false;
         selectedProducts = null;
+        await JS.InvokeVoidAsync("hideModal", "productsModal");
     }
     private string GetStatusClass(InvoiceStatus status) // Изменено: Метод для получения CSS-класса статуса
     {

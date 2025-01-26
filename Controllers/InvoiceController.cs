@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.DataLayer;
@@ -7,7 +7,7 @@ namespace UpRestEye3.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize(Policy = "RequireAuthenticatedUser")]
     public class InvoicesController : ControllerBase
     {
         private readonly IInvoiceService _invoiceService;
@@ -17,10 +17,17 @@ namespace UpRestEye3.Controllers
             _invoiceService = invoiceService;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<InvoiceDTO>>> GetInvoices()
+        // TODO сделать по ID of Consumer
+        // todo сделать создание ActionResult в контроллере 
+        [HttpGet("{consumerId}")]
+        public async Task<ActionResult<IEnumerable<InvoiceDTO>>> GetInvoices(int? consumerId)
         {
-            return await _invoiceService.GetInvoicesDTOAsync();
+            var result = await _invoiceService.GetInvoicesDTOAsync(consumerId);
+            if (result == null)
+            {
+                return NotFound();
+            }
+            return Ok(result);
         }
 
         [HttpPost]
