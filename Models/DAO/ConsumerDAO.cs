@@ -11,12 +11,14 @@ namespace UpRestEye3.Models.DAO
 
         public List<SupplierDAO> Suppliers { get; set; }
         public List<InvoiceDAO> Invoices { get; set; }
+        public List<RMSProductDAO> RMSProducts { get; set; }
         public ConnectionParameterDAO? ConnectionParameter { get; set; }
 
         public ConsumerDAO()
         {
             Invoices = new List<InvoiceDAO>();
             Suppliers = new List<SupplierDAO>();
+            RMSProducts = new List<RMSProductDAO>();
         }
 
     }

@@ -7,19 +7,23 @@ using UpRestEye3.Components.Pages;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.DataLayer;
 using UpRestEye3.Services.BusinessLogic ;
+using Google.Protobuf.WellKnownTypes;
+using UpRestEye3.Models.BLO;
 
 namespace UpRestEye3.Data
 {
     public class SeedData
     {
         private readonly IInvoiceService _invoiceService;
+        private readonly IRMSProductService _productService;
 
-        public SeedData(IInvoiceService invoiceService)
+        public SeedData(IInvoiceService invoiceService, IRMSProductService productService)
         {
             _invoiceService = invoiceService;
+            _productService = productService;
         }
 
-        public void Initialize(IServiceProvider serviceProvider)
+        public void InitializeInvoices(IServiceProvider serviceProvider)
         {
             using (var scope = serviceProvider.CreateScope())
             {
@@ -114,6 +118,97 @@ namespace UpRestEye3.Data
                     _invoiceService.SaveInvoiceAsync(invoice);
                 }
             }
+        }
+        public void InitializeRMSProducts(IServiceProvider serviceProvider)
+        {
+            using (var scope = serviceProvider.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+                var context = services.GetRequiredService<ApplicationDbContext>();
+
+                if (context.RMSProducts.Any())
+                {
+                    return;   // DB has been seeded
+                }
+
+                var products = new List<RMSProductDTO>
+                        {
+                            new RMSProductDTO
+                            {
+                                ConsumerId = 1,
+                                ConsumerTaxId = "987654322",
+                                RMSProductId = Guid.NewGuid(),
+                                Name = "Product A",
+                                Description = "Product A Description",
+                                Num = "001",
+                                TaxCategory = Guid.NewGuid(),
+                                Category = Guid.NewGuid(),
+                                AccountingCategory = Guid.NewGuid(),
+                                MainUnit = Guid.NewGuid(),
+                                Type = ItemType.GOODS,
+                                UnitWeight = 1.00m,
+                                UnitCapacity = 1.00m,
+                                NotInStoreMovement = false,
+                                Containers = new List<ContainerDTO>
+                                {
+                                    new ContainerDTO
+                                    {
+                                        RMSContainerId = Guid.NewGuid(),
+                                        Num = "001",
+                                        Name = "Container 1",
+                                        Count = 1,
+                                        MinContainerWeight = 1.00m,
+                                        MaxContainerWeight = 1.00m,
+                                        ContainerWeight = 1.00m,
+                                        FullContainerWeight = 1.00m,
+                                        BackwardRecalculation = false,
+                                        UseInFront = false,
+                                        Deleted = false
+                                    }
+                                }
+                            },
+                            new RMSProductDTO
+                            {
+                                ConsumerId = 1,
+                                ConsumerTaxId = "987654322",
+                                RMSProductId = Guid.NewGuid(),
+                                Name = "Product B",
+                                Description = "Product A Description",
+                                Num = "002",
+                                TaxCategory = Guid.NewGuid(),
+                                Category = Guid.NewGuid(),
+                                AccountingCategory = Guid.NewGuid(),
+                                MainUnit = Guid.NewGuid(),
+                                Type = ItemType.GOODS,
+                                UnitWeight = 1.00m,
+                                UnitCapacity = 1.00m,
+                                NotInStoreMovement = false,
+                                Containers = new List<ContainerDTO>
+                                {
+                                    new ContainerDTO
+                                    {
+                                        RMSContainerId = Guid.NewGuid(),
+                                        Num = "001",
+                                        Name = "Container 1",
+                                        Count = 1,
+                                        MinContainerWeight = 1.00m,
+                                        MaxContainerWeight = 1.00m,
+                                        ContainerWeight = 1.00m,
+                                        FullContainerWeight = 1.00m,
+                                        BackwardRecalculation = false,
+                                        UseInFront = false,
+                                        Deleted = false
+                                    }
+                                }
+                            }
+                        };
+
+                foreach (var product in products)
+                {
+                    _productService.SaveProductAsync(product);
+                }
+            }
+
         }
     }
 }

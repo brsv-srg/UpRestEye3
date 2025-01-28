@@ -1,0 +1,216 @@
+﻿@page "/rmsproducts"
+@using System.Text
+@rendermode InteractiveServer
+@* TODO разобраться с рендерингом *@
+
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<AppUser> UserManager
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+
+
+<AuthorizeView>
+    <Authorized>
+        <PageTitle>RMS Products</PageTitle>
+
+        <h1>Products in RMS</h1>
+
+        @if (products == null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else
+        {
+   
+
+            <div style="overflow-y: auto; max-height: 70vh; ">
+                <div class="d-flex justify-content-between">
+                    <button class="custom-btn" @onclick="async () => await LoadRMSData()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+
+                
+                <table class="table" style="background-color: white; ">
+                    <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Num</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var product in products)
+                        {
+                            <tr>
+                                <td>@product.Name</td>
+                                <td>@product.Description</td>
+                                <td>@product.Num</td>
+
+                                <td>
+                                    <button class="custom-btn" @onclick="async () => await ShowContainers(product.Containers)">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (showContainersModal)
+            {
+                <div class="modal-backdrop"></div>
+                <div class="modal show d-block" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-lg" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Containers</h5>
+                            </div>
+                            <div class="modal-body">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Num</th>
+                                            <th>Name</th>
+                                            <th>Count</th>
+                                            <th>Min Weight</th>
+                                            <th>Max Weight</th>
+                                            <th>Container Weight</th>
+                                            <th>Full Weight</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var container in selectedContainers)
+                                        {
+                                            <tr>
+                                                <td>@container.Num</td>
+                                                <td>@container.Name</td>
+                                                <td>@container.Count</td>
+                                                <td>@container.MinContainerWeight</td>
+                                                <td>@container.MaxContainerWeight</td>
+                                                <td>@container.ContainerWeight</td>
+                                                <td>@container.FullContainerWeight</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" @onclick="async () => await CloseContainersModalAsync()">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+
+        }
+    </Authorized>
+    <NotAuthorized>
+        <h1>Not authorized</h1>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    
+    private RMSProductDTO[]? products;
+    private List<ContainerDTO>? selectedContainers;
+    private bool showContainersModal = false;
+    private AppUser appUser;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        appUser = await UserManager.GetUserAsync(user);
+
+        if (user.Identity.IsAuthenticated && appUser?.ConsumerId != null)
+        {
+            var baseUri = Navigation.BaseUri;
+            if (baseUri.EndsWith('/'))
+            {
+                baseUri = baseUri.Substring(0, baseUri.Length - 1);
+            }
+
+            try
+            {
+                products = await Http.GetFromJsonAsync<RMSProductDTO[]>($"{baseUri}/api/rmsproducts/{appUser.ConsumerId}");
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                Console.WriteLine("Products not found.");
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
+        else
+        {
+            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+            Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+        }
+
+    }
+
+
+    private async Task ShowContainers(List<ContainerDTO> containers)
+    {
+        selectedContainers = containers;
+        showContainersModal = true;
+    }
+
+    private async Task CloseContainersModalAsync()
+    {
+        showContainersModal = false;
+        selectedContainers = null;
+    }
+    
+    private async Task LoadRMSData()
+    {
+        var baseUri = Navigation.BaseUri;
+        if (baseUri.EndsWith('/'))
+        {
+            baseUri = baseUri.Substring(0, baseUri.Length - 1);
+        }
+
+
+        try
+        {
+
+            var response = await Http.PostAsync($"{baseUri}/api/rmsproducts/load?consumerId={appUser.ConsumerId}", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Parameters saved successfully.");
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                Console.WriteLine($"Parameters save failed. Status code: {response.StatusCode}");
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error content: {errorContent}");
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"Request error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An unexpected error occurred: {ex.Message}");
+        }
+    
+    
+    
+    }
+
+}

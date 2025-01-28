@@ -17,6 +17,7 @@ namespace UpRestEye3.Data
         public DbSet<ConsumerDAO> Consumers { get; set; }
         //public DbSet<AppUser> Users { get; set; }
         public DbSet<ConnectionParameterDAO> ConnectionParameters { get; set; }
+        public DbSet<RMSProductDAO> RMSProducts { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -75,7 +76,7 @@ namespace UpRestEye3.Data
 
             // Configure unique index for SupplierInfo
             modelBuilder.Entity<SupplierDAO>()
-                .HasIndex(s => new { s.TaxNumber, s.ConsumerId })
+                .HasIndex(s => new { s.ConsumerId, s.TaxNumber })
                 .IsUnique();
 
             modelBuilder.Entity<SupplierDAO>()
@@ -161,6 +162,44 @@ namespace UpRestEye3.Data
                 .HasOne(cp => cp.Consumer)
                 .WithOne(c => c.ConnectionParameter)
                 .HasForeignKey<ConnectionParameterDAO>(cp => cp.ConsumerId);
+
+
+
+            ////////////////////////////////////////////////////////////////
+            /// RMS Products relationships
+            ////////////////////////////////////////////////////////////////
+
+
+            // Configure Invoice relationships
+            modelBuilder.Entity<RMSProductDAO>()
+                .HasOne(p => p.Consumer)
+                .WithMany(c => c.RMSProducts)
+                .HasForeignKey(i => i.ConsumerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+            // Configure auto-generated IDs
+            modelBuilder.Entity<RMSProductDAO>()
+                .Property(p => p.Id)
+                .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<RMSProductDAO>()
+                .HasIndex(p => new { p.ConsumerId, p.RMSProductId })
+                .IsUnique();
+
+
+            // Configure owned types for Containers collection
+            modelBuilder.Entity<RMSProductDAO>()
+                .OwnsMany(p => p.Containers, c =>
+                {
+                    c.ToTable("Containers");
+                    c.WithOwner().HasForeignKey("ProductId");
+                    c.HasKey("Id");
+                    c.Property<int?>("Id").ValueGeneratedOnAdd();
+                });
+
+           
+            ////////////////////////////////////////////////////////////////
 
         }
     }

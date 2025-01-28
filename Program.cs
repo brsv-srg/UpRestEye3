@@ -11,6 +11,7 @@ using UpRestEye3.Services.Recognition;
 using UpRestEye3.Services.BusinessLogic;
 using UpRestEye3.Services.MLServices;
 using UpRestEye3.Components.Account;
+using UpRestEye3.Services;
 
 
 // TODO добавить логирование
@@ -58,6 +59,7 @@ builder.Logging.AddConsole();
 // HTTP контроллеры и HTTP клиент
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
+builder.Services.AddSignalR();
 
 
 // Сервисы приложения
@@ -74,6 +76,8 @@ builder.Services.AddScoped<ITextRecognition, TextRecognitionGoogleVision>();
 builder.Services.AddScoped<IGPTService, GPTService>();
 builder.Services.AddScoped<IImageProcessingPipelineHelper, ImagePipelineHelper>();
 builder.Services.AddScoped<IConnectionParameterService, ConnectionParameterService>();
+builder.Services.AddScoped<IRMSProductService, RMSProductService>();
+builder.Services.AddScoped<ILoadRMSProductsService, LoadRMSProductsService>();
 
 
 
@@ -115,8 +119,9 @@ using (var scope = app.Services.CreateScope())
     var context = services.GetRequiredService<ApplicationDbContext>();
     context.Database.Migrate();
    
-    var seedData = new SeedData(services.GetRequiredService<IInvoiceService>());
-    seedData.Initialize(services);
+    var seedData = new SeedData(services.GetRequiredService<IInvoiceService>(), services.GetRequiredService<IRMSProductService>());
+    seedData.InitializeInvoices(services);
+    seedData.InitializeRMSProducts(services);
 
     // Валидация схемы и класса Invoice
     //InvoiceJsonHelper.ValidateInvoiceSchema();

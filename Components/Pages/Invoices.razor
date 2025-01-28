@@ -1,6 +1,6 @@
 ﻿@page "/invoices"
 @rendermode InteractiveServer
-
+@* TODO разобраться с рендерингом *@
 
 @inject HttpClient Http
 @inject NavigationManager Navigation
@@ -261,14 +261,14 @@
     {
         selectedProducts = products;
         showProductsModal = true;
-        await JS.InvokeVoidAsync("showModal", "productsModal");
+        // await JS.InvokeVoidAsync("showModal", "productsModal");
     }
 
     private async Task CloseProductsModalAsync()
     {
         showProductsModal = false;
         selectedProducts = null;
-        await JS.InvokeVoidAsync("hideModal", "productsModal");
+        // await JS.InvokeVoidAsync("hideModal", "productsModal");
     }
     private string GetStatusClass(InvoiceStatus status) // Изменено: Метод для получения CSS-класса статуса
     {
