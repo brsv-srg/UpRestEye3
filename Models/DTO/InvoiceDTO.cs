@@ -11,7 +11,7 @@ namespace UpRestEye3.Models.DTO
         public ConsumerDTO? Consumer { get; set; } 
         public SupplierDTO? Supplier { get; set; }
 
-        public List<ProductDTO> Products { get; set; } = [];
+        public List<InvoiceProductDTO> Products { get; set; } = [];
         public List<TaxesDTO> TaxCategories { get; set; } = [];
 
         public string FilePath { get; set; } = string.Empty;
@@ -36,7 +36,7 @@ namespace UpRestEye3.Models.DTO
         public decimal Total { get; set; } = 0.0m;
     }
 
-    public class ProductDTO
+    public class InvoiceProductDTO
     {
         public string ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;

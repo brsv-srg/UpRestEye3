@@ -63,7 +63,9 @@ namespace UpRestEye3.Services.DataLayer
                 }
                 else
                 {
-                    _context.Entry(existingProduct).CurrentValues.SetValues(newProduct);
+                    newProduct.Id = existingProduct.Id;
+                    _context.Entry(newProduct).State = EntityState.Modified;
+
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
                     return existingProduct.Id;

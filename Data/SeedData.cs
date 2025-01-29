@@ -58,9 +58,9 @@ namespace UpRestEye3.Data
                                 {
                                     new TaxesDTO { Category = InvoiceHelper.GetTaxCategory("13%"), Base = 2.00m, IVA = 2.00m*0.13m, Total = 2.00m + 2.00m*0.13m }
                                 },
-                                Products = new List<ProductDTO>
+                                Products = new List<InvoiceProductDTO>
                                 {
-                                    new ProductDTO
+                                    new InvoiceProductDTO
                                     {
                                         ProductCode = "EXT-001",
                                         ProductName = "External Product 1",
@@ -91,9 +91,9 @@ namespace UpRestEye3.Data
                                 {
                                     new TaxesDTO { Category = InvoiceHelper.GetTaxCategory("23%"), Base = 4.00m, IVA = 4.00m*0.23m, Total = 4.00m + 4.00m*0.23m }
                                 },
-                                Products = new List<ProductDTO>
+                                Products = new List<InvoiceProductDTO>
                                 {
-                                    new ProductDTO
+                                    new InvoiceProductDTO
                                     {
                                         ProductCode = "EXT-002",
                                         ProductName = "External Product 2",
@@ -101,7 +101,7 @@ namespace UpRestEye3.Data
                                         Quantity = 10,
                                         Price = 100.00m
                                     },
-                                    new ProductDTO
+                                    new InvoiceProductDTO
                                     {
                                         ProductCode = "EXT-003",
                                         ProductName = "External Product 3",
@@ -149,9 +149,9 @@ namespace UpRestEye3.Data
                                 UnitWeight = 1.00m,
                                 UnitCapacity = 1.00m,
                                 NotInStoreMovement = false,
-                                Containers = new List<ContainerDTO>
+                                Containers = new List<RMSContainerDTO>
                                 {
-                                    new ContainerDTO
+                                    new RMSContainerDTO
                                     {
                                         RMSContainerId = Guid.NewGuid(),
                                         Num = "001",
@@ -183,9 +183,9 @@ namespace UpRestEye3.Data
                                 UnitWeight = 1.00m,
                                 UnitCapacity = 1.00m,
                                 NotInStoreMovement = false,
-                                Containers = new List<ContainerDTO>
+                                Containers = new List<RMSContainerDTO>
                                 {
-                                    new ContainerDTO
+                                    new RMSContainerDTO
                                     {
                                         RMSContainerId = Guid.NewGuid(),
                                         Num = "001",

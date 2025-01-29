@@ -2,8 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using UpRestEye3.Models.DAO;
 using UpRestEye3.Models.Account;
-
-
+using Microsoft.Extensions.Logging;
 
 namespace UpRestEye3.Data
 {
@@ -202,5 +201,15 @@ namespace UpRestEye3.Data
             ////////////////////////////////////////////////////////////////
 
         }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder.UseLoggerFactory(LoggerFactory.Create(builder => { builder.AddConsole(); }))
+                              .EnableSensitiveDataLogging();
+            }
+        }
+
     }
 }

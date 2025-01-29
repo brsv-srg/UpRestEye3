@@ -116,7 +116,7 @@ namespace UpRestEye3.Services.BusinessLogic
             invoiceTarget.TotalIVA = invoiceSource.TotalIVA;
             invoiceTarget.TotalAmount = invoiceSource.TotalAmount;
 
-            invoiceTarget.Products = new List<ProductDTO>(invoiceSource.Products);
+            invoiceTarget.Products = new List<InvoiceProductDTO>(invoiceSource.Products);
 
             invoiceTarget.TaxCategories = new List<TaxesDTO>(invoiceSource.TaxCategories);
 
@@ -233,7 +233,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 };
             };
 
-            invoiceDTO.Products = invoiceDAO.Products.Select(p => new ProductDTO
+            invoiceDTO.Products = invoiceDAO.Products.Select(p => new InvoiceProductDTO
             {
                 ProductCode = p.ProductCode,
                 ProductName = p.ProductName,

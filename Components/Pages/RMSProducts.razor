@@ -120,7 +120,7 @@
 @code {
     
     private RMSProductDTO[]? products;
-    private List<ContainerDTO>? selectedContainers;
+    private List<RMSContainerDTO>? selectedContainers;
     private bool showContainersModal = false;
     private AppUser appUser;
 
@@ -162,7 +162,7 @@
     }
 
 
-    private async Task ShowContainers(List<ContainerDTO> containers)
+    private async Task ShowContainers(List<RMSContainerDTO> containers)
     {
         selectedContainers = containers;
         showContainersModal = true;

@@ -58,9 +58,9 @@ namespace UpRestEye3.Services.BusinessLogic
                     {
                         new TaxesDTO { Category = TaxCategory.Intermediate, Base = 2.00m, IVA = 2.00m * 0.13m, Total = 2.00m + 2.00m * 0.13m }
                     },
-                    Products = new List<ProductDTO>
+                    Products = new List<InvoiceProductDTO>
                     {
-                        new ProductDTO
+                        new InvoiceProductDTO
                         {
                             ProductCode = "EXT-002",
                             ProductName = "External Product 1",

@@ -153,7 +153,7 @@
     private string? uploadMessage;
     private string? uploadMessageClass;
     private bool showProductsModal = false;
-    private List<ProductDTO>? selectedProducts;
+    private List<InvoiceProductDTO>? selectedProducts;
     private AppUser appUser;
     private string? errorMessage;
     private bool isInitialized = false;
@@ -257,7 +257,7 @@
         StateHasChanged();
     }
 
-    private async Task ShowProductsAsync(List<ProductDTO> products)
+    private async Task ShowProductsAsync(List<InvoiceProductDTO> products)
     {
         selectedProducts = products;
         showProductsModal = true;

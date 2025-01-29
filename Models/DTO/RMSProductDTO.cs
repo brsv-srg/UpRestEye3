@@ -8,37 +8,37 @@ namespace UpRestEye3.Models.DTO
     {
         public int? Id { get; set; }
         public int ConsumerId { get; set; }
-        public string ConsumerTaxId { get; set; }
-        public Guid RMSProductId { get; set; }
-        public bool Deleted { get; set; }
-        public string Name { get; set; }
-        public string Description { get; set; }
-        public string Num { get; set; }
-        public Guid? Parent { get; set; }
-        public Guid TaxCategory { get; set; }
-        public Guid Category { get; set; }
-        public Guid AccountingCategory { get; set; }
-        public Guid MainUnit { get; set; }
-        public ItemType Type { get; set; }
-        public decimal UnitWeight { get; set; }
-        public decimal UnitCapacity { get; set; }
-        public bool NotInStoreMovement { get; set; }
-        public List<ContainerDTO> Containers { get; set; }
+        public string ConsumerTaxId { get; set; } = string.Empty;
+        public Guid RMSProductId { get; set; } = Guid.NewGuid();
+        public bool Deleted { get; set; } = false;
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Num { get; set; } = string.Empty;
+        public Guid? Parent { get; set; } = Guid.Empty;
+        public Guid TaxCategory { get; set; } = Guid.Empty;
+        public Guid Category { get; set; } = Guid.Empty;
+        public Guid AccountingCategory { get; set; } = Guid.Empty;
+        public Guid MainUnit { get; set; } = Guid.Empty;
+        public ItemType Type { get; set; } = ItemType.GOODS;
+        public decimal UnitWeight { get; set; } = 0;
+        public decimal UnitCapacity { get; set; } = 0;
+        public bool NotInStoreMovement { get; set; } = false;
+        public List<RMSContainerDTO> Containers { get; set; } = new List<RMSContainerDTO>();
     }
 
-    public class ContainerDTO
+    public class RMSContainerDTO
     {
         public int? Id { get; set; }
-        public Guid RMSContainerId { get; set; }
-        public string Num { get; set; }
-        public string Name { get; set; }
-        public decimal Count { get; set; }
-        public decimal MinContainerWeight { get; set; }
-        public decimal MaxContainerWeight { get; set; }
-        public decimal ContainerWeight { get; set; }
-        public decimal FullContainerWeight { get; set; }
-        public bool BackwardRecalculation { get; set; }
-        public bool UseInFront { get; set; }
-        public bool Deleted { get; set; }
+        public Guid RMSContainerId { get; set; } = Guid.NewGuid();
+        public string Num { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public decimal Count { get; set; } = 0;
+        public decimal MinContainerWeight { get; set; } = 0;
+        public decimal MaxContainerWeight { get; set; } = 0;
+        public decimal ContainerWeight { get; set; } = 0;
+        public decimal FullContainerWeight { get; set; } = 0;
+        public bool BackwardRecalculation { get; set; } = false;
+        public bool UseInFront { get; set; } = false;
+        public bool Deleted { get; set; } = false;
     }
 }

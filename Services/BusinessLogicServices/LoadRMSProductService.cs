@@ -1,13 +1,17 @@
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using UpRestEye3.Components.Pages;
 using UpRestEye3.Data;
-using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.DataLayer;
+using UpRestEye3.Models.DTO;
+using UpRestEye3.Migrations;
+using System.Net.Http.Headers;
 
 namespace UpRestEye3.Services.BusinessLogic
 {
@@ -48,7 +52,9 @@ namespace UpRestEye3.Services.BusinessLogic
 
             foreach (var product in products)
             {
-                await _productService.SaveProductAsync(product);
+                var rmsProductDTO = RMSProductMappingService.ToDTO(product);
+                rmsProductDTO.ConsumerId = consumerId;
+                await _productService.SaveProductAsync(rmsProductDTO);
             }
         }
 
@@ -65,10 +71,9 @@ namespace UpRestEye3.Services.BusinessLogic
             _token = response;
         }
 
-        private async Task<List<RMSProductDTO>> GetProductsAsync()
+        private async Task<List<ProductDTO>> GetProductsAsync()
         {
-            
-            var productsUrl = $"{_apiUrl}api/v2/entities/products/list?includeDeleted=false&key={_token}";
+            var productsUrl = $"{_apiUrl}api/v2/entities/products/list?includeDeleted=false&type=GOODS&key={_token}";
 
             var response = await _httpClient.GetAsync(productsUrl);
 
@@ -77,9 +82,32 @@ namespace UpRestEye3.Services.BusinessLogic
                 throw new Exception("Failed to fetch products");
             }
 
-            var products = await response.Content.ReadFromJsonAsync<List<RMSProductDTO>>();
-            return products ?? new List<RMSProductDTO>();
+            //var products = await response.Content.ReadFromJsonAsync<List<ProductDTO>>();
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            var products = JsonSerializer.Deserialize<List<ProductDTO>>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true/*,
+                Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }*/
+            });
+
+            return products?.Where(p => p.type == "GOODS")?.ToList() ?? new List<ProductDTO>();
         }
+        
+            //var productsUrl = $"{_apiUrl}api/v2/entities/products/list";
+
+            //var requestBody = new
+            //{
+            //    includeDeleted = false,
+            //    type = new List<string> { "GOODS" },
+            //    key = _token
+            //};
+
+            //// Установка заголовка Content-Type
+            //_httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            //var response = await _httpClient.PostAsJsonAsync(productsUrl, requestBody);
 
 
         private static string ComputeSha1Hash(string input)

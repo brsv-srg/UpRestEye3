@@ -25,7 +25,7 @@ namespace UpRestEye3.Services
                 UnitWeight = dao.UnitWeight,
                 UnitCapacity = dao.UnitCapacity,
                 NotInStoreMovement = dao.NotInStoreMovement,
-                Containers = dao.Containers.Select(c => new ContainerDTO
+                Containers = dao.Containers.Select(c => new RMSContainerDTO
                 {
                     Id = c.Id,
                     RMSContainerId = c.RMSContainerId,
@@ -74,5 +74,34 @@ namespace UpRestEye3.Services
                 }).ToList()
             };
         }
+
+        public static RMSProductDTO ToDTO(ProductDTO dto)
+        {
+            return new RMSProductDTO
+            {
+                RMSProductId = dto.id,
+                Deleted = dto.deleted,
+                Name = dto.name,
+                Description = dto.description,
+                Num = dto.num,
+                Parent = dto.parent,
+                MainUnit = dto.mainUnit,
+                UnitWeight = dto.unitWeight,
+                UnitCapacity = dto.unitCapacity,
+                NotInStoreMovement = dto.notInStoreMovement,
+                Containers = dto.containers.Select(c => new RMSContainerDTO
+                {
+                    RMSContainerId = c.id,
+                    Num = c.num,
+                    Name = c.name,
+                    Count = c.count,
+                    MinContainerWeight = c.minContainerWeight,
+                    MaxContainerWeight = c.maxContainerWeight,
+                    ContainerWeight = c.containerWeight,
+                    FullContainerWeight = c.fullContainerWeight
+                }).ToList()
+            };
+        }
+
     }
 }

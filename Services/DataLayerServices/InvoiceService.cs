@@ -139,6 +139,7 @@ namespace UpRestEye3.Services.DataLayer
                 else
                 {
                     // Update specific fields
+                    _context.Entry(existingInvoice).State = EntityState.Modified;
                     _context.Entry(existingInvoice).CurrentValues.SetValues(invoice);
 
                     await _context.SaveChangesAsync();
