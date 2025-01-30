@@ -1,17 +1,9 @@
-﻿using System.Net.Http;
-using System.Net.Http.Json;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using UpRestEye3.Components.Pages;
 using UpRestEye3.Data;
-using UpRestEye3.Services.DataLayer;
 using UpRestEye3.Models.DTO;
-using UpRestEye3.Migrations;
-using System.Net.Http.Headers;
+using UpRestEye3.Services.DataLayer;
 
 namespace UpRestEye3.Services.BusinessLogic
 {
@@ -94,20 +86,20 @@ namespace UpRestEye3.Services.BusinessLogic
 
             return products?.Where(p => p.type == "GOODS")?.ToList() ?? new List<ProductDTO>();
         }
-        
-            //var productsUrl = $"{_apiUrl}api/v2/entities/products/list";
 
-            //var requestBody = new
-            //{
-            //    includeDeleted = false,
-            //    type = new List<string> { "GOODS" },
-            //    key = _token
-            //};
+        //var productsUrl = $"{_apiUrl}api/v2/entities/products/list";
 
-            //// Установка заголовка Content-Type
-            //_httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        //var requestBody = new
+        //{
+        //    includeDeleted = false,
+        //    type = new List<string> { "GOODS" },
+        //    key = _token
+        //};
 
-            //var response = await _httpClient.PostAsJsonAsync(productsUrl, requestBody);
+        //// Установка заголовка Content-Type
+        //_httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        //var response = await _httpClient.PostAsJsonAsync(productsUrl, requestBody);
 
 
         private static string ComputeSha1Hash(string input)
@@ -117,8 +109,8 @@ namespace UpRestEye3.Services.BusinessLogic
             return string.Concat(hash.Select(b => b.ToString("x2")));
         }
 
-       private async Task InitConnectionParams(int consumerId)
-       {
+        private async Task InitConnectionParams(int consumerId)
+        {
             var connectionParams = await _connectionParameterService.GetConnectionParameterDTOByCustomerIdAsync(consumerId);
             if (connectionParams == null)
             {
@@ -131,6 +123,6 @@ namespace UpRestEye3.Services.BusinessLogic
 
             if (!_apiUrl.EndsWith('/'))
                 _apiUrl = _apiUrl + "/";
-       }
+        }
     }
 }

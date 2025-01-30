@@ -2,8 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using UpRestEye3.Data;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Models.DAO;
-using UpRestEye3.Services.DataLayer;
-
 
 namespace UpRestEye3.Services.DataLayer
 {
@@ -84,13 +82,13 @@ namespace UpRestEye3.Services.DataLayer
                 await transaction.CommitAsync();
 
                 return new ConnectionParameterDTO
-                    {
-                        ConsumerId = (int)consumerId,
-                        ApiUrl = parameters.ApiUrl,
-                        ApiLogin = parameters.ApiLogin,
-                        ApiPassword = parameters.ApiPassword,
-                        ConsumerTaxNumber = consumerTaxNumber
-                    };
+                {
+                    ConsumerId = (int)consumerId,
+                    ApiUrl = parameters.ApiUrl,
+                    ApiLogin = parameters.ApiLogin,
+                    ApiPassword = parameters.ApiPassword,
+                    ConsumerTaxNumber = consumerTaxNumber
+                };
             }
             catch (Exception e)
             {

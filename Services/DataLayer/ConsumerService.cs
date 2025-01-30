@@ -78,10 +78,10 @@ namespace UpRestEye3.Services.DataLayer
             var consumersDAO = await GetConsumerDAOAsync();
             return new ActionResult<IEnumerable<ConsumerDTO>>(
                 consumersDAO.Value.Select(s => new ConsumerDTO
-                    {
-                        Name = s.Name,
-                        TaxNumber = s.TaxNumber
-                    }));
+                {
+                    Name = s.Name,
+                    TaxNumber = s.TaxNumber
+                }));
         }
 
     }

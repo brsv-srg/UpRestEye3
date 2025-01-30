@@ -123,11 +123,13 @@ namespace UpRestEye3.Services.DataLayer
                             _context.Entry(invoice.Supplier).State = EntityState.Unchanged;
                     }
                 }
-                
+
 
                 // Attach and set state for Invoice
                 var existingInvoice = await _context.Invoices
                     .AsNoTracking()
+                    .Include(i => i.Products)
+                    .Include(i => i.TaxCategories)  
                     .FirstOrDefaultAsync(i => i.Id == invoice.Id);
                 if (existingInvoice == null)
                 {
@@ -138,10 +140,82 @@ namespace UpRestEye3.Services.DataLayer
                 }
                 else
                 {
-                    // Update specific fields
-                    _context.Entry(existingInvoice).State = EntityState.Modified;
-                    _context.Entry(existingInvoice).CurrentValues.SetValues(invoice);
 
+                    // Update TaxCategories
+                    var existingTaxCategories = existingInvoice.TaxCategories.ToList();
+                    var newTaxCategories = invoice.TaxCategories;
+
+                    // Add or update TaxCategories
+
+                    foreach (var newCategory in newTaxCategories)
+                    {
+                        var existingCategory = existingTaxCategories
+                            .FirstOrDefault(c => c.Category == newCategory.Category);
+
+                        if (existingCategory == null)
+                        {
+                            _context.Entry(newCategory).State = EntityState.Added;
+                        }
+                        else
+                        {
+                            newCategory.Id = existingCategory.Id;
+                            _context.Entry(newCategory).State = EntityState.Modified;
+                        }
+                    }
+
+                    // Remove TaxCategories that are not in the new list
+                    foreach (var existingCategory in existingTaxCategories)
+                    {
+                        if (!newTaxCategories.Any(c => c.Category == existingCategory.Category))
+                        {
+                            _context.Remove(existingCategory);
+                            _context.Entry(existingCategory).State = EntityState.Deleted;
+
+                        }
+                    }
+
+
+                    // Update Invoice Products
+                    var existingInvoiceProducts = existingInvoice.Products.ToList();
+                    var newInvoiceProducts = invoice.Products;
+
+                    // Add or update Invoice Products
+                    foreach (var newProduct in newInvoiceProducts)
+                    {
+                        var existingProduct = existingInvoiceProducts
+                            .FirstOrDefault(c => c.ProductName == newProduct.ProductName && c.ProductCode == newProduct.ProductCode);
+
+                        if (existingProduct == null)
+                        {
+                            _context.Entry(newProduct).State = EntityState.Added;
+                        }
+                        else
+                        {
+                            newProduct.Id = existingProduct.Id;
+                            _context.Entry(newProduct).State = EntityState.Modified;
+                        }
+                    }
+
+                    // Remove Invoice Products that are not in the new list
+                    foreach (var existingProduct in existingInvoiceProducts)
+                    {
+                        if (!newInvoiceProducts.Any(c => c.ProductName == existingProduct.ProductName && c.ProductCode == existingProduct.ProductCode))
+                        {
+                            _context.Remove(existingProduct);
+                            _context.Entry(existingProduct).State = EntityState.Deleted;
+
+                        }
+                    }
+
+                    //
+
+
+
+                    // Update invoice
+                    invoice.Id = existingInvoice.Id;
+                    _context.Entry(invoice).State = EntityState.Modified;
+
+                    
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
                     return existingInvoice.Id;

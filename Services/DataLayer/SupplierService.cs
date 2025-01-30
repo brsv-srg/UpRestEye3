@@ -59,7 +59,7 @@ namespace UpRestEye3.Services.DataLayer
                 .AsNoTracking()
                 .Include(i => i.Invoices)
                 .Include(i => i.Consumer)
-                .Where(s => consumer != null && 
+                .Where(s => consumer != null &&
                             (consumer.Id != null && s.ConsumerId == consumer.Id ||
                                  consumer.Id == null && s.TaxNumber == consumer.TaxNumber))
 
@@ -72,11 +72,11 @@ namespace UpRestEye3.Services.DataLayer
             var suppliersDAO = await GetSupplierDAOAsync(consumer);
             return new ActionResult<IEnumerable<SupplierDTO>>(
                     suppliersDAO.Value.Select(s => new SupplierDTO
-            {
-                Name = s.Name,
-                TaxNumber = s.TaxNumber,
-                BankAccount = s.BankAccount
-            }));
+                    {
+                        Name = s.Name,
+                        TaxNumber = s.TaxNumber,
+                        BankAccount = s.BankAccount
+                    }));
         }
     }
 }

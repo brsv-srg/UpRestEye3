@@ -201,15 +201,5 @@ namespace UpRestEye3.Data
             ////////////////////////////////////////////////////////////////
 
         }
-
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            if (!optionsBuilder.IsConfigured)
-            {
-                optionsBuilder.UseLoggerFactory(LoggerFactory.Create(builder => { builder.AddConsole(); }))
-                              .EnableSensitiveDataLogging();
-            }
-        }
-
     }
 }

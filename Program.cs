@@ -1,17 +1,17 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Logging;
 
 using UpRestEye3.Components;
 using UpRestEye3.Data;
 using UpRestEye3.Models.Account;
-using UpRestEye3.Services.DataLayer;
-using UpRestEye3.Services.Recognition;
-using UpRestEye3.Services.BusinessLogic;
-using UpRestEye3.Services.MLServices;
 using UpRestEye3.Components.Account;
 using UpRestEye3.Services;
+using UpRestEye3.Services.BusinessLogic;
+using UpRestEye3.Services.DataLayer;
+using UpRestEye3.Services.MLServices;
+using UpRestEye3.Services.Recognition;
 
 
 // TODO добавить логирование
@@ -46,8 +46,12 @@ builder.Services.AddAuthorization(options =>
 });
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connectionString));
-
+builder.Services.AddDbContext<ApplicationDbContext>(options => 
+{ 
+    options.UseSqlite(connectionString)
+        .UseLoggerFactory(LoggerFactory.Create(builder => { builder.AddConsole(); }))
+        .EnableSensitiveDataLogging();
+});
 
 builder.Services.AddSingleton<IEmailSender<AppUser>, IdentityNoOpEmailSender>();
 

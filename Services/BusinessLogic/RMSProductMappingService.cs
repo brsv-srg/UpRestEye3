@@ -1,7 +1,7 @@
 using UpRestEye3.Models.DAO;
 using UpRestEye3.Models.DTO;
 
-namespace UpRestEye3.Services
+namespace UpRestEye3.Services.BusinessLogic
 {
     public class RMSProductMappingService
     {

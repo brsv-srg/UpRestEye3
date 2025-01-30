@@ -6,8 +6,7 @@ using OpenCvSharp.Extensions;
 using System.Runtime.InteropServices;
 using UpRestEye3.Models.BLO;
 
-
-namespace UpRestEye3.Services.Recognition
+namespace UpRestEye3.Services.Recognition   
 {
     public interface IQRProcessing
     {

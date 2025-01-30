@@ -3,6 +3,7 @@ using UpRestEye3.Models.DAO;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Data;
 using UpRestEye3.Components.Pages;
+using UpRestEye3.Services.BusinessLogic;
 
 namespace UpRestEye3.Services.DataLayer
 {
@@ -12,12 +13,12 @@ namespace UpRestEye3.Services.DataLayer
         Task<int?> SaveProductAsync(RMSProductDTO productDTO);
     }
 
-    public class RMSProductService: IRMSProductService
+    public class RMSProductService : IRMSProductService
     {
         private readonly ApplicationDbContext _context;
 
-        public RMSProductService(ApplicationDbContext context) 
-                                 
+        public RMSProductService(ApplicationDbContext context)
+
         {
             _context = context;
         }
@@ -51,8 +52,9 @@ namespace UpRestEye3.Services.DataLayer
 
                 var existingProduct = await _context.RMSProducts
                     .AsNoTracking()
+                    .Include(p => p.Containers)
                     .FirstOrDefaultAsync(p => p.ConsumerId == productDto.ConsumerId && p.RMSProductId == productDto.RMSProductId);
-                
+
                 var newProduct = RMSProductMappingService.ToDAO(productDto);
                 if (existingProduct == null)
                 {
@@ -63,8 +65,44 @@ namespace UpRestEye3.Services.DataLayer
                 }
                 else
                 {
+
+
+                    // Update Containers
+                    var existingContainers = existingProduct.Containers.ToList();
+                    var newContainers = newProduct.Containers;
+
+                    // Add or update containers
+                    foreach (var newContainer in newContainers)
+                    {
+                        var existingContainer = existingContainers
+                            .FirstOrDefault(c => c.RMSContainerId == newContainer.RMSContainerId);
+
+                        if (existingContainer == null)
+                        {
+                            //existingProduct.Containers.Add(newContainer);
+                            _context.Entry(newContainer).State = EntityState.Added;
+                        }
+                        else
+                        {
+                            newContainer.Id = existingContainer.Id;
+                            _context.Entry(newContainer).State = EntityState.Modified;
+                        }
+                    }
+
+                    // Remove containers that are not in the new list
+                    foreach (var existingContainer in existingContainers)
+                    {
+                        if (!newContainers.Any(c => c.RMSContainerId == existingContainer.RMSContainerId))
+                        {
+                            _context.Remove(existingContainer);
+                            _context.Entry(existingContainer).State = EntityState.Deleted;
+
+                        }
+                    }
+
                     newProduct.Id = existingProduct.Id;
                     _context.Entry(newProduct).State = EntityState.Modified;
+
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();

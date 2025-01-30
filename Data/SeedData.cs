@@ -5,10 +5,10 @@ using System;
 using System.Linq;
 using UpRestEye3.Components.Pages;
 using UpRestEye3.Models.DTO;
-using UpRestEye3.Services.DataLayer;
-using UpRestEye3.Services.BusinessLogic ;
 using Google.Protobuf.WellKnownTypes;
 using UpRestEye3.Models.BLO;
+using UpRestEye3.Services.BusinessLogic;
+using UpRestEye3.Services.DataLayer;
 
 namespace UpRestEye3.Data
 {
