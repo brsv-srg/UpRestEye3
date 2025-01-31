@@ -43,6 +43,11 @@ namespace UpRestEye3.Models.DTO
         public string Unit { get; set; } = string.Empty;
         public float Quantity { get; set; } = 0.0f;
         public decimal Price { get; set; } = 0.0m;
+        public TaxCategory Category { get; set; } = TaxCategory.Intermediate;
+        public int? RMSProductId { get; set; } = 0;
+        public string? RMSProductName { get; set; } = string.Empty;
+        public int? RMSContainerId { get; set; } = 0;
+        public string? RMSContainerName { get; set; } = string.Empty;
     }
 }
 

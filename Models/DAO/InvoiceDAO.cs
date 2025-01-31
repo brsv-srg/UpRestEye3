@@ -16,7 +16,7 @@ namespace UpRestEye3.Models.DAO
         public int? SupplierId { get; set; }
         public SupplierDAO? Supplier { get; set; } 
  
-        public List<ProductDAO> Products { get; set; } = [];
+        public List<InvoiceProductDAO> Products { get; set; } = [];
         public List<TaxesDAO> TaxCategories { get; set; } = [];
 
         public string FilePath { get; set; } = string.Empty;
@@ -34,20 +34,29 @@ namespace UpRestEye3.Models.DAO
     public class TaxesDAO
     {
         public int? Id { get; set; }
+        public int? InvoiceId { get; set; }
+        public InvoiceDAO? Invoice { get; set; }
         public TaxCategory Category { get; set; } = TaxCategory.Intermediate;
         public decimal Base { get; set; } = 0.0m;
         public decimal IVA { get; set; } = 0.0m;
         public decimal Total { get; set; } = 0.0m;
     }
 
-    public class ProductDAO
+    public class InvoiceProductDAO
     {
         public int? Id { get; set; }
+        public int? InvoiceId { get; set; }
+        public InvoiceDAO? Invoice { get; set; }
         public string ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
         public float Quantity { get; set; } = 0.0f;
         public decimal Price { get; set; } = 0.0m;
+        public TaxCategory Category { get; set; } = TaxCategory.Intermediate;
+        public int? RMSProductId { get; set; } = null;
+        public RMSProductDAO? RMSProduct { get; set; } = null;
+        public int? RMSContainerId { get; set; } = null;
+        public ContainerDAO? RMSContainer { get; set; } = null;
     }
 }
 

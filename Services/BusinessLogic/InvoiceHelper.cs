@@ -167,7 +167,7 @@ namespace UpRestEye3.Services.BusinessLogic
             invoiceTarget.TotalIVA = invoiceSource.TotalIVA;
             invoiceTarget.TotalAmount = invoiceSource.TotalAmount;
 
-            invoiceTarget.Products = new List<ProductDAO>(invoiceSource.Products);
+            invoiceTarget.Products = new List<InvoiceProductDAO>(invoiceSource.Products);
 
             invoiceTarget.TaxCategories = new List<TaxesDAO>(invoiceSource.TaxCategories);
 
@@ -239,7 +239,13 @@ namespace UpRestEye3.Services.BusinessLogic
                 ProductName = p.ProductName,
                 Unit = p.Unit,
                 Quantity = p.Quantity,
-                Price = p.Price
+                Price = p.Price,
+                Category = p.Category,
+                RMSProductId = p.RMSProductId,
+                RMSProductName = p.RMSProduct?.Name,
+                RMSContainerId = p.RMSContainerId,
+                RMSContainerName = p.RMSContainer?.Name
+
             }).ToList();
 
             invoiceDTO.TaxCategories = invoiceDAO.TaxCategories.Select(t => new TaxesDTO
@@ -283,7 +289,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     BankAccount = invoiceDTO.Supplier.BankAccount
                 };
             };
-            invoiceDAO.Products = invoiceDTO.Products.Select(p => new ProductDAO
+            invoiceDAO.Products = invoiceDTO.Products.Select(p => new InvoiceProductDAO
             {
                 ProductCode = p.ProductCode,
                 ProductName = p.ProductName,

@@ -41,6 +41,9 @@ namespace UpRestEye3.Services.DataLayer
                 .AsNoTracking()
                 .Include(i => i.TaxCategories)
                 .Include(i => i.Products)
+                    .ThenInclude(p => p.RMSProduct) // Include RMSProducts through Products
+                .Include(i => i.Products)
+                    .ThenInclude(p => p.RMSContainer) // Include RMSContainers through Products
                 .Include(i => i.Supplier)
                 .Include(i => i.Consumer)
                 .FirstOrDefaultAsync(i => i.Id == id);

@@ -11,12 +11,12 @@ namespace UpRestEye3.Data
 
         public DbSet<InvoiceDAO> Invoices { get; set; }
         public DbSet<TaxesDAO> TaxCategories { get; set; }
-        public DbSet<ProductDAO> Products { get; set; }
+        public DbSet<InvoiceProductDAO> InvoiceProducts { get; set; }
         public DbSet<SupplierDAO> Suppliers { get; set; }
         public DbSet<ConsumerDAO> Consumers { get; set; }
-        //public DbSet<AppUser> Users { get; set; }
         public DbSet<ConnectionParameterDAO> ConnectionParameters { get; set; }
         public DbSet<RMSProductDAO> RMSProducts { get; set; }
+        public DbSet<ContainerDAO> Containers { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -29,12 +29,10 @@ namespace UpRestEye3.Data
             ////////////////////////////////////////////////////////////////
             
 
-            // Configure Invoice relationships
+            // Configure auto-generated IDs
             modelBuilder.Entity<InvoiceDAO>()
-                .HasOne(i => i.Supplier)
-                .WithMany(s => s.Invoices)
-                .HasForeignKey(i => i.SupplierId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .Property(i => i.Id)
+                .ValueGeneratedOnAdd();
 
             modelBuilder.Entity<InvoiceDAO>()
                 .HasOne(i => i.Consumer)
@@ -42,31 +40,28 @@ namespace UpRestEye3.Data
                 .HasForeignKey(i => i.ConsumerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-
-            // Configure auto-generated IDs
+            // Configure Invoice relationships
             modelBuilder.Entity<InvoiceDAO>()
-                .Property(i => i.Id)
-                .ValueGeneratedOnAdd();
+                .HasOne(i => i.Supplier)
+                .WithMany(s => s.Invoices)
+                .HasForeignKey(i => i.SupplierId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // Configure owned types for Products collection
             modelBuilder.Entity<InvoiceDAO>()
-                .OwnsMany(i => i.Products, p =>
-                {
-                    p.ToTable("Products");
-                    p.WithOwner().HasForeignKey("InvoiceId");
-                    p.HasKey("Id");
-                    p.Property<int?>("Id").ValueGeneratedOnAdd();
-                });
+                .HasMany(i => i.Products)
+                .WithOne(p => p.Invoice)
+                .HasForeignKey(p => p.InvoiceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
 
             // Configure owned types for Taxes collection
             modelBuilder.Entity<InvoiceDAO>()
-                .OwnsMany(i => i.TaxCategories, t =>
-                {
-                    t.ToTable("TaxCategories");
-                    t.WithOwner().HasForeignKey("InvoiceId");
-                    t.HasKey("Id");
-                    t.Property<int?>("Id").ValueGeneratedOnAdd();
-                });
+                .HasMany(i => i.TaxCategories)
+                .WithOne(t => t.Invoice)
+                .HasForeignKey(t => t.InvoiceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             ////////////////////////////////////////////////////////////////
 
             ////////////////////////////////////////////////////////////////
@@ -168,7 +163,6 @@ namespace UpRestEye3.Data
             /// RMS Products relationships
             ////////////////////////////////////////////////////////////////
 
-
             // Configure Invoice relationships
             modelBuilder.Entity<RMSProductDAO>()
                 .HasOne(p => p.Consumer)
@@ -187,18 +181,61 @@ namespace UpRestEye3.Data
                 .IsUnique();
 
 
-            // Configure owned types for Containers collection
+            // Configure RMSProduct vs RMSContainer
             modelBuilder.Entity<RMSProductDAO>()
-                .OwnsMany(p => p.Containers, c =>
-                {
-                    c.ToTable("Containers");
-                    c.WithOwner().HasForeignKey("ProductId");
-                    c.HasKey("Id");
-                    c.Property<int?>("Id").ValueGeneratedOnAdd();
-                });
+                .HasMany(p => p.Containers)
+                .WithOne()
+                .HasForeignKey(c => c.RMSProductId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-           
+
+
+
             ////////////////////////////////////////////////////////////////
+            /// Invoice Products
+            ////////////////////////////////////////////////////////////////
+
+
+            // Configure Invoice Product vs Invoice 
+            modelBuilder.Entity<InvoiceProductDAO>()
+                .HasOne(i => i.Invoice)
+                .WithMany(p => p.Products)
+                .HasForeignKey(p => p.InvoiceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Invoice Product vs RMSProduct
+            modelBuilder.Entity<InvoiceProductDAO>()
+                .HasOne(i => i.RMSProduct)
+                .WithMany()
+                .HasForeignKey(p => p.RMSProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Invoice Product vs RMSContainer
+            modelBuilder.Entity<InvoiceProductDAO>()
+                .HasOne(i => i.RMSContainer)
+                .WithMany()
+                .HasForeignKey(p => p.RMSContainerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+
+            ////////////////////////////////////////////////////////////////
+            /// Invoice Tax Categories
+            ////////////////////////////////////////////////////////////////
+
+
+            // Configure Taxes vs Invoices
+            modelBuilder.Entity<TaxesDAO>()
+                .HasOne(c => c.Invoice)
+                .WithMany(i => i.TaxCategories)
+                .HasForeignKey(t => t.InvoiceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+
+
+            // TODO надо ли вписывать связь с продуктами инвойса для продукта ОМС
+            // TODO надо ли вписывать связь с продуктами инвойса для контейнера ОМС
 
         }
     }

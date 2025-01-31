@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UpRestEye3.Data;
 
@@ -10,9 +11,11 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250130225245_RMSProd03")]
+    partial class RMSProd03
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
@@ -395,7 +398,7 @@ namespace UpRestEye3.Migrations
                     b.Property<int?>("RMSContainerId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("RMSProductId")
+                    b.Property<int?>("RmsProductId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Unit")
@@ -408,7 +411,7 @@ namespace UpRestEye3.Migrations
 
                     b.HasIndex("RMSContainerId");
 
-                    b.HasIndex("RMSProductId");
+                    b.HasIndex("RmsProductId");
 
                     b.ToTable("InvoiceProducts");
                 });
@@ -630,16 +633,16 @@ namespace UpRestEye3.Migrations
                         .HasForeignKey("RMSContainerId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("UpRestEye3.Models.DAO.RMSProductDAO", "RMSProduct")
+                    b.HasOne("UpRestEye3.Models.DAO.RMSProductDAO", "RmsProduct")
                         .WithMany()
-                        .HasForeignKey("RMSProductId")
+                        .HasForeignKey("RmsProductId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Invoice");
 
                     b.Navigation("RMSContainer");
 
-                    b.Navigation("RMSProduct");
+                    b.Navigation("RmsProduct");
                 });
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.RMSProductDAO", b =>

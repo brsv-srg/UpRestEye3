@@ -23,6 +23,8 @@ namespace UpRestEye3.Models.DAO
         public decimal UnitCapacity { get; set; } // Объем одной единицы в литрах
         public bool NotInStoreMovement { get; set; } // Участвует ли в перемещениях по складу
         public List<ContainerDAO> Containers { get; set; } // Фасовки
+
+
     }
 
 
@@ -31,6 +33,7 @@ namespace UpRestEye3.Models.DAO
     {
         public int? Id { get; set; } // ID фасовки
         public Guid RMSContainerId { get; set; } // UUID фасовки
+        public int RMSProductId { get; set; } // ID продукта
         public string Num { get; set; } // Артикул
         public string Name { get; set; } // Название
         public decimal Count { get; set; } // Количество продукта в единицах измерения продукта
