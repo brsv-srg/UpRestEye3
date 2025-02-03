@@ -24,6 +24,7 @@ namespace UpRestEye3.Models.DTO
         public decimal UnitCapacity { get; set; } = 0;
         public bool NotInStoreMovement { get; set; } = false;
         public List<RMSContainerDTO> Containers { get; set; } = new List<RMSContainerDTO>();
+        public RMSProductStatus Status { get; set; } = RMSProductStatus.New;
     }
 
     public class RMSContainerDTO
@@ -40,5 +41,11 @@ namespace UpRestEye3.Models.DTO
         public bool BackwardRecalculation { get; set; } = false;
         public bool UseInFront { get; set; } = false;
         public bool Deleted { get; set; } = false;
+    }
+
+    public enum RMSProductStatus
+    {
+        FromRMS,
+        New
     }
 }

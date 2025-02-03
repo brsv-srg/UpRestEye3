@@ -108,7 +108,7 @@ namespace UpRestEye3.Services.BusinessLogic
             var recognizedText = await _textRecognizer.TextRecognize(sourceImage);
             if (recognizedText != null)
             {
-                return await _gptParser.ParseReceiptWithLLM(recognizedText, currentInvoice);
+                return await _gptParser.ReceiptParsingByLLM(recognizedText, currentInvoice);
             }
             return null;
         }

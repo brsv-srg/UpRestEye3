@@ -34,16 +34,16 @@
                             <th>Total IVA</th>
                             <th>Total Amount</th>
                             <th>Status</th>
-                            <th>Actions</th>
+                            <th style="text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var invoice in invoices.OrderByDescending(i => i.UploadTime))
                         {
                             <tr>
-                                <td>@invoice.UploadTime.ToString("g")</td> 
+                                <td>@invoice.InvoiceDate.ToString("dd.MM.yy hh:mm")</td>
                                 <td>@invoice.InvoiceNumber</td>
-                                <td>@invoice.InvoiceDate.ToShortDateString()</td>
+                                <td>@invoice.InvoiceDate.ToString("dd.MM.yy")</td>
                                 <td>@(invoice.Supplier != null ? invoice.Supplier.Name : "")</td>
                                 <td>@(invoice.Supplier != null ? invoice.Supplier.TaxNumber : "")</td>
                                 <td>@invoice.TotalIVA</td>
@@ -283,7 +283,7 @@
         {
             InvoiceStatus.Error => "text-danger",
             InvoiceStatus.SavedToSystem => "text-success",
-            _ => "text-warning",
+            _ => "text-info",
         };
     }
 }

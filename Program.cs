@@ -127,12 +127,14 @@ using (var scope = app.Services.CreateScope())
     seedData.InitializeInvoices(services);
     seedData.InitializeRMSProducts(services);
 
-    // Валидация схемы и класса Invoice
-    //InvoiceJsonHelper.ValidateInvoiceSchema();
-    //InvoiceJsonHelper.ValidateInvoiceObject();
+    //Валидация схемы и класса Invoice
+    JsonHelper.ValidateInvoiceSchema();
+    JsonHelper.ValidateInvoiceObject();
+    JsonHelper.ValidateRMSProductsSchema();
+    JsonHelper.ValidateRMSProductsObject();
 
-    //var testInvoiceService = new TestInvoiceService(services);
-    //await testInvoiceService.RunTests();
+    var testInvoiceService = new TestInvoiceService(services);
+    await testInvoiceService.RunTests();
 }
 
 

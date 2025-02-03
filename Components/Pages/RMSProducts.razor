@@ -44,7 +44,8 @@
                             <th>Name</th>
                             <th>Description</th>
                             <th>Num</th>
-                            <th>Actions</th>
+                            <th>Status</th>
+                            <th style="text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -54,6 +55,11 @@
                                 <td>@product.Name</td>
                                 <td>@product.Description</td>
                                 <td>@product.Num</td>
+                                <td>
+                                    <span class="@GetStatusClass(product.Status)">
+                                        @product.Status.ToString()
+                                    </span>
+                                </td>
 
                                 <td>
                                     <button class="custom-btn" @onclick="async () => await ShowContainers(product.Containers)">
@@ -214,6 +220,15 @@
     
     
     
+    }
+
+    private string GetStatusClass(RMSProductStatus status) // Изменено: Метод для получения CSS-класса статуса
+    {
+        return status switch
+        {
+            RMSProductStatus.New => "text-info",
+            RMSProductStatus.FromRMS => "text-success",
+        };
     }
 
 }
