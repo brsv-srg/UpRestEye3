@@ -22,7 +22,7 @@ namespace UpRestEye3.Controllers
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> Upload(IFormFile file)
+        public async Task<IActionResult> Upload([FromForm] IFormFile file, [FromForm] int consumerId)
         {
             if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded.");
@@ -34,7 +34,7 @@ namespace UpRestEye3.Controllers
                 await file.CopyToAsync(stream);
             }
 
-            var result = await _imageProcessor.FileProcessAsync(filePath); // ExtProcessImageAsync(filePath);
+            var result = await _imageProcessor.FileProcessAsync(filePath, consumerId); // ExtProcessImageAsync(filePath);
 
             if (!result)
             {

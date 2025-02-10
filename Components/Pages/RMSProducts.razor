@@ -21,7 +21,7 @@
         <div class="d-flex justify-content-between align-items-center">
             <h1 class="flex-grow-1 text-nowrap">Products in RMS</h1>
             <button class="btn btn-outline-primary ml-auto" style="width: auto; margin-left: auto;" @onclick="async () => await LoadRMSData()">
-             <i class="fas fa-sync-alt"></i> 
+                <i class="fas fa-sync-alt"></i> 
                 @* <i class="bi bi-box-arrow-in-down"></i> TODO разобраться с этой кнопкой *@
             </button>
         </div>
@@ -33,11 +33,11 @@
         }
         else
         {
-   
+
 
             <div style="overflow-y: auto; max-height: 70vh; ">
 
-                
+
                 <table class="table" style="background-color: white; ">
                     <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
                         <tr>
@@ -88,8 +88,6 @@
                                             <th>Num</th>
                                             <th>Name</th>
                                             <th>Count</th>
-                                            <th>Min Weight</th>
-                                            <th>Max Weight</th>
                                             <th>Container Weight</th>
                                             <th>Full Weight</th>
                                         </tr>
@@ -101,8 +99,6 @@
                                                 <td>@container.Num</td>
                                                 <td>@container.Name</td>
                                                 <td>@container.Count</td>
-                                                <td>@container.MinContainerWeight</td>
-                                                <td>@container.MaxContainerWeight</td>
                                                 <td>@container.ContainerWeight</td>
                                                 <td>@container.FullContainerWeight</td>
                                             </tr>
@@ -127,7 +123,7 @@
 </AuthorizeView>
 
 @code {
-    
+
     private RMSProductDTO[]? products;
     private List<RMSContainerDTO>? selectedContainers;
     private bool showContainersModal = false;
@@ -142,25 +138,7 @@
 
         if (user.Identity.IsAuthenticated && appUser?.ConsumerId != null)
         {
-            var baseUri = Navigation.BaseUri;
-            if (baseUri.EndsWith('/'))
-            {
-                baseUri = baseUri.Substring(0, baseUri.Length - 1);
-            }
-
-            try
-            {
-                products = await Http.GetFromJsonAsync<RMSProductDTO[]>($"{baseUri}/api/rmsproducts/{appUser.ConsumerId}");
-            }
-            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                Console.WriteLine("Products not found.");
-
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"An error occurred: {ex.Message}");
-            }
+            await ReadRMSProducts();
         }
         else
         {
@@ -168,6 +146,36 @@
             Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
         }
 
+    }
+    
+    
+    protected async Task ReadRMSProducts()
+    {
+        if (appUser == null || appUser?.ConsumerId == null)
+        {
+            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+            Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+        }
+
+        var baseUri = Navigation.BaseUri;
+        if (baseUri.EndsWith('/'))
+        {
+            baseUri = baseUri.Substring(0, baseUri.Length - 1);
+        }
+
+        try
+        {
+            products = await Http.GetFromJsonAsync<RMSProductDTO[]>($"{baseUri}/api/rmsproducts/{appUser.ConsumerId}");
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            Console.WriteLine("Products not found.");
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
     }
 
 
@@ -185,6 +193,12 @@
     
     private async Task LoadRMSData()
     {
+        if (appUser == null || appUser?.ConsumerId == null)
+        {
+            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+            Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+        }
+
         var baseUri = Navigation.BaseUri;
         if (baseUri.EndsWith('/'))
         {
@@ -200,7 +214,7 @@
             if (response.IsSuccessStatusCode)
             {
                 Console.WriteLine("Parameters saved successfully.");
-                Navigation.NavigateTo("/");
+                ReadRMSProducts();
             }
             else
             {
@@ -222,12 +236,13 @@
     
     }
 
-    private string GetStatusClass(RMSProductStatus status) // Изменено: Метод для получения CSS-класса статуса
+    private string GetStatusClass(RMSProductStatusEnum status) // Изменено: Метод для получения CSS-класса статуса
     {
         return status switch
         {
-            RMSProductStatus.New => "text-info",
-            RMSProductStatus.FromRMS => "text-success",
+            RMSProductStatusEnum.NewProduct => "text-info",
+			RMSProductStatusEnum.NewContainer => "text-info",
+            RMSProductStatusEnum.FromRMS => "text-success",
         };
     }
 

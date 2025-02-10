@@ -56,7 +56,7 @@ namespace UpRestEye3.Data
                                 TotalAmount = 2.00m + 2.00m*0.13m,
                                 TaxCategories = new List<TaxesDTO>
                                 {
-                                    new TaxesDTO { Category = InvoiceHelper.GetTaxCategory("13%"), Base = 2.00m, IVA = 2.00m*0.13m, Total = 2.00m + 2.00m*0.13m }
+                                    new TaxesDTO { TaxCategory = InvoiceHelper.GetTaxCategory("13%"), Base = 2.00m, IVA = 2.00m*0.13m, Total = 2.00m + 2.00m*0.13m }
                                 },
                                 Products = new List<InvoiceProductDTO>
                                 {
@@ -89,7 +89,7 @@ namespace UpRestEye3.Data
                                 TotalAmount = 4.00m + 4.00m*0.23m,
                                 TaxCategories = new List<TaxesDTO>
                                 {
-                                    new TaxesDTO { Category = InvoiceHelper.GetTaxCategory("23%"), Base = 4.00m, IVA = 4.00m*0.23m, Total = 4.00m + 4.00m*0.23m }
+                                    new TaxesDTO { TaxCategory = InvoiceHelper.GetTaxCategory("23%"), Base = 4.00m, IVA = 4.00m*0.23m, Total = 4.00m + 4.00m*0.23m }
                                 },
                                 Products = new List<InvoiceProductDTO>
                                 {
@@ -137,33 +137,22 @@ namespace UpRestEye3.Data
                             {
                                 ConsumerId = 1,
                                 ConsumerTaxId = "987654322",
-                                RMSProductId = Guid.NewGuid(),
+                                RMSProductExtGuid = Guid.NewGuid(),
                                 Name = "Product A",
                                 Description = "Product A Description",
                                 Num = "001",
-                                TaxCategory = Guid.NewGuid(),
-                                Category = Guid.NewGuid(),
-                                AccountingCategory = Guid.NewGuid(),
                                 MainUnit = Guid.NewGuid(),
-                                Type = ItemType.GOODS,
-                                UnitWeight = 1.00m,
-                                UnitCapacity = 1.00m,
-                                NotInStoreMovement = false,
+                                Type = ItemTypeEnum.GOODS,
                                 Containers = new List<RMSContainerDTO>
                                 {
                                     new RMSContainerDTO
                                     {
-                                        RMSContainerId = Guid.NewGuid(),
+                                        RMSContainerExtGuid = Guid.NewGuid(),
                                         Num = "001",
                                         Name = "Container 1",
                                         Count = 1,
-                                        MinContainerWeight = 1.00m,
-                                        MaxContainerWeight = 1.00m,
                                         ContainerWeight = 1.00m,
-                                        FullContainerWeight = 1.00m,
-                                        BackwardRecalculation = false,
-                                        UseInFront = false,
-                                        Deleted = false
+                                        FullContainerWeight = 1.00m
                                     }
                                 }
                             },
@@ -171,33 +160,22 @@ namespace UpRestEye3.Data
                             {
                                 ConsumerId = 1,
                                 ConsumerTaxId = "987654322",
-                                RMSProductId = Guid.NewGuid(),
+                                RMSProductExtGuid = Guid.NewGuid(),
                                 Name = "Product B",
                                 Description = "Product A Description",
                                 Num = "002",
-                                TaxCategory = Guid.NewGuid(),
-                                Category = Guid.NewGuid(),
-                                AccountingCategory = Guid.NewGuid(),
                                 MainUnit = Guid.NewGuid(),
-                                Type = ItemType.GOODS,
-                                UnitWeight = 1.00m,
-                                UnitCapacity = 1.00m,
-                                NotInStoreMovement = false,
+                                Type = ItemTypeEnum.GOODS,
                                 Containers = new List<RMSContainerDTO>
                                 {
                                     new RMSContainerDTO
                                     {
-                                        RMSContainerId = Guid.NewGuid(),
+                                        RMSContainerExtGuid = Guid.NewGuid(),
                                         Num = "001",
                                         Name = "Container 1",
                                         Count = 1,
-                                        MinContainerWeight = 1.00m,
-                                        MaxContainerWeight = 1.00m,
                                         ContainerWeight = 1.00m,
-                                        FullContainerWeight = 1.00m,
-                                        BackwardRecalculation = false,
-                                        UseInFront = false,
-                                        Deleted = false
+                                        FullContainerWeight = 1.00m
                                     }
                                 }
                             }

@@ -12,6 +12,7 @@ using UpRestEye3.Services.BusinessLogic;
 using UpRestEye3.Services.DataLayer;
 using UpRestEye3.Services.MLServices;
 using UpRestEye3.Services.Recognition;
+using UpRestEye3.Services.Account;
 
 
 // TODO добавить логирование
@@ -65,6 +66,7 @@ builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 builder.Services.AddSignalR();
 
+builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 
 // Сервисы приложения
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
@@ -79,6 +81,7 @@ builder.Services.AddScoped<IQRRecognition, QRRecognitionZXing>();
 builder.Services.AddScoped<ITextRecognition, TextRecognitionGoogleVision>();
 builder.Services.AddScoped<IGPTService, GPTService>();
 builder.Services.AddScoped<IImageProcessingPipelineHelper, ImagePipelineHelper>();
+builder.Services.AddScoped<IInvoiceProcessor, InvoiceProcessor>();
 builder.Services.AddScoped<IConnectionParameterService, ConnectionParameterService>();
 builder.Services.AddScoped<IRMSProductService, RMSProductService>();
 builder.Services.AddScoped<ILoadRMSProductsService, LoadRMSProductsService>();
@@ -132,6 +135,8 @@ using (var scope = app.Services.CreateScope())
     JsonHelper.ValidateInvoiceObject();
     JsonHelper.ValidateRMSProductsSchema();
     JsonHelper.ValidateRMSProductsObject();
+    JsonHelper.ValidateInvoiceAndRMSProductsSchema();
+    JsonHelper.ValidateInvoiceAndRMSProductsObject();
 
     var testInvoiceService = new TestInvoiceService(services);
     await testInvoiceService.RunTests();

@@ -1,7 +1,25 @@
-﻿using System.Text.Json;
+﻿using Google.Protobuf.WellKnownTypes;
+using ImageMagick;
+using Microsoft.VisualBasic;
+using OpenCvSharp.ML;
+using OpenCvSharp;
+using System.Collections.Generic;
+using System.Numerics;
+using System.Reflection.Metadata;
+using System.Runtime.Intrinsics.X86;
+using System.Security.Principal;
+using System.Text.Json;
+using System.Threading.Tasks;
+using UpRestEye3.Components.Pages;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.BusinessLogic;
+using static Google.Api.FieldInfo.Types;
+using static Google.Rpc.Context.AttributeContext.Types;
+using static System.Collections.Specialized.BitVector32;
+using static System.Net.Mime.MediaTypeNames;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using static Tensorflow.ApiDef.Types;
 
 
 namespace UpRestEye3.Services.Recognition
@@ -9,7 +27,7 @@ namespace UpRestEye3.Services.Recognition
     public class GPTEnvironment
     {
         private readonly string _invoiceSchema;
-        private readonly string _rmsProductsSchema;
+        private readonly string _invoiceAndRmsProductsSchema;
             // TODO Убрать URL в параметры 
         private static readonly string _url = "https://api.openai.com/v1/chat/completions";
             // TODO Убрать ключ в параметры 
@@ -19,7 +37,7 @@ namespace UpRestEye3.Services.Recognition
         public GPTEnvironment()
         {
             _invoiceSchema = JsonHelper.GetInvoiceSchema();
-            _rmsProductsSchema = JsonHelper.GetRMSProductsSchema();
+            _invoiceAndRmsProductsSchema = JsonHelper.GetInvoiceAndRmsProductsSchema();
         }
 
         public string GetSystemPrompt(InvoiceDTO currentInvoice)
@@ -86,7 +104,7 @@ namespace UpRestEye3.Services.Recognition
 
         public string GetInvoiceSchema() => _invoiceSchema;
        
-        public string GetRMSProductSchema() => _rmsProductsSchema;
+        public string GetInvoiceAndRmsProductsSchema() => _invoiceAndRmsProductsSchema;
 
         public string GetURL() => _url;
         
@@ -94,6 +112,7 @@ namespace UpRestEye3.Services.Recognition
         
         public string GetReceiptParsingRequestBody(RecognizedDocument invoiceText, InvoiceDTO currentInvoice)
         {
+            var options = JsonHelper.GetSerializerOptions();
             // Формируем запрос
             var requestBody = new
             {
@@ -101,7 +120,7 @@ namespace UpRestEye3.Services.Recognition
                 messages = new object[]
                 {
                         new { role = "system", content = GetSystemPrompt(currentInvoice) },
-                        new { role = "user", content = $@"Extract structured data from this Invoice: {JsonSerializer.Serialize(invoiceText)}"} // env.GetTestRequestPrompt()}" }
+                        new { role = "user", content = $@"Extract structured data from this Invoice: {JsonSerializer.Serialize(invoiceText,options)}"} // env.GetTestRequestPrompt()}" }
             },
                 response_format = new
                 {
@@ -116,12 +135,14 @@ namespace UpRestEye3.Services.Recognition
             };
 
             // Сериализация тела запроса
-            return JsonSerializer.Serialize(requestBody, new JsonSerializerOptions { WriteIndented = true });
+            return JsonSerializer.Serialize(requestBody, options);
         }
 
 
         public string GetReceiptMappingRequestBody(InvoiceDTO currentInvoice, List<RMSProductDTO> RMSProduct)
         {
+            var options = JsonHelper.GetSerializerOptions();
+
             // Формируем запрос
             var requestBody = new
             {
@@ -130,25 +151,17 @@ namespace UpRestEye3.Services.Recognition
                 {
                         new { role = "system", content = _systemPromptForMappingLiteral },
                         new { role = "user", content = $@"
-Match each Product from the list of Products from this Invoice: {JsonSerializer.Serialize(currentInvoice)}  
-with the most appropriate RMSProduct and Container from this list of RMSProducts: {JsonSerializer.Serialize(RMSProduct)}"
+Match each Product from the list of Products from this Invoice: {JsonSerializer.Serialize(currentInvoice, options)}  
+with the most appropriate RMSProduct and Container from this list of RMSProducts: {JsonSerializer.Serialize(RMSProduct, options)}"
                             } 
             },
                 response_format = new
                 {
                     type = "json_schema",
-                    json_schemas = new
+                    json_schema = new
                     {
-                        Invoice = new
-                        {
-                            name = "Invoice",
-                            schema = JsonDocument.Parse(GetInvoiceSchema()).RootElement
-                        },
-                        RMSProduct = new
-                        {
-                            name = "RMSProduct",
-                            schema = JsonDocument.Parse(GetRMSProductSchema()).RootElement
-                        }
+                        name = "InvoiceAndRmsProducts",
+                        schema = JsonDocument.Parse(GetInvoiceAndRmsProductsSchema()).RootElement
                     }
                 },
 
@@ -156,7 +169,7 @@ with the most appropriate RMSProduct and Container from this list of RMSProducts
             };
 
             // Сериализация тела запроса
-            return JsonSerializer.Serialize(requestBody, new JsonSerializerOptions { WriteIndented = true });
+            return JsonSerializer.Serialize(requestBody, options);
         }
 
 
@@ -177,40 +190,67 @@ with the most appropriate RMSProduct and Container from this list of RMSProducts
 
 
         private const string _systemPromptForParsingLiteral = $@"
-You are a helpful restaurant assistant that structures OCR recognized Invoice data into JSON.
-Extract structured data from given recognized Invoice. 
+You are a helpful restaurant assistant for extracting structured data from OCR-recognized Invoice.
+Your task is to process the OCR recognized text of an Invoice and convert it into a predefined JSON in response_format section, taking into account the following information:
+
 01. Discard the unimportant characters and unnecessary information, leaving only the important data. 
 02. The response must strictly adhere to the JSON structure provided in the response_format. No additional data such as schema descriptions or extra data.
-03. The OCR text of the Invoice is input to you to get the result. The Invoice contains Number and Data of Invoice; Supplier data; Consumer (buyer) data; a list of Grocery Products with Code, Name, Unit or Container, Quantity, Tax category and Price for each Product; Total Amount and Tax Amount; and a summary list of tax categories with amounts for each category.
+03. The OCR text of the Invoice is input to you to get the result. The Invoice contains Number and Date of Invoice; Supplier data; Consumer (buyer) data; a list of Grocery Products with Code, Name, Unit or Container, Quantity, Tax Category and Price for each Product; Total Amount and Tax Amount; and a summary List of Tax Categories with amounts for each category.
 04. The invoice can be on A4 size paper and then it contains detailed data. Or it can be a narrow cashier's cheque from a cash register printer, in which case it contains abbreviated data.
-05. The recognized data is delivered as blocks of text that are combined according to their position on the Invoice. 
+05. The recognized data is delivered in User Request as blocks and paragraphs of text that are combined according to their position on the Invoice. 
 06. Each text block is accompanied by the coordinates of its location on the receipt. Determine the relationship between the data based on these coordinates. 
-07. Define the Name and Tax-ID (or NIF) of the Supplier in the document, they are placed next to each other. {{1}} Also try to find the Supplier bank account - IBAN. It could be located next to the Supplier Name or at the end of the document, but it may not be there in the document. Take the Supplier Tax-ID, Name and IBAN from the processed document and put them into the Supplier section of the JSON response. 
+07. Define the Name and Tax-ID (or NIF) of the Supplier in the document, they are placed next to each other. {{1}} Also try to find the Supplier bank account - IBAN. It could be located next to the Supplier Name or at the end of the document, and it may not be in the document at all. Take the Supplier Tax-ID, Name and IBAN from the processed document and put them into the Supplier section of the JSON response. 
 08. Try to define the Consumer, sometimes it is only a Tax-ID (or NIF). {{0}} Sometimes there can also be a Name and you should try to identify it. It's located next to the Tax-ID. You need to take the Consumer Name from the processed document and the Consumer Tax-ID and put them into the Consumer section of the JSON response. Sometimes the document may not contain the consumer data, but if it does, it must fulfil the conditions specified in this paragraph, you need to check everything again. 
-09. Determine the invoice number and date. {{2}} Put the invoice number and date in to the JSON in to the Info section.
-10. Define the list of Grocery Products: their Codes (if present), Names, Units, Quantity, Tax Category and Price. As a rule, the list in the receipt has a tabular form. Determine this on the basis of the coordinates. Put the list in JSON in the Products section.
-11. Determine the Tax Amounts by category. They are usually placed after the list of products in a table with column headings. The headings usually contain words or abbreviations such as ‘IVA’ or ‘Tax’, ‘Base’, ‘Quantity’, ‘Amount’ and so on. Column titles do not need to be copied into the final document. Find directly the categories and the amount values by category. The category names contain the percentages by category ‘13’, ‘23’, ‘6’ or the names ‘Normal’, ‘Intermedia’, ‘Redusido’, or abbreviations of these words. Find and put the list of them in JSON in the TaxCategories section.
-12. Determine the Total Amount with Tax and the Total Amount of Tax (or IVA). {{3}}  Put them in JSON in the Info section. 
-13. Verify that the sum of the items in the Products list is equal to the sum in the Total section.
-14. Add your comments about recognized data in the Comments element of the response JSON.
-";
+09. Determine the invoice number and date. {{2}} Put the invoice number and date into the output JSON into appropriate fields InvoiceNumber and InvoiceDate .
+10. Define the list of Grocery Products. As a rule, the list in the invoice has a tabular form. The fields of this table may be named as Code (if present), Name, Unit, Quantity, Tax Category, Price, etc., or may be or abbreviated.  Determine this on the basis of the coordinates. Put the list in JSON in the Products section. 
+11. Determine the Final Tax Amounts by category. They are usually placed after the list of products in a table with column headings. The headings usually contain words or abbreviations such as ‘IVA’ or ‘Tax’, ‘Base’, ‘Quantity’, ‘Amount’ and so on. Column titles do not need to be copied into the final document. Find directly the categories and the amount values by category and put the list of them in response JSON in the TaxCategories section.
+12. For Tax Categories in Invoice list of Grocery Products and in Final Tax Amount table it may be used the percentages: '23', '13', '6', or corresponding names:  'Normal', 'Intermedia', 'Redusido', or various abbreviations of names (such as 'Nor', 'Int', 'Red', etc.). Keep the same value which you could find, do not change anything.
+13. Determine the Total Amount with Tax and the Total Amount of Tax (or IVA). {{3}}  Put them into the output JSON into appropriate fields TotalAmount and TotalIVA. 
+14. Verify that the sum of the items in the Products list is equal to the sum in the Total section. If you find any discrepancies, double-check everything.
+15. Put any observations or potential issues into the Comments element of the response JSON.
 
-        // todo добавить описание всех полей в таблице товаров, какие могут быть сокращения
+        ";
+
+
+
         // todo подавать на вход все, что распознали в QR - суммы и налоговые категории. в промпте указать, чтобы сверил с тем что распознает
         // todo разобрать пример промпта в телеге, взять ключевые моменты оттуда
 
         private const string _systemPromptForMappingLiteral = $@"
-You are a helpful restaurant assistant that mapping OCR recognized invoice data to data from the restaurant management system and put it into JSON.
-Map products from given Invoice (from Invoice Product List) to Products from given RMSProducts list from the restaurant management system. 
-01. Discard the unimportant and unnecessary information, leaving only the important data. 
-02. Don't change the original Invoice, transpose it as is into the Invoice section of response message strictly according to the JSON structure specified in response_format. Don't add any additional data such as schema descriptions or additional data. Only add to each product in the Invoice Products list the matching RMSProduct IDs into the RMSProductId field. 
-03. Take each Product from the Invoice Products list and find a suitable matching product in the RMSProducts list. Note that there may be abbreviated or branded product names in the Invoice Products list. And in the RMSProducts list there could be common names of products used to prepare dishes served in a restaurant. 
-04. Using your logic and knowledge of the restaurant business and the business of selling goods, find the most appropriate product match and store the RMSProduct ID and Name in Invoice Product in the RMSProductId and RMSProductName fields.  
-05. Also find the most appropriate Container or Unit of measure for the Invoice Product being processed in the RMSContainers list of the selected RMSProduct and store the RMSContainer ID and Name in the RMSContainerId and RMSContainerName fields.
-06. If you don't find an appropriate RMSProduct in the RMSProducts list, create a new RMSProduct with the value New in field Status. Create a common Name of product without brand or abbreviation, if it is typical grocery product to prepare dishes. If it is a product with an important brand name or familiar product name, for example some wine, or Coca-Cola, save this brand name to RMSProduct. Put new RMSProduct with all necessary fields and unit/container also into RMSProducts section of response message strictly according to the JSON structure specified in response_format. And also keep the name of new RMSProduct in the RMSProductName field of the Invoice Product.
-07. If you find appropriate RMSProduct but don't find appropriate RMSContainer, put existing RMSProduct with Id and the new RMSContainer into RMSProducts section of response message strictly according to the JSON structure specified in response_format. . 
-
-08. Add your comments about recognized data in the Comments element of the response JSON.
+You are a helpful restaurant assistant for mapping OCR-recognized invoice data to data from the restaurant management system. 
+Your task is to map products in Invoice Product List in given Invoice to products in RMSProducts List from the restaurant management system and put changes into predefined JSON in response_format section. 
+Be careful and use the following information: 
+01. Take the Invoice and RMSProducts List which are given on request message.
+02. For each Product from the Invoice Products List find a suitable matching product in the RMSProducts List: 
+- Note that there may be abbreviated or branded product names in the Invoice Products list. And in the RMSProducts list there could be common names of products used to prepare dishes served in a restaurant. 
+- Use your knowledge of typical grocery items and dishes served in restaurants to make the best match.
+- Save Id and Name of the matching RMSProduct in the RMSProductId and RMSProductName fields of Invoice Product. 
+03. Also find the most appropriate Container or Unit of measure for the Invoice Product being processed in the RMSContainers list of the selected RMSProduct. 
+- Save the ID and Name of the suitable RMSContainer in the RMSContainerId and RMSContainerName fields of the Invoice Product. 
+04. If you don't find an appropriate RMSProduct in the RMSProducts list, create a new RMSProduct based on the Invoice Product: 
+- Use the value 'NewProduct' for the Status field and value 'GOODS' for the Type field. 
+- Choose a common Name for the new RMSProduct without brand or abbreviation, if it is typical grocery product to prepare dishes.
+- If it is a product with an important brand name or familiar product name, for example some wine, or Coca-Cola, save this brand name to RMSProduct. 
+- Also create a new suitable RMSContainer in the new RMSProduct. 
+- Save the Name of the new RMSProduct in the RMSProductName field and the Name of the new RMSContainer in the RMSContainerName of the Invoice Product. 
+- Save the reason for adding a new RMSProduct to the response message in the Comments element of the RMSProduct. 
+05. If you find appropriate existing RMSProduct but don't find any appropriate RMSContainer, create a new RMSContainer based on the container or unit listed in the Invoice: 
+- Save the new RMSContainer into the corresponding RMSProduct.
+- Save the reason for adding a new RMSContainer into the Comments element of the owner-RMSProduct. 
+- Change the value of the Status field of the RMSProduct to 'NewProduct'.
+- Save the Name of the RMSProduct into the RMSProductName field and Name of the new RMSContainer into the RMSContainerName of the Invoice Product. 
+- Do not create and save any Ids of the new RMSProduct or RMSContainer into the Invoice Product, only Names.
+06. Put Invoice with added mapping information into the Invoice section of response message: 
+- Do it strictly according to the JSON structure specified in response_format. 
+- Don't add any additional data such as schema descriptions or additional data. 
+- Include any observations or potential issues in the Comments element of Invoice in the response JSON. 
+07. Put the new RMSProducts and RMSProducts with new RMSContainers into RMSProducts section of response message: 
+- Do it strictly according to the JSON structure specified in response_format. 
+- Put into RMSContainers section of response message only new RMSProducts, do not put existing one. 
+08. Check everything again. 
+- Make sure that nothing has changed in the Invoice, everything is the same except the identifiers RMSProduct and RMSContainer added to each Invoice Product. 
+- Make sure that the tax category, supplier and consumer, all amounts, etc., are the same as they were. 
+- Make sure that all products in the RMSProducts list are new products, or existing products with new RMSContainers.
 ";
         public string ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;

@@ -5,6 +5,9 @@ using System.ComponentModel.DataAnnotations;
 using UpRestEye3.Models.DAO;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DTO;
+using UpRestEye3.Services.Recognition;
+using AForge.Math;
+using Google.Api;
 
 
 
@@ -118,8 +121,8 @@ namespace UpRestEye3.Services.BusinessLogic
                         return date;
                     }
                 }
-
-                throw new JsonException($"Unable to parse DateTime from string: {dateString}");
+                return DateTime.Now;
+                //throw new JsonException($"Unable to parse DateTime from string: {dateString}");
             }
             else if (reader.TokenType == JsonTokenType.Number)
             {
@@ -142,50 +145,116 @@ namespace UpRestEye3.Services.BusinessLogic
         }
     }
 
-    public class TaxCategoryJsonConverter : JsonConverter<TaxCategory>
+    public class TaxCategoryEnumJsonConverter : JsonConverter<TaxCategoryEnum>
     {
-        public override TaxCategory Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override TaxCategoryEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             if (reader.TokenType == JsonTokenType.String)
             {
                 var stringValue = reader.GetString();
                 return InvoiceHelper.GetTaxCategory(stringValue);
             }
+            else
+            if (reader.TokenType == JsonTokenType.Number)
+            {
+                var stringValue = reader.GetDecimal().ToString();
+                return InvoiceHelper.GetTaxCategory(stringValue);
+            }
             throw new JsonException("Invalid token type for TaxCategory.");
         }
 
-        public override void Write(Utf8JsonWriter writer, TaxCategory value, JsonSerializerOptions options)
+        public override void Write(Utf8JsonWriter writer, TaxCategoryEnum value, JsonSerializerOptions options)
         {
             writer.WriteStringValue(value.ToString());
         }
     }
 
-    public class RMSProductStateJsonConverter : JsonConverter<RMSProductStatus>
+    public class RMSProductStatusEnumJsonConverter : JsonConverter<RMSProductStatusEnum>
     {
-        public override RMSProductStatus Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override RMSProductStatusEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             if (reader.TokenType == JsonTokenType.String)
             {
                 var stringValue = reader.GetString();
 
-                if (stringValue.Contains("New"))
+                if (stringValue.Contains("NewProduct"))
                 {
-                    return RMSProductStatus.New;
+                    return RMSProductStatusEnum.NewProduct;
+                }
+                else if (stringValue.Contains("NewContainer"))
+                {
+                    return RMSProductStatusEnum.NewContainer;
                 }
                 else if (stringValue.Contains("RMS"))
                 {
-                    return RMSProductStatus.FromRMS;
+                    return RMSProductStatusEnum.FromRMS;
                 }
             }
             throw new JsonException("Invalid token type for TaxCategory.");
         }
 
-        public override void Write(Utf8JsonWriter writer, RMSProductStatus value, JsonSerializerOptions options)
+        public override void Write(Utf8JsonWriter writer, RMSProductStatusEnum value, JsonSerializerOptions options)
         {
             writer.WriteStringValue(value.ToString());
         }
     }
 
+    public class InvoiceStatusEnumJsonConverter : JsonConverter<InvoiceStatusEnum>
+    {
+        public override InvoiceStatusEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                var stringValue = reader.GetString();
+                return stringValue switch
+                {
+                    var s when s.Contains("New") => InvoiceStatusEnum.New,
+                    var s when s.Contains("RawFile") => InvoiceStatusEnum.RawFile,
+                    var s when s.Contains("QRCodeProcessed") => InvoiceStatusEnum.QRCodeProcessed,
+                    var s when s.Contains("TextProcessed") => InvoiceStatusEnum.TextProcessed,
+                    var s when s.Contains("ProductsMapped") => InvoiceStatusEnum.ProductsMapped,
+                    var s when s.Contains("SavedToSystem") => InvoiceStatusEnum.SavedToSystem,
+                    var s when s.Contains("Error") => InvoiceStatusEnum.Error,
+                    _ => throw new JsonException("Invalid token type for TaxCategory.")
+                };
+            }
+            throw new JsonException("Invalid token type for TaxCategory.");
+        }
+        
+        public override void Write(Utf8JsonWriter writer, InvoiceStatusEnum value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString());
+        }
+    }
+
+    public class ItemTypeEnumJsonConverter : JsonConverter<ItemTypeEnum>
+    {
+        public override ItemTypeEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                var stringValue = reader.GetString();
+                return stringValue switch
+                {
+                    var s when s.Contains("GOODS") => ItemTypeEnum.GOODS,
+                    var s when s.Contains("DISH") => ItemTypeEnum.DISH,
+                    var s when s.Contains("PREPARED") => ItemTypeEnum.PREPARED,
+                    var s when s.Contains("SERVICE") => ItemTypeEnum.SERVICE,
+                    var s when s.Contains("MODIFIER") => ItemTypeEnum.MODIFIER,
+                    var s when s.Contains("OUTER") => ItemTypeEnum.OUTER,
+                    var s when s.Contains("RATE") => ItemTypeEnum.RATE,
+                    _ => throw new JsonException("Invalid token type for TaxCategory.")
+
+                };
+            }
+            throw new JsonException("Invalid token type for TaxCategory.");
+        }
+        
+        public override void Write(Utf8JsonWriter writer, ItemTypeEnum value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString());
+        }
+    }
 
     public static class JsonHelper
     {
@@ -199,6 +268,13 @@ namespace UpRestEye3.Services.BusinessLogic
         {
             return _rmsProductsSchema;
         }
+
+        public static string GetInvoiceAndRmsProductsSchema()
+        {
+            return _InvoiceAndRmsProductsSchema;
+        }
+
+
 
         public static void ValidateInvoiceSchema()
         {
@@ -214,7 +290,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 var schema = JsonDocument.Parse(_invoiceSchema);
                 Console.WriteLine("Schema is valid and compatible with Draft-07.");
             }
-            catch (JsonException ex)
+            catch (Exception ex)
             {
                 throw new Exception("Schema validation failed: " + ex.Message);
             }
@@ -226,26 +302,19 @@ namespace UpRestEye3.Services.BusinessLogic
             {
 
                 InvoiceDTO invoice = new InvoiceDTO();
+                invoice.Status = InvoiceStatusEnum.ProductsMapped;
 
-                var options = new JsonSerializerOptions
-                {
-                    Converters = { new DecimalJsonConverter(),
-                                    new IntegerJsonConverter(),
-                                    new DateTimeJsonConverter(),
-                                    new TaxCategoryJsonConverter(),
-                                    new RMSProductStateJsonConverter()},
-                    WriteIndented = true
-                };
+                var options = JsonHelper.GetSerializerOptions();
                 string invoiceJsonString = JsonSerializer.Serialize(invoice, options);
                 var invoiceJsonDoc = JsonDocument.Parse(invoiceJsonString);
 
 
-                var invoiceStr = invoiceJsonDoc.Deserialize<InvoiceDTO>();
+                var invoiceStr = invoiceJsonDoc.Deserialize<InvoiceDTO>(options);
                 var context = new ValidationContext(invoice, serviceProvider: null, items: null);
                 Validator.ValidateObject(invoice, context, validateAllProperties: true);
                 Console.WriteLine("Object is valid against the schema.");
             }
-            catch (ValidationException ex)
+            catch (Exception ex)
             {
                 throw new Exception("Object validation against schema failed: " + ex.Message);
             }
@@ -267,7 +336,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 var schema = JsonDocument.Parse(_rmsProductsSchema);
                 Console.WriteLine("Schema is valid and compatible with Draft-07.");
             }
-            catch (JsonException ex)
+            catch (Exception ex)
             {
                 throw new Exception("Schema validation failed: " + ex.Message);
             }
@@ -280,15 +349,8 @@ namespace UpRestEye3.Services.BusinessLogic
                 List<RMSProductDTO> rmsProducts = new List<RMSProductDTO>();
                 rmsProducts.Add(new RMSProductDTO());
 
-                var options = new JsonSerializerOptions
-                {
-                    Converters = { new DecimalJsonConverter(),
-                                    new IntegerJsonConverter(),
-                                    new DateTimeJsonConverter(),
-                                    new TaxCategoryJsonConverter(),
-                                    new RMSProductStateJsonConverter()},
-                    WriteIndented = true
-                };
+                var options = JsonHelper.GetSerializerOptions();
+
                 string rmsProductJsonString = JsonSerializer.Serialize(rmsProducts, options);
                 var rmsProductsJsonDoc = JsonDocument.Parse(rmsProductJsonString);
 
@@ -297,14 +359,77 @@ namespace UpRestEye3.Services.BusinessLogic
                 Validator.ValidateObject(rmsProducts, context, validateAllProperties: true);
                 Console.WriteLine("Object is valid against the schema.");
             }
-            catch (ValidationException ex)
+            catch (Exception ex)
             {
                 throw new Exception("Object validation against schema failed: " + ex.Message);
             }
         }
 
 
+        public static void ValidateInvoiceAndRMSProductsSchema()
+        {
+            // Validate schema version
+            if (!_InvoiceAndRmsProductsSchema.Contains(@"""$schema"": ""http://json-schema.org/draft-07/schema#"""))
+            {
+                throw new Exception("Schema is not compatible with Draft-07.");
+            }
 
+            // Validate schema structure
+            try
+            {
+                var schema = JsonDocument.Parse(_InvoiceAndRmsProductsSchema);
+                Console.WriteLine("Schema is valid and compatible with Draft-07.");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Schema validation failed: " + ex.Message);
+            }
+        }
+
+        public static void ValidateInvoiceAndRMSProductsObject()
+        {
+            try
+            {
+                var invoiceAndRmsProducts = new InvoiceAndRmsProductsDTO();
+                invoiceAndRmsProducts.Invoice = new InvoiceDTO();
+                invoiceAndRmsProducts.RMSProducts = new List<RMSProductDTO>();
+                var rmsProduct = new RMSProductDTO();
+                rmsProduct.Status = RMSProductStatusEnum.NewProduct;
+                rmsProduct.Containers.Add(new RMSContainerDTO());
+                invoiceAndRmsProducts.RMSProducts.Add(rmsProduct);
+
+                var options = JsonHelper.GetSerializerOptions();
+
+                string rmsProductJsonString = JsonSerializer.Serialize(invoiceAndRmsProducts, options);
+                var rmsProductsJsonDoc = JsonDocument.Parse(rmsProductJsonString);
+
+                var invoiceAndRmsProducts2 = rmsProductsJsonDoc.Deserialize<InvoiceAndRmsProductsDTO>(options);
+                var context = new ValidationContext(invoiceAndRmsProducts2, serviceProvider: null, items: null);
+                Validator.ValidateObject(invoiceAndRmsProducts2, context, validateAllProperties: true);
+                Console.WriteLine("Object is valid against the schema.");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Object validation against schema failed: " + ex.Message);
+            }
+        }
+
+
+        public static JsonSerializerOptions GetSerializerOptions()
+        {
+            return new JsonSerializerOptions
+            {
+            Converters = { new DateTimeJsonConverter(),
+                                            new DecimalJsonConverter(),
+                                            new IntegerJsonConverter(),
+                                            new TaxCategoryEnumJsonConverter(),
+                                            new InvoiceStatusEnumJsonConverter(),
+                                            new RMSProductStatusEnumJsonConverter(),
+                                            new ItemTypeEnumJsonConverter()},
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = true
+            };
+        }
 
 
         private const string _invoiceSchema = $@"
@@ -370,9 +495,8 @@ namespace UpRestEye3.Services.BusinessLogic
           ""Price"": {{
             ""type"": ""number""
           }},
-          ""Category"": {{
-            ""type"": ""string"",
-            ""enum"": [""Normal"", ""Intermediate"", ""Reduced"", ""Zero""]
+          ""TaxCategory"": {{
+            ""type"": ""string""
           }},
           ""RMSProductId"": {{
             ""type"": [""integer"", ""null""]
@@ -394,9 +518,8 @@ namespace UpRestEye3.Services.BusinessLogic
       ""items"": {{
         ""type"": ""object"",
         ""properties"": {{
-          ""Category"": {{
-            ""type"": ""string"",
-            ""enum"": [""Normal"", ""Intermediate"", ""Reduced"", ""Zero""]
+          ""TaxCategory"": {{
+            ""type"": ""string""
           }},
           ""Base"": {{
             ""type"": ""number""
@@ -448,12 +571,9 @@ namespace UpRestEye3.Services.BusinessLogic
       ""ConsumerTaxId"": {{
         ""type"": ""string""
       }},
-      ""RMSProductId"": {{
+      ""RMSProductExtGuid"": {{
         ""type"": ""string"",
         ""format"": ""uuid""
-      }},
-      ""Deleted"": {{
-        ""type"": ""boolean""
       }},
       ""Name"": {{
         ""type"": ""string""
@@ -464,38 +584,13 @@ namespace UpRestEye3.Services.BusinessLogic
       ""Num"": {{
         ""type"": ""string""
       }},
-      ""Parent"": {{
-        ""type"": [""string"", ""null""],
-        ""format"": ""uuid""
-      }},
-      ""TaxCategory"": {{
-        ""type"": ""string"",
-        ""format"": ""uuid""
-      }},
-      ""Category"": {{
-        ""type"": ""string"",
-        ""format"": ""uuid""
-      }},
-      ""AccountingCategory"": {{
-        ""type"": ""string"",
-        ""format"": ""uuid""
-      }},
       ""MainUnit"": {{
         ""type"": ""string"",
         ""format"": ""uuid""
       }},
       ""Type"": {{
         ""type"": ""string"",
-        ""enum"": [""GOODS"", ""DISH"", ""PREPARED"", ""SERVICE"", ""MODIFIER"", ""OUTER"", ""RATE""]
-      }},
-      ""UnitWeight"": {{
-        ""type"": ""number""
-      }},
-      ""UnitCapacity"": {{
-        ""type"": ""number""
-      }},
-      ""NotInStoreMovement"": {{
-        ""type"": ""boolean""
+        ""enum"": [""GOODS""]
       }},
       ""Containers"": {{
         ""type"": ""array"",
@@ -505,7 +600,7 @@ namespace UpRestEye3.Services.BusinessLogic
             ""Id"": {{
               ""type"": [""integer"", ""null""]
             }},
-            ""RMSContainerId"": {{
+            ""RMSContainerExtGuid"": {{
               ""type"": ""string"",
               ""format"": ""uuid""
             }},
@@ -518,36 +613,143 @@ namespace UpRestEye3.Services.BusinessLogic
             ""Count"": {{
               ""type"": ""number""
             }},
-            ""MinContainerWeight"": {{
-              ""type"": ""number""
-            }},
-            ""MaxContainerWeight"": {{
-              ""type"": ""number""
-            }},
             ""ContainerWeight"": {{
               ""type"": ""number""
             }},
             ""FullContainerWeight"": {{
               ""type"": ""number""
-            }},
-            ""BackwardRecalculation"": {{
-              ""type"": ""boolean""
-            }},
-            ""UseInFront"": {{
-              ""type"": ""boolean""
-            }},
-            ""Deleted"": {{
-              ""type"": ""boolean""
             }}
-          }},
-          ""required"": [""RMSContainerId"", ""Num"", ""Name"", ""Count"", ""MinContainerWeight"", ""MaxContainerWeight"", ""ContainerWeight"", ""FullContainerWeight"", ""BackwardRecalculation"", ""UseInFront"", ""Deleted""]
+          }}
         }}
-      }}
-    }},
-    ""required"": [""ConsumerId"", ""ConsumerTaxId"", ""RMSProductId"", ""Deleted"", ""Name"", ""Description"", ""Num"", ""TaxCategory"", ""Category"", ""AccountingCategory"", ""MainUnit"", ""Type"", ""UnitWeight"", ""UnitCapacity"", ""NotInStoreMovement"", ""Containers""]
+      }},
+        ""Status"": {{
+            ""type"": ""string"",
+            ""enum"": [""FromRMS"", ""NewProduct"", ""NewContainer""]
+        }},
+        ""Comments"": {{
+          ""type"": ""string""
+        }}
+    }}
   }}
 }}
 ";
+
+
+
+        private const string _InvoiceAndRmsProductsSchema = $@"
+        {{
+            ""$schema"": ""http://json-schema.org/draft-07/schema#"",
+            ""type"": ""object"",
+            ""properties"": {{
+                ""Invoice"": {{
+                    ""type"": ""object"",
+                    ""properties"": {{
+                        ""InvoiceNumber"": {{ ""type"": ""string"" }},
+                        ""InvoiceDate"": {{ ""type"": ""string"", ""format"": ""date-time"" }},
+                        ""TotalIVA"": {{ ""type"": ""number"" }},
+                        ""TotalAmount"": {{ ""type"": ""number"" }},
+                        ""Consumer"": {{
+                            ""type"": ""object"",
+                            ""properties"": {{
+                                ""Name"": {{ ""type"": ""string"" }},
+                                ""TaxNumber"": {{ ""type"": ""string"" }}
+                            }}
+                        }},
+                        ""Supplier"": {{
+                            ""type"": ""object"",
+                            ""properties"": {{
+                                ""Name"": {{ ""type"": ""string"" }},
+                                ""TaxNumber"": {{ ""type"": ""string"" }},
+                                ""BankAccount"": {{ ""type"": ""string"" }}
+                            }}
+                        }},
+                        ""Products"": {{
+                            ""type"": ""array"",
+                            ""items"": {{
+                                ""type"": ""object"",
+                                ""properties"": {{
+                                    ""ProductCode"": {{ ""type"": ""string"" }},
+                                    ""ProductName"": {{ ""type"": ""string"" }},
+                                    ""Unit"": {{ ""type"": ""string"" }},
+                                    ""Quantity"": {{ ""type"": ""number"" }},
+                                    ""Price"": {{ ""type"": ""number"" }},
+                                    ""TaxCategory"": {{
+                                        ""type"": ""string""
+                                    }},
+                                    ""RMSProductId"": {{ ""type"": [""integer"", ""null""] }},
+                                    ""RMSProductName"": {{ ""type"": [""string"", ""null""] }},
+                                    ""RMSContainerId"": {{ ""type"": [""integer"", ""null""] }},
+                                    ""RMSContainerName"": {{ ""type"": [""string"", ""null""] }}
+                                }}
+                            }}
+                        }},
+                        ""TaxCategories"": {{
+                            ""type"": ""array"",
+                            ""items"": {{
+                                ""type"": ""object"",
+                                ""properties"": {{
+                                    ""TaxCategory"": {{
+                                        ""type"": ""string""
+                                    }},
+                                    ""Base"": {{ ""type"": ""number"" }},
+                                    ""IVA"": {{ ""type"": ""number"" }},
+                                    ""Total"": {{ ""type"": ""number"" }}
+                                }}
+                            }}
+                        }},
+                        ""FilePath"": {{ ""type"": ""string"" }},
+                        ""UploadTime"": {{ ""type"": ""string"", ""format"": ""date-time"" }},
+                        ""Comments"": {{ ""type"": ""string"" }},
+                        ""Status"": {{
+                            ""type"": ""string"",
+                            ""enum"": [""New"", ""RawFile"", ""QRCodeProcessed"", ""TextProcessed"", ""ProductsMapped"", ""SavedToSystem"", ""Error""]
+                        }}
+                    }}
+                }},
+                ""RMSProducts"": {{
+                    ""type"": ""array"",
+                    ""items"": {{
+                        ""type"": ""object"",
+                        ""properties"": {{
+                            ""Id"": {{ ""type"": [""integer"", ""null""] }},
+                            ""ConsumerId"": {{ ""type"": ""integer"" }},
+                            ""ConsumerTaxId"": {{ ""type"": ""string"" }},
+                            ""RMSProductExtGuid"": {{ ""type"": ""string"", ""format"": ""uuid"" }},
+                            ""Name"": {{ ""type"": ""string"" }},
+                            ""Description"": {{ ""type"": ""string"" }},
+                            ""Num"": {{ ""type"": ""string"" }},
+                            ""MainUnit"": {{ ""type"": ""string"", ""format"": ""uuid"" }},
+                            ""Type"": {{
+                                ""type"": ""string"",
+                                ""enum"": [""GOODS""]
+                            }},
+                            ""Containers"": {{
+                                ""type"": ""array"",
+                                ""items"": {{
+                                    ""type"": ""object"",
+                                    ""properties"": {{
+                                        ""Id"": {{ ""type"": [""integer"", ""null""] }},
+                                        ""RMSContainerExtGuid"": {{ ""type"": ""string"", ""format"": ""uuid"" }},
+                                        ""Num"": {{ ""type"": ""string"" }},
+                                        ""Name"": {{ ""type"": ""string"" }},
+                                        ""Count"": {{ ""type"": ""number"" }},
+                                        ""ContainerWeight"": {{ ""type"": ""number"" }},
+                                        ""FullContainerWeight"": {{ ""type"": ""number"" }}
+                                    }}
+                                }}
+                            }},
+                            ""Status"": {{
+                                ""type"": ""string"",
+                                ""enum"": [""FromRMS"", ""NewProduct"", ""NewContainer""]
+                            }},
+                            ""Comments"": {{
+                              ""type"": ""string""
+                            }}
+                        }}
+                    }}
+                }}
+            }}
+        }}";
 
     }
 }

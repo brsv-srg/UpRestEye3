@@ -22,7 +22,7 @@ namespace UpRestEye3.Models.DAO
         public string FilePath { get; set; } = string.Empty;
         public DateTime UploadTime { get; set; } = DateTime.Now;
         public string Comments { get; set; } = string.Empty;
-        public InvoiceStatus Status { get; set; } = InvoiceStatus.New;
+        public InvoiceStatusEnum Status { get; set; } = InvoiceStatusEnum.New;
 
         // Default constructor
         public InvoiceDAO()
@@ -36,7 +36,7 @@ namespace UpRestEye3.Models.DAO
         public int? Id { get; set; }
         public int? InvoiceId { get; set; }
         public InvoiceDAO? Invoice { get; set; }
-        public TaxCategory Category { get; set; } = TaxCategory.Intermediate;
+        public TaxCategoryEnum TaxCategory { get; set; } = TaxCategoryEnum.Intermediate;
         public decimal Base { get; set; } = 0.0m;
         public decimal IVA { get; set; } = 0.0m;
         public decimal Total { get; set; } = 0.0m;
@@ -52,7 +52,7 @@ namespace UpRestEye3.Models.DAO
         public string Unit { get; set; } = string.Empty;
         public float Quantity { get; set; } = 0.0f;
         public decimal Price { get; set; } = 0.0m;
-        public TaxCategory Category { get; set; } = TaxCategory.Intermediate;
+        public TaxCategoryEnum TaxCategory { get; set; } = TaxCategoryEnum.Intermediate;
         public int? RMSProductId { get; set; } = null;
         public RMSProductDAO? RMSProduct { get; set; } = null;
         public int? RMSContainerId { get; set; } = null;

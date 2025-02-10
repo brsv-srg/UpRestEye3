@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UpRestEye3.Data;
 
@@ -10,9 +11,11 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250210133243_RMSProd08")]
+    partial class RMSProd08
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
@@ -290,7 +293,7 @@ namespace UpRestEye3.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("RMSContainerExtGuid")
+                    b.Property<Guid>("RMSContainerId")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("RMSProductId")
@@ -426,7 +429,7 @@ namespace UpRestEye3.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("RMSProductExtGuid")
+                    b.Property<Guid>("RMSProductId")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Status")
@@ -437,7 +440,7 @@ namespace UpRestEye3.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ConsumerId", "RMSProductExtGuid")
+                    b.HasIndex("ConsumerId", "RMSProductId")
                         .IsUnique();
 
                     b.ToTable("RMSProducts");

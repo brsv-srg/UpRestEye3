@@ -10,13 +10,8 @@ using UpRestEye3.Models.DTO;
 
 namespace UpRestEye3.Services.BusinessLogic
 {
-    public class InvoiceHelper
+    public static class InvoiceHelper
     {
-
-        public InvoiceHelper()
-        {
-        }
-
 
         // TODO Перенести в сервис
         public static void UpdateInvoiceByQR(InvoiceDTO invoice, QRCodeData qrCode, string? filePath)
@@ -63,26 +58,26 @@ namespace UpRestEye3.Services.BusinessLogic
                     invoice.TaxCategories.Clear();
 
                 if (qrCode.Base0 > 0)
-                    invoice.TaxCategories.Add(new TaxesDTO { Category = GetTaxCategory("0%"), Base = qrCode.Base0, IVA = qrCode.Base0, Total = qrCode.Base0 });
+                    invoice.TaxCategories.Add(new TaxesDTO { TaxCategory = GetTaxCategory("0%"), Base = qrCode.Base0, IVA = qrCode.Base0, Total = qrCode.Base0 });
                 if (qrCode.Base6 > 0)
-                    invoice.TaxCategories.Add(new TaxesDTO { Category = GetTaxCategory("6%"), Base = qrCode.Base6, IVA = qrCode.IVA6, Total = qrCode.Base6 + qrCode.IVA6 });
+                    invoice.TaxCategories.Add(new TaxesDTO { TaxCategory = GetTaxCategory("6%"), Base = qrCode.Base6, IVA = qrCode.IVA6, Total = qrCode.Base6 + qrCode.IVA6 });
                 if (qrCode.Base13 > 0)
-                    invoice.TaxCategories.Add(new TaxesDTO { Category = GetTaxCategory("13%"), Base = qrCode.Base13, IVA = qrCode.IVA13, Total = qrCode.Base13 + qrCode.IVA13 });
+                    invoice.TaxCategories.Add(new TaxesDTO { TaxCategory = GetTaxCategory("13%"), Base = qrCode.Base13, IVA = qrCode.IVA13, Total = qrCode.Base13 + qrCode.IVA13 });
                 if (qrCode.Base23 > 0)
-                    invoice.TaxCategories.Add(new TaxesDTO { Category = GetTaxCategory("23%"), Base = qrCode.Base23, IVA = qrCode.IVA23, Total = qrCode.Base23 + qrCode.IVA23 });
+                    invoice.TaxCategories.Add(new TaxesDTO { TaxCategory = GetTaxCategory("23%"), Base = qrCode.Base23, IVA = qrCode.IVA23, Total = qrCode.Base23 + qrCode.IVA23 });
 
-                invoice.Status = InvoiceStatus.QRCodeProcessed;
+                invoice.Status = InvoiceStatusEnum.QRCodeProcessed;
                 invoice.FilePath = filePath;
             }
             else
             if (filePath != null)
             {
-                invoice.Status = InvoiceStatus.RawFile;
+                invoice.Status = InvoiceStatusEnum.RawFile;
                 invoice.FilePath = filePath;
             }
             else
             {
-                invoice.Status = InvoiceStatus.Error;
+                invoice.Status = InvoiceStatusEnum.Error;
                 throw new ArgumentException("Both QRCodeData and filePath are null");
             }
         }
@@ -176,25 +171,25 @@ namespace UpRestEye3.Services.BusinessLogic
             invoiceTarget.FilePath = invoiceSource.FilePath;
         }
 
-        public static TaxCategory GetTaxCategory(string stringCategory)
+        public static TaxCategoryEnum GetTaxCategory(string stringCategory)
         {
 
             stringCategory = stringCategory.ToLower();
             if (stringCategory.Contains("23") || stringCategory.ToLower().Contains("nor"))
             {
-                return TaxCategory.Normal;
+                return TaxCategoryEnum.Normal;
             }
             else if (stringCategory.Contains("13") || stringCategory.ToLower().Contains("int"))
             {
-                return TaxCategory.Intermediate;
+                return TaxCategoryEnum.Intermediate;
             }
             else if (stringCategory.Contains("6") || stringCategory.ToLower().Contains("red"))
             {
-                return TaxCategory.Reduced;
+                return TaxCategoryEnum.Reduced;
             }
             else if (stringCategory.Contains("0") || stringCategory.ToLower().Contains("na") || stringCategory.ToLower().Contains("nã"))
             {
-                return TaxCategory.Zero;
+                return TaxCategoryEnum.Zero;
             }
             else
             {
@@ -240,7 +235,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 Unit = p.Unit,
                 Quantity = p.Quantity,
                 Price = p.Price,
-                Category = p.Category,
+                TaxCategory = p.TaxCategory,
                 RMSProductId = p.RMSProductId,
                 RMSProductName = p.RMSProduct?.Name,
                 RMSContainerId = p.RMSContainerId,
@@ -250,7 +245,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
             invoiceDTO.TaxCategories = invoiceDAO.TaxCategories.Select(t => new TaxesDTO
             {
-                Category = t.Category,
+                TaxCategory = t.TaxCategory,
                 Base = t.Base,
                 IVA = t.IVA,
                 Total = t.Total
@@ -268,6 +263,7 @@ namespace UpRestEye3.Services.BusinessLogic
             if (invoiceDTO == null)
                 return null;
             var invoiceDAO = new InvoiceDAO();
+            invoiceDAO.Id = invoiceDTO.Id;
             invoiceDAO.InvoiceNumber = invoiceDTO.InvoiceNumber;
             invoiceDAO.InvoiceDate = invoiceDTO.InvoiceDate;
             invoiceDAO.TotalIVA = invoiceDTO.TotalIVA;
@@ -299,7 +295,7 @@ namespace UpRestEye3.Services.BusinessLogic
             }).ToList();
             invoiceDAO.TaxCategories = invoiceDTO.TaxCategories.Select(t => new TaxesDAO
             {
-                Category = t.Category,
+                TaxCategory = t.TaxCategory,
                 Base = t.Base,
                 IVA = t.IVA,
                 Total = t.Total

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using UpRestEye3.Data;
 using UpRestEye3.Models.DTO;
+using UpRestEye3.Models.BLO;
 using UpRestEye3.Services.DataLayer;
 
 namespace UpRestEye3.Services.BusinessLogic
@@ -46,6 +47,7 @@ namespace UpRestEye3.Services.BusinessLogic
             {
                 var rmsProductDTO = RMSProductMappingService.ToDTO(product);
                 rmsProductDTO.ConsumerId = consumerId;
+                rmsProductDTO.Status = RMSProductStatusEnum.FromRMS;
                 await _productService.SaveProductAsync(rmsProductDTO);
             }
         }

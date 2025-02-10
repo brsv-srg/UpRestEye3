@@ -5,6 +5,8 @@ using UpRestEye3.Models.DTO;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Services.BusinessLogic;
 using System.Drawing;
+using UpRestEye3.Components.Pages;
+using static Google.Apis.Requests.BatchRequest;
 
 namespace UpRestEye3.Services.Recognition
 {
@@ -12,7 +14,7 @@ namespace UpRestEye3.Services.Recognition
     public interface IGPTService
     {
         Task<InvoiceDTO?> ReceiptParsingByLLM(RecognizedDocument invoiceText, InvoiceDTO currentInvoice);
-        Task<(InvoiceDTO?, List<RMSProductDTO>)> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts);
+        Task<InvoiceAndRmsProductsDTO> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts);
         
 
 
@@ -59,12 +61,12 @@ namespace UpRestEye3.Services.Recognition
             var invoice = ResponseInvoiceParsing(responseContent);
 
             if (invoice != null)
-                invoice.Status = InvoiceStatus.TextProcessed;
+                invoice.Status = InvoiceStatusEnum.TextProcessed;
 
             return invoice;
         }
 
-        public async Task<(InvoiceDTO?, List<RMSProductDTO>)> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts)
+        public async Task<InvoiceAndRmsProductsDTO> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts)
         {
 
             var jsonBody = _env.GetReceiptMappingRequestBody(currentInvoice, supplierProducts);
@@ -94,14 +96,14 @@ namespace UpRestEye3.Services.Recognition
             var responseContent = await response.Content.ReadAsStringAsync();
             var result = ResponseInvoiceAndRMSProductsParsing(responseContent);
             
-            if (result.Item1 != null)
-                result.Item1.Status = InvoiceStatus.ProductsMapped;
+            if (result.Invoice != null)
+                result.Invoice.Status = InvoiceStatusEnum.ProductsMapped;
             
             return result;
 
         }
 
-
+        //todo поправить с датой загрузки 
         private InvoiceDTO? ResponseInvoiceParsing(string responseContent)
         {
             try
@@ -121,15 +123,7 @@ namespace UpRestEye3.Services.Recognition
 
                     if (rootContent.TryGetProperty("Supplier", out contentElement))
                     {
-                        var options = new JsonSerializerOptions
-                        {
-                            Converters = { new DateTimeJsonConverter(),
-                                            new DecimalJsonConverter(),
-                                            new IntegerJsonConverter(),
-                                            new TaxCategoryJsonConverter(),
-                                            new RMSProductStateJsonConverter()},
-                            PropertyNameCaseInsensitive = true
-                        };
+                        var options = JsonHelper.GetSerializerOptions();
 
                         Console.WriteLine($"Received response from OpenAI API: {rootContent.GetRawText()}");
 
@@ -154,6 +148,163 @@ namespace UpRestEye3.Services.Recognition
             }
         }
 
+        private InvoiceAndRmsProductsDTO ResponseInvoiceAndRMSProductsParsing(string responseContent)
+        {
+            try
+            {
+                // Разбор JSON-ответа
+                using var document = JsonDocument.Parse(responseContent);
+                var root = document.RootElement;
+
+                // Извлечение элемента, содержащего данные Invoice
+                if (root.TryGetProperty("choices", out JsonElement choicesElement) &&
+                    choicesElement[0].TryGetProperty("message", out JsonElement messageElement) &&
+                    messageElement.TryGetProperty("content", out JsonElement contentElement) &&
+                    contentElement.ValueKind == JsonValueKind.String)
+                {
+                    using var contentDocument = JsonDocument.Parse(contentElement.GetString());
+                    var rootContent = contentDocument.RootElement;
+
+                    if (rootContent.TryGetProperty("Invoice", out contentElement))
+                    {
+                        var options = JsonHelper.GetSerializerOptions();
+
+                        Console.WriteLine($"Received response from OpenAI API: {rootContent.GetRawText()}");
+
+                        using var invoiceDocument = JsonDocument.Parse(rootContent.GetRawText());
+                        InvoiceAndRmsProductsDTO invoiceRmsProducts = invoiceDocument.Deserialize<InvoiceAndRmsProductsDTO>(options);
+
+                        return invoiceRmsProducts;
+                    }
+                    else
+                    {
+                        throw new Exception("Invoice element not found in JSON response");
+                    }
+                }
+                else
+                {
+                    throw new Exception("Invalid JSON structure");
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error parsing JSON response to Invoice object", ex);
+            }
+        }
+
+        /*{
+            try
+            {
+                using var document = JsonDocument.Parse(responseContent);
+                var root = document.RootElement;
+
+                InvoiceDTO? invoice = null;
+                List<RMSProductDTO>? rmsProducts = [];
+                var options = new JsonSerializerOptions
+                {
+                    Converters = { new DateTimeJsonConverter(),
+                                       new DecimalJsonConverter(),
+                                       new IntegerJsonConverter(),
+                                       new TaxCategoryJsonConverter(),
+                                       new RMSProductStateJsonConverter() },
+                    PropertyNameCaseInsensitive = true
+                };
+
+                // Разбор JSON-ответа
+                if (root.TryGetProperty("choices", out JsonElement choicesElement) &&
+                    choicesElement[0].TryGetProperty("message", out JsonElement messageElement) &&
+                    messageElement.TryGetProperty("content", out JsonElement contentElement) &&
+                    contentElement.ValueKind == JsonValueKind.String)
+                {
+                    ////////////////////////////////////////////
+
+                    using var invoiceDocument = JsonDocument.Parse(contentElement.GetRawText());
+                    JsonElement invoiceRootElement = invoiceDocument.RootElement;
+
+
+                    // Проверяем, является ли Invoice строкой или объектом
+                    if (invoiceRootElement.ValueKind == JsonValueKind.String)
+                    {
+
+                        // Получаем строку JSON
+                        string jsonContent = invoiceRootElement.GetString();
+
+                        // Парсим строку как JSON
+                        using JsonDocument innerDoc = JsonDocument.Parse(jsonContent);
+
+                        // Извлекаем объект Invoice
+                        //JsonElement invoiceElement = 
+                        innerDoc.RootElement.TryGetProperty("Invoice",out var invoiceElement);
+
+                        invoice = JsonSerializer.Deserialize<InvoiceDTO>(invoiceElement);
+
+                    }
+                    else if (invoiceRootElement.ValueKind == JsonValueKind.Object)
+                    {
+                        // Если это объект, десериализуем напрямую
+                        invoice = JsonSerializer.Deserialize<InvoiceDTO>(invoiceRootElement.GetRawText());
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException("Unexpected data format for Invoice.");
+                    }
+
+
+                    ////////////////////////////////////////////
+
+                    // Десериализация объекта Invoice
+
+                    /*var invoiceElement = contentElement.GetProperty("Invoice");
+
+                    if (invoiceElement.ValueKind == JsonValueKind.String)
+                    {
+                        var options = new JsonSerializerOptions
+                        {
+                            Converters = { new DateTimeJsonConverter(),
+                                       new DecimalJsonConverter(),
+                                       new IntegerJsonConverter(),
+                                       new TaxCategoryJsonConverter(),
+                                       new RMSProductStateJsonConverter() },
+                            PropertyNameCaseInsensitive = true
+                        };
+
+                        invoice = JsonSerializer.Deserialize<InvoiceDTO>(invoiceElement, options);
+                    }
+                    else
+                    {
+                        throw new Exception("Invoice element not found in JSON response");
+                    }
+                    * /
+
+                    if (contentElement.TryGetProperty("RMSProducts", out JsonElement rmsProductsElement))
+                    {
+                        
+                        rmsProducts = JsonSerializer.Deserialize<List<RMSProductDTO>>(rmsProductsElement.GetRawText(), options);
+                    }
+                    else
+                    {
+                        throw new Exception("RMS Products not found in JSON response");
+                    }
+                }
+                else
+                {
+                    throw new Exception("Invalid JSON structure");
+                }
+                return (invoice, rmsProducts);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error parsing JSON response to Invoice object", ex);
+            }
+        }*/
+
+    }
+
+}
+
+
+/*
+ 
         private (InvoiceDTO?, List<RMSProductDTO>) ResponseInvoiceAndRMSProductsParsing(string responseContent)
         {
             InvoiceDTO? invoice = null;
@@ -165,34 +316,34 @@ namespace UpRestEye3.Services.Recognition
                 var root = document.RootElement;
 
                 if (root.TryGetProperty("choices", out JsonElement choicesElement) &&
-                    choicesElement[0].TryGetProperty("message", out JsonElement messageElement))
+                    choicesElement[0].TryGetProperty("message", out JsonElement messageElement) &&
+                    messageElement.TryGetProperty("content", out JsonElement contentElement) &&
+                    contentElement.ValueKind == JsonValueKind.String)
                 {
 
                     // Извлечение элемента, содержащего данные Invoice
-                    if (messageElement.TryGetProperty("Invoice", out JsonElement invoiceElement) &&
-                    invoiceElement.ValueKind == JsonValueKind.String)
+                    if (contentElement.TryGetProperty("Invoice", out JsonElement invoiceElement))
+                    //&&
+                    //invoiceElement.ValueKind == JsonValueKind.String)
 
                     {
                         using var invoiceContentDocument = JsonDocument.Parse(invoiceElement.GetString());
                         var invoiceRootContent = invoiceContentDocument.RootElement;
-
-                        if (invoiceRootContent.TryGetProperty("Supplier", out invoiceElement))
+                        
+                        var options = new JsonSerializerOptions
                         {
-                            var options = new JsonSerializerOptions
-                            {
-                                Converters = { new DateTimeJsonConverter(),
-                                                new DecimalJsonConverter(),
-                                                new IntegerJsonConverter(),
-                                                new TaxCategoryJsonConverter(),
-                                                new RMSProductStateJsonConverter()},
-                                PropertyNameCaseInsensitive = true
-                            };
+                            Converters = { new DateTimeJsonConverter(),
+                                            new DecimalJsonConverter(),
+                                            new IntegerJsonConverter(),
+                                            new TaxCategoryJsonConverter(),
+                                            new RMSProductStateJsonConverter()},
+                            PropertyNameCaseInsensitive = true
+                        };
 
-                            Console.WriteLine($"Received response from OpenAI API: {invoiceRootContent.GetRawText()}");
+                        Console.WriteLine($"Received response from OpenAI API: {invoiceRootContent.GetRawText()}");
 
-                            using var invoiceDocument = JsonDocument.Parse(invoiceRootContent.GetRawText());
-                            invoice = invoiceDocument.Deserialize<InvoiceDTO>(options);
-                        }
+                        using var invoiceDocument = JsonDocument.Parse(invoiceRootContent.GetRawText());
+                        invoice = invoiceDocument.Deserialize<InvoiceDTO>(options);
 
                     }
                     else
@@ -201,29 +352,27 @@ namespace UpRestEye3.Services.Recognition
                     }
                     
                     // Извлечение списка RMSProducts
-                    if (messageElement.TryGetProperty("RMSProducts", out JsonElement rmsProductsElement) &&
+                    if (contentElement.TryGetProperty("RMSProducts", out JsonElement rmsProductsElement) &&
                         rmsProductsElement.ValueKind == JsonValueKind.String)
                     {
                         using var prodContentDocument = JsonDocument.Parse(rmsProductsElement.GetString());
                         var prodRootContent = prodContentDocument.RootElement;
 
-                        if (prodRootContent.TryGetProperty("RMSProducts", out invoiceElement))
+                        
+                        var options = new JsonSerializerOptions
                         {
-                            var options = new JsonSerializerOptions
-                            {
-                                Converters = { new DateTimeJsonConverter(),
-                                        new DecimalJsonConverter(),
-                                        new IntegerJsonConverter(),
-                                        new TaxCategoryJsonConverter(),
-                                        new RMSProductStateJsonConverter()},
-                                PropertyNameCaseInsensitive = true
-                            };
+                            Converters = { new DateTimeJsonConverter(),
+                                    new DecimalJsonConverter(),
+                                    new IntegerJsonConverter(),
+                                    new TaxCategoryJsonConverter(),
+                                    new RMSProductStateJsonConverter()},
+                            PropertyNameCaseInsensitive = true
+                        };
 
-                            Console.WriteLine($"Received response from OpenAI API: {prodRootContent.GetRawText()}");
+                        Console.WriteLine($"Received response from OpenAI API: {prodRootContent.GetRawText()}");
 
-                            using var invoiceDocument = JsonDocument.Parse(prodRootContent.GetRawText());
-                            rmsProducts = invoiceDocument.Deserialize<List<RMSProductDTO>>(options);
-                        }
+                        using var invoiceDocument = JsonDocument.Parse(prodRootContent.GetRawText());
+                        rmsProducts = invoiceDocument.Deserialize<List<RMSProductDTO>>(options);
                     }
                     else
                     {
@@ -244,6 +393,4 @@ namespace UpRestEye3.Services.Recognition
             }
         }
 
-    }
-
-}
+ */

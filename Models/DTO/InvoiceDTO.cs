@@ -4,6 +4,7 @@ namespace UpRestEye3.Models.DTO
 {
     public class InvoiceDTO
     {
+        public int? Id { get; set; }
         public string InvoiceNumber { get; set; } = string.Empty;
         public DateTime InvoiceDate { get; set; } = DateTime.Now;
         public decimal TotalIVA { get; set; } = 0.0m;
@@ -12,14 +13,16 @@ namespace UpRestEye3.Models.DTO
         public SupplierDTO? Supplier { get; set; }
 
         public List<InvoiceProductDTO> Products { get; set; } = [];
+
         public List<TaxesDTO> TaxCategories { get; set; } = [];
 
         public string FilePath { get; set; } = string.Empty;
+
         public DateTime UploadTime { get; set; } = DateTime.Now;
 
         public string Comments { get; set; } = string.Empty;
 
-        public InvoiceStatus Status { get; set; } = InvoiceStatus.New;
+        public InvoiceStatusEnum Status { get; set; } = InvoiceStatusEnum.New;
 
         // Default constructor
         public InvoiceDTO()
@@ -30,7 +33,7 @@ namespace UpRestEye3.Models.DTO
  
     public class TaxesDTO
     {
-        public TaxCategory Category { get; set; } = TaxCategory.Intermediate;
+        public TaxCategoryEnum TaxCategory { get; set; } = TaxCategoryEnum.Intermediate;
         public decimal Base { get; set; } = 0.0m;
         public decimal IVA { get; set; } = 0.0m;
         public decimal Total { get; set; } = 0.0m;
@@ -43,7 +46,7 @@ namespace UpRestEye3.Models.DTO
         public string Unit { get; set; } = string.Empty;
         public float Quantity { get; set; } = 0.0f;
         public decimal Price { get; set; } = 0.0m;
-        public TaxCategory Category { get; set; } = TaxCategory.Intermediate;
+        public TaxCategoryEnum TaxCategory { get; set; } = TaxCategoryEnum.Intermediate;
         public int? RMSProductId { get; set; } = 0;
         public string? RMSProductName { get; set; } = string.Empty;
         public int? RMSContainerId { get; set; } = 0;

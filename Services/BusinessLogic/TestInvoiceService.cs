@@ -56,7 +56,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     TotalAmount = 2.00m + 2.00m * 0.13m,
                     TaxCategories = new List<TaxesDTO>
                     {
-                        new TaxesDTO { Category = TaxCategory.Intermediate, Base = 2.00m, IVA = 2.00m * 0.13m, Total = 2.00m + 2.00m * 0.13m }
+                        new TaxesDTO { TaxCategory = TaxCategoryEnum.Intermediate, Base = 2.00m, IVA = 2.00m * 0.13m, Total = 2.00m + 2.00m * 0.13m }
                     },
                     Products = new List<InvoiceProductDTO>
                     {

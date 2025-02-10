@@ -60,6 +60,9 @@ namespace UpRestEye3.Services.DataLayer
                 .AsNoTracking()
                 .Include(i => i.TaxCategories)
                 .Include(i => i.Products)
+                    .ThenInclude(p => p.RMSProduct) // Include RMSProducts through Products
+                .Include(i => i.Products)
+                    .ThenInclude(p => p.RMSContainer) // Include RMSContainers through Products
                 .Include(i => i.Supplier)
                 .Include(i => i.Consumer)
                 .Where(i => i.ConsumerId == consumerId)
@@ -153,7 +156,7 @@ namespace UpRestEye3.Services.DataLayer
                     foreach (var newCategory in newTaxCategories)
                     {
                         var existingCategory = existingTaxCategories
-                            .FirstOrDefault(c => c.Category == newCategory.Category);
+                            .FirstOrDefault(c => c.TaxCategory == newCategory.TaxCategory);
 
                         if (existingCategory == null)
                         {
@@ -169,7 +172,7 @@ namespace UpRestEye3.Services.DataLayer
                     // Remove TaxCategories that are not in the new list
                     foreach (var existingCategory in existingTaxCategories)
                     {
-                        if (!newTaxCategories.Any(c => c.Category == existingCategory.Category))
+                        if (!newTaxCategories.Any(c => c.TaxCategory == existingCategory.TaxCategory))
                         {
                             _context.Remove(existingCategory);
                             _context.Entry(existingCategory).State = EntityState.Deleted;

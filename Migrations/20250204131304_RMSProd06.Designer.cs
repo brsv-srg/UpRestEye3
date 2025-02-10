@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UpRestEye3.Data;
 
@@ -10,9 +11,11 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250204131304_RMSProd06")]
+    partial class RMSProd06
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
@@ -273,13 +276,25 @@ namespace UpRestEye3.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("BackwardRecalculation")
+                        .HasColumnType("INTEGER");
+
                     b.Property<decimal>("ContainerWeight")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("Count")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("INTEGER");
+
                     b.Property<decimal>("FullContainerWeight")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("MaxContainerWeight")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("MinContainerWeight")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
@@ -290,10 +305,13 @@ namespace UpRestEye3.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("RMSContainerExtGuid")
+                    b.Property<Guid>("RMSContainerId")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("RMSProductId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("UseInFront")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
@@ -357,6 +375,9 @@ namespace UpRestEye3.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("Category")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("InvoiceId")
                         .HasColumnType("INTEGER");
 
@@ -380,9 +401,6 @@ namespace UpRestEye3.Migrations
                     b.Property<int?>("RMSProductId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("TaxCategory")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -404,11 +422,16 @@ namespace UpRestEye3.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Comments")
-                        .IsRequired()
+                    b.Property<Guid>("AccountingCategory")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("Category")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("ConsumerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Deleted")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Description")
@@ -422,22 +445,37 @@ namespace UpRestEye3.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("NotInStoreMovement")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Num")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("RMSProductExtGuid")
+                    b.Property<Guid?>("Parent")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RMSProductId")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid>("TaxCategory")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Type")
                         .HasColumnType("INTEGER");
 
+                    b.Property<decimal>("UnitCapacity")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("UnitWeight")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("ConsumerId", "RMSProductExtGuid")
+                    b.HasIndex("ConsumerId", "RMSProductId")
                         .IsUnique();
 
                     b.ToTable("RMSProducts");
@@ -481,13 +519,13 @@ namespace UpRestEye3.Migrations
                     b.Property<decimal>("Base")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Category")
+                        .HasColumnType("INTEGER");
+
                     b.Property<decimal>("IVA")
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("InvoiceId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("TaxCategory")
                         .HasColumnType("INTEGER");
 
                     b.Property<decimal>("Total")

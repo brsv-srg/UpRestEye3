@@ -11,32 +11,24 @@ namespace UpRestEye3.Services.BusinessLogic
             {
                 Id = dao.Id,
                 ConsumerId = dao.ConsumerId,
-                RMSProductId = dao.RMSProductId,
-                Deleted = dao.Deleted,
+                RMSProductExtGuid = dao.RMSProductExtGuid,
                 Name = dao.Name,
                 Description = dao.Description,
                 Num = dao.Num,
-                Parent = dao.Parent,
-                TaxCategory = dao.TaxCategory,
-                Category = dao.Category,
-                AccountingCategory = dao.AccountingCategory,
                 MainUnit = dao.MainUnit,
-                //Type = dao.Type,
-                UnitWeight = dao.UnitWeight,
-                UnitCapacity = dao.UnitCapacity,
-                NotInStoreMovement = dao.NotInStoreMovement,
+                Type = dao.Type,
                 Containers = dao.Containers.Select(c => new RMSContainerDTO
                 {
                     Id = c.Id,
-                    RMSContainerId = c.RMSContainerId,
+                    RMSContainerExtGuid = c.RMSContainerExtGuid,
                     Num = c.Num,
                     Name = c.Name,
                     Count = c.Count,
-                    MinContainerWeight = c.MinContainerWeight,
-                    MaxContainerWeight = c.MaxContainerWeight,
                     ContainerWeight = c.ContainerWeight,
                     FullContainerWeight = c.FullContainerWeight
-                }).ToList()
+                }).ToList(),
+                Status = dao.Status,
+                Comments = dao.Comments
             };
         }
 
@@ -46,32 +38,24 @@ namespace UpRestEye3.Services.BusinessLogic
             {
                 Id = dto.Id,
                 ConsumerId = dto.ConsumerId,
-                RMSProductId = dto.RMSProductId,
-                Deleted = dto.Deleted,
+                RMSProductExtGuid = dto.RMSProductExtGuid,
                 Name = dto.Name,
                 Description = dto.Description,
                 Num = dto.Num,
-                Parent = dto.Parent,
-                TaxCategory = dto.TaxCategory,
-                Category = dto.Category,
-                AccountingCategory = dto.AccountingCategory,
                 MainUnit = dto.MainUnit,
-                //Type = dto.Type,
-                UnitWeight = dto.UnitWeight,
-                UnitCapacity = dto.UnitCapacity,
-                NotInStoreMovement = dto.NotInStoreMovement,
+                Type = dto.Type,
                 Containers = dto.Containers.Select(c => new ContainerDAO
                 {
                     Id = c.Id,
-                    RMSContainerId = c.RMSContainerId,
+                    RMSContainerExtGuid = c.RMSContainerExtGuid,
                     Num = c.Num,
                     Name = c.Name,
                     Count = c.Count,
-                    MinContainerWeight = c.MinContainerWeight,
-                    MaxContainerWeight = c.MaxContainerWeight,
                     ContainerWeight = c.ContainerWeight,
                     FullContainerWeight = c.FullContainerWeight
-                }).ToList()
+                }).ToList(),
+                Status = dto.Status,
+                Comments = dto.Comments
             };
         }
 
@@ -79,24 +63,17 @@ namespace UpRestEye3.Services.BusinessLogic
         {
             return new RMSProductDTO
             {
-                RMSProductId = dto.id,
-                Deleted = dto.deleted,
+                RMSProductExtGuid = dto.id,
                 Name = dto.name,
                 Description = dto.description,
                 Num = dto.num,
-                Parent = dto.parent,
                 MainUnit = dto.mainUnit,
-                UnitWeight = dto.unitWeight,
-                UnitCapacity = dto.unitCapacity,
-                NotInStoreMovement = dto.notInStoreMovement,
                 Containers = dto.containers.Select(c => new RMSContainerDTO
                 {
-                    RMSContainerId = c.id,
+                    RMSContainerExtGuid = c.id,
                     Num = c.num,
                     Name = c.name,
                     Count = c.count,
-                    MinContainerWeight = c.minContainerWeight,
-                    MaxContainerWeight = c.maxContainerWeight,
                     ContainerWeight = c.containerWeight,
                     FullContainerWeight = c.fullContainerWeight
                 }).ToList()

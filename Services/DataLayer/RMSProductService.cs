@@ -53,7 +53,7 @@ namespace UpRestEye3.Services.DataLayer
                 var existingProduct = await _context.RMSProducts
                     .AsNoTracking()
                     .Include(p => p.Containers)
-                    .FirstOrDefaultAsync(p => p.ConsumerId == productDto.ConsumerId && p.RMSProductId == productDto.RMSProductId);
+                    .FirstOrDefaultAsync(p => p.ConsumerId == productDto.ConsumerId && p.RMSProductExtGuid == productDto.RMSProductExtGuid);
 
                 var newProduct = RMSProductMappingService.ToDAO(productDto);
                 if (existingProduct == null)
@@ -75,7 +75,7 @@ namespace UpRestEye3.Services.DataLayer
                     foreach (var newContainer in newContainers)
                     {
                         var existingContainer = existingContainers
-                            .FirstOrDefault(c => c.RMSContainerId == newContainer.RMSContainerId);
+                            .FirstOrDefault(c => c.RMSContainerExtGuid == newContainer.RMSContainerExtGuid);
 
                         if (existingContainer == null)
                         {
@@ -92,7 +92,7 @@ namespace UpRestEye3.Services.DataLayer
                     // Remove containers that are not in the new list
                     foreach (var existingContainer in existingContainers)
                     {
-                        if (!newContainers.Any(c => c.RMSContainerId == existingContainer.RMSContainerId))
+                        if (!newContainers.Any(c => c.RMSContainerExtGuid == existingContainer.RMSContainerExtGuid))
                         {
                             _context.Remove(existingContainer);
                             _context.Entry(existingContainer).State = EntityState.Deleted;

@@ -41,7 +41,7 @@
                         @foreach (var invoice in invoices.OrderByDescending(i => i.UploadTime))
                         {
                             <tr>
-                                <td>@invoice.InvoiceDate.ToString("dd.MM.yy hh:mm")</td>
+                                <td>@invoice.UploadTime.ToString("dd.MM.yy hh:mm")</td>
                                 <td>@invoice.InvoiceNumber</td>
                                 <td>@invoice.InvoiceDate.ToString("dd.MM.yy")</td>
                                 <td>@(invoice.Supplier != null ? invoice.Supplier.Name : "")</td>
@@ -98,7 +98,7 @@
                                         <th>Name</th>
                                         <th>Quantity</th>
                                         <th>Price</th>
-										<th>TAX Category</th>
+                                        <th>TAX Category</th>
                                         <th>RMS Product</th>
                                         <th>RMS Container</th>
 
@@ -112,9 +112,9 @@
                                             <td>@product.ProductName</td>
                                             <td>@product.Quantity</td>
                                             <td>@product.Price</td>
-											<td>@product.Category</td>
-											<td>@product.RMSProductName</td>
-											<td>@product.RMSContainerName</td>
+                                            <td>@product.TaxCategory</td>
+                                            <td>@product.RMSProductName</td>
+                                            <td>@product.RMSContainerName</td>
                                         </tr>
                                     }
                                 </tbody>
@@ -176,7 +176,7 @@
 
     private async Task InitializeDataAsync()
     {
-      
+
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         appUser = await UserManager.GetUserAsync(user);
@@ -196,7 +196,7 @@
             catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 Console.WriteLine("Invoices not found.");
-                    
+
             }
             catch (Exception ex)
             {
@@ -220,48 +220,59 @@
 
     private async Task UploadFile()
     {
-        if (selectedFile != null)
+        if (appUser?.ConsumerId != null)
         {
-            Console.WriteLine("Uploading file: " + selectedFile.Name);
-            
-            var content = new MultipartFormDataContent(); 
-            content.Add(new StreamContent(selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)), "file", selectedFile.Name);
-
-            var baseUri = Navigation.BaseUri;
-            if (baseUri.EndsWith('/'))
+            if (selectedFile != null)
             {
-                baseUri = baseUri.Substring(0, baseUri.Length - 1);
+                Console.WriteLine("Uploading file: " + selectedFile.Name);
+
+                var content = new MultipartFormDataContent();
+                content.Add(new StreamContent(selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)), "file", selectedFile.Name);
+                content.Add(new StringContent(appUser.ConsumerId.ToString()), "consumerId");
+
+                var baseUri = Navigation.BaseUri;
+                if (baseUri.EndsWith('/'))
+                {
+                    baseUri = baseUri.Substring(0, baseUri.Length - 1);
+                }
+
+                var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/upload", content);
+
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine("File uploaded successfully.");
+                    uploadMessage = "File uploaded successfully.";
+                    uploadMessageClass = "alert-success";
+                    invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices/{appUser.ConsumerId}");
+
+                }
+                else
+                {
+                    Console.WriteLine("File upload failed.");
+                    uploadMessage = "File upload failed.";
+                    uploadMessageClass = "alert-danger";
+                }
             }
-
-            var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/upload", content);
-
-            if (response.IsSuccessStatusCode) 
+            else
             {
-                Console.WriteLine("File uploaded successfully.");
-                uploadMessage = "File uploaded successfully.";
-                uploadMessageClass = "alert-success";
-                invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices");
-            } 
-            else 
-            { 
-                Console.WriteLine("File upload failed.");
-                uploadMessage = "File upload failed.";
+                Console.WriteLine("No file selected.");
+                uploadMessage = "No file selected.";
                 uploadMessageClass = "alert-danger";
             }
+
+            StateHasChanged();
+            // Hide the message after 5 seconds
+            await Task.Delay(5000);
+            uploadMessage = null;
+            uploadMessageClass = null;
+            StateHasChanged();
         }
         else
-        {
-            Console.WriteLine("No file selected.");
-            uploadMessage = "No file selected.";
-            uploadMessageClass = "alert-danger";
-        }
-        
-        StateHasChanged();
-        // Hide the message after 5 seconds
-        await Task.Delay(5000);
-        uploadMessage = null;
-        uploadMessageClass = null;
-        StateHasChanged();
+		{
+			var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+			Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+		}
     }
 
     private async Task ShowProductsAsync(List<InvoiceProductDTO> products)
@@ -277,12 +288,12 @@
         selectedProducts = null;
         // await JS.InvokeVoidAsync("hideModal", "productsModal");
     }
-    private string GetStatusClass(InvoiceStatus status) // Изменено: Метод для получения CSS-класса статуса
+    private string GetStatusClass(InvoiceStatusEnum status) // Изменено: Метод для получения CSS-класса статуса
     {
         return status switch
         {
-            InvoiceStatus.Error => "text-danger",
-            InvoiceStatus.SavedToSystem => "text-success",
+            InvoiceStatusEnum.Error => "text-danger",
+            InvoiceStatusEnum.SavedToSystem => "text-success",
             _ => "text-info",
         };
     }

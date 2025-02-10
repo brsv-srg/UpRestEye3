@@ -177,7 +177,7 @@ namespace UpRestEye3.Data
                 .ValueGeneratedOnAdd();
 
             modelBuilder.Entity<RMSProductDAO>()
-                .HasIndex(p => new { p.ConsumerId, p.RMSProductId })
+                .HasIndex(p => new { p.ConsumerId, p.RMSProductExtGuid })
                 .IsUnique();
 
 

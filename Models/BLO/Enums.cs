@@ -1,7 +1,31 @@
 ﻿namespace UpRestEye3.Models.BLO
 {
-    // Тип элемента номенклатуры
-    public enum ItemType
+  
+    public enum InvoiceStatusEnum
+    {
+        New,
+        RawFile,
+        QRCodeProcessed,
+        TextProcessed,
+        ProductsMapped,
+        SavedToSystem,
+        Error
+    }
+
+    public enum TaxCategoryEnum
+    {
+        Normal,
+        Intermediate,
+        Reduced,
+        Zero
+    }
+    public enum RMSProductStatusEnum
+    {
+        FromRMS,
+        NewProduct,
+        NewContainer
+    }
+    public enum ItemTypeEnum
     {
         GOODS,      // Товар
         DISH,       // Блюдо
