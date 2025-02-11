@@ -137,7 +137,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 if (mappingResult.Invoice != null)
                 {
                     var invoiceProducts = mappingResult.Invoice.Products;
-                    foreach (var rmsProduct in mappingResult.RMSProducts)
+                    foreach (var rmsProduct in mappingResult.NewRMSProducts)
                     {
                         if (rmsProduct.Status == RMSProductStatusEnum.NewProduct ||
                             rmsProduct.Status == RMSProductStatusEnum.NewContainer)

@@ -392,11 +392,11 @@ namespace UpRestEye3.Services.BusinessLogic
             {
                 var invoiceAndRmsProducts = new InvoiceAndRmsProductsDTO();
                 invoiceAndRmsProducts.Invoice = new InvoiceDTO();
-                invoiceAndRmsProducts.RMSProducts = new List<RMSProductDTO>();
+                invoiceAndRmsProducts.NewRMSProducts = new List<RMSProductDTO>();
                 var rmsProduct = new RMSProductDTO();
                 rmsProduct.Status = RMSProductStatusEnum.NewProduct;
                 rmsProduct.Containers.Add(new RMSContainerDTO());
-                invoiceAndRmsProducts.RMSProducts.Add(rmsProduct);
+                invoiceAndRmsProducts.NewRMSProducts.Add(rmsProduct);
 
                 var options = JsonHelper.GetSerializerOptions();
 
@@ -706,19 +706,13 @@ namespace UpRestEye3.Services.BusinessLogic
                         }}
                     }}
                 }},
-                ""RMSProducts"": {{
+                ""NewRMSProducts"": {{
                     ""type"": ""array"",
                     ""items"": {{
                         ""type"": ""object"",
                         ""properties"": {{
-                            ""Id"": {{ ""type"": [""integer"", ""null""] }},
-                            ""ConsumerId"": {{ ""type"": ""integer"" }},
-                            ""ConsumerTaxId"": {{ ""type"": ""string"" }},
-                            ""RMSProductExtGuid"": {{ ""type"": ""string"", ""format"": ""uuid"" }},
                             ""Name"": {{ ""type"": ""string"" }},
                             ""Description"": {{ ""type"": ""string"" }},
-                            ""Num"": {{ ""type"": ""string"" }},
-                            ""MainUnit"": {{ ""type"": ""string"", ""format"": ""uuid"" }},
                             ""Type"": {{
                                 ""type"": ""string"",
                                 ""enum"": [""GOODS""]
@@ -728,19 +722,14 @@ namespace UpRestEye3.Services.BusinessLogic
                                 ""items"": {{
                                     ""type"": ""object"",
                                     ""properties"": {{
-                                        ""Id"": {{ ""type"": [""integer"", ""null""] }},
-                                        ""RMSContainerExtGuid"": {{ ""type"": ""string"", ""format"": ""uuid"" }},
-                                        ""Num"": {{ ""type"": ""string"" }},
                                         ""Name"": {{ ""type"": ""string"" }},
-                                        ""Count"": {{ ""type"": ""number"" }},
-                                        ""ContainerWeight"": {{ ""type"": ""number"" }},
-                                        ""FullContainerWeight"": {{ ""type"": ""number"" }}
+                                        ""Count"": {{ ""type"": ""number"" }}
                                     }}
                                 }}
                             }},
                             ""Status"": {{
                                 ""type"": ""string"",
-                                ""enum"": [""FromRMS"", ""NewProduct"", ""NewContainer""]
+                                ""enum"": [""NewProduct"", ""NewContainer""]
                             }},
                             ""Comments"": {{
                               ""type"": ""string""

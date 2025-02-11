@@ -1,11 +1,20 @@
 ﻿
 namespace UpRestEye3.Models.DTO
 {
-    public class InvoiceAndRmsProductsDTO
+    public class mappedProductsDTO
     {
-        public InvoiceDTO Invoice { get; set; } = new InvoiceDTO();
-        public List<RMSProductDTO> RMSProducts { get; set; } = [];
+        public BaseInvoiceProductDTO InvoiceProduct { get; set; } = new BaseInvoiceProductDTO();
+        public RMSProductDTO RMSProduct { get; set; } = new RMSProductDTO();
 
     }
+
+
+    public class InvoiceAndRmsProductsDTO
+    {
+        public List<mappedProductsDTO> mappedProductListDTO { get; set; } = [];
+        public string Comments { get; set; } = string.Empty;
+
+    }
+
 }
 

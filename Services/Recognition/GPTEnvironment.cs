@@ -218,39 +218,55 @@ Your task is to process the OCR recognized text of an Invoice and convert it int
 
         private const string _systemPromptForMappingLiteral = $@"
 You are a helpful restaurant assistant for mapping OCR-recognized invoice data to data from the restaurant management system. 
-Your task is to map products in Invoice Product List in given Invoice to products in RMSProducts List from the restaurant management system and put changes into predefined JSON in response_format section. 
-Be careful and use the following information: 
-01. Take the Invoice and RMSProducts List which are given on request message.
-02. For each Product from the Invoice Products List find a suitable matching product in the RMSProducts List: 
+Your task is to map products in the Invoice Product List in the given Invoice to products in the RMSProducts List from the restaurant management system and put changes into the predefined JSON in the response_format section.
+Be careful and use the following information:
+
+01. For each Product from the Invoice Products List find a suitable matching product in the RMSProducts List: 
 - Note that there may be abbreviated or branded product names in the Invoice Products list. And in the RMSProducts list there could be common names of products used to prepare dishes served in a restaurant. 
-- Use your knowledge of typical grocery items and dishes served in restaurants to make the best match.
-- Save Id and Name of the matching RMSProduct in the RMSProductId and RMSProductName fields of Invoice Product. 
-03. Also find the most appropriate Container or Unit of measure for the Invoice Product being processed in the RMSContainers list of the selected RMSProduct. 
-- Save the ID and Name of the suitable RMSContainer in the RMSContainerId and RMSContainerName fields of the Invoice Product. 
-04. If you don't find an appropriate RMSProduct in the RMSProducts list, create a new RMSProduct based on the Invoice Product: 
-- Use the value 'NewProduct' for the Status field and value 'GOODS' for the Type field. 
-- Choose a common Name for the new RMSProduct without brand or abbreviation, if it is typical grocery product to prepare dishes.
-- If it is a product with an important brand name or familiar product name, for example some wine, or Coca-Cola, save this brand name to RMSProduct. 
+- Product names in the Invoice Product List and in the RMSProducts list can be in Portuguese or English. If needed, interpret the names and make sure to consider possible translations (e.g., ""Tomate"" in Portuguese vs. ""Tomato"" in English).
+- Pay special attention to brand names, color, and product properties, especially for drinks such as wine:
+        - For example, red (""tinto"" in Portuguese) and white (""branco"" in Portuguese) wines from the same winery may share most of the name but differ by color/type, so they are different products. Do not match them to the same RMS product if one is red and the other is white.
+        - If the RMSProducts list has ""Boina Branco"" (white) but the Invoice has ""Boina Tinto"" (red), they must not be matched directly. Look for the correct color variant or treat it as a new product if none exists.
+        - This should be taken into account for other brands of wine, other types of wine (sparkling, orange, rosé, etc.), as well as for other types of drinks and goods, for example ""Coca-Cola"" and ""Coca-Cola Zero"".
+- Use your knowledge of languages, typical foods and products used in restaurants to make the best match.
+- Before finalizing the match, double-check that you have found the most suitable product in the RMSProducts list, taking into account brand, color, language differences, and other specific product features.
+- Once confirmed, save the **Id** and **Name** of the **matching** RMSProduct in the **RMSProductId** and **RMSProductName** fields of the Invoice Product.
+
+02. Also find the most appropriate Container or Unit of measure for the Invoice Product being processed in the RMSContainers list of the selected RMSProduct. 
+- Save the ID and Name of the existing suitable RMSContainer in the RMSContainerId and RMSContainerName fields of the Invoice Product. 
+
+03. If you don't find an appropriate RMSProduct in the RMSProducts list, create a new RMSProduct based on the Invoice Product: 
+- Use the value ""NewProduct"" for the Status field and value ""GOODS"" for the Type field.
+- Choose a common Name for the new RMSProduct without brand or abbreviation, if it is a typical grocery product to prepare dishes.
+- If it is a product with an important brand name or a familiar product name (for example, some wine, or Coca-Cola), save this brand name to RMSProduct.
+- Save the reason for adding a new RMSProduct and any observations or potential issues in the Comments element of the new RMSProduct. 
 - Also create a new suitable RMSContainer in the new RMSProduct. 
-- Save the Name of the new RMSProduct in the RMSProductName field and the Name of the new RMSContainer in the RMSContainerName of the Invoice Product. 
-- Save the reason for adding a new RMSProduct to the response message in the Comments element of the RMSProduct. 
-05. If you find appropriate existing RMSProduct but don't find any appropriate RMSContainer, create a new RMSContainer based on the container or unit listed in the Invoice: 
-- Save the new RMSContainer into the corresponding RMSProduct.
-- Save the reason for adding a new RMSContainer into the Comments element of the owner-RMSProduct. 
-- Change the value of the Status field of the RMSProduct to 'NewProduct'.
-- Save the Name of the RMSProduct into the RMSProductName field and Name of the new RMSContainer into the RMSContainerName of the Invoice Product. 
-- Do not create and save any Ids of the new RMSProduct or RMSContainer into the Invoice Product, only Names.
-06. Put Invoice with added mapping information into the Invoice section of response message: 
+- After creating them, do two important things:
+    - First: **save the matching** of the new RMSProduct and the Invoice Product:
+        - Put the **Name** of the new RMSProduct into the **RMSProductName** field of the Invoice Product.
+        - Put the **Name** of the new RMSContainer into the **RMSContainerName** field of the Invoice Product. 
+    - Second: **save** the **new** RMSProduct into the **NewRMSProducts** section of the response message
+
+04. If you find a matching existing RMSProduct but don't find any appropriate RMSContainer, create a new RMSContainer based on the container or unit listed in the Invoice:
+- Save the new RMSContainer into the corresponding existing RMSProduct.
+- Change the value of the Status field of the RMSProduct to ""NewContainer"".
+- Save the reason for adding a new RMSContainer and any observations or potential issues in the Comments element of the existing RMSProduct. 
+- After creating RMSContainer, do two important things:
+    - First: **save the matching** of the existing RMSProduct with the new RMSContainer and the Invoice Product:
+        - Put the **Id** and **Name** of the matching RMSProduct into the **RMSProductId**  and **RMSProductName** fields of the Invoice Product.
+        - Put the **Name** of the new RMSContainer into the **RMSContainerName** field of the Invoice Product. 
+    - Second: **save** the RMSProduct with the new RMSContainer into the **NewRMSProducts** section of the response message
+
+05. Put the Invoice with added mapping information into the Invoice section of the response message:
 - Do it strictly according to the JSON structure specified in response_format. 
-- Don't add any additional data such as schema descriptions or additional data. 
+- Do not add any additional data such as schema descriptions or extra data.
 - Include any observations or potential issues in the Comments element of Invoice in the response JSON. 
-07. Put the new RMSProducts and RMSProducts with new RMSContainers into RMSProducts section of response message: 
-- Do it strictly according to the JSON structure specified in response_format. 
-- Put into RMSContainers section of response message only new RMSProducts, do not put existing one. 
-08. Check everything again. 
+
+06. Check everything again. 
 - Make sure that nothing has changed in the Invoice, everything is the same except the identifiers RMSProduct and RMSContainer added to each Invoice Product. 
-- Make sure that the tax category, supplier and consumer, all amounts, etc., are the same as they were. 
-- Make sure that all products in the RMSProducts list are new products, or existing products with new RMSContainers.
+- Make sure that the Invoice tax category, supplier, consumer, all amounts, etc., remain exactly as they were.
+- Make sure that all products in the NewRMSProducts list are indeed new products or new RMSContainers.
+
 ";
         public string ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;

@@ -39,7 +39,7 @@ namespace UpRestEye3.Models.DTO
         public decimal Total { get; set; } = 0.0m;
     }
 
-    public class InvoiceProductDTO
+    public class BaseInvoiceProductDTO
     {
         public string ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;
@@ -47,6 +47,10 @@ namespace UpRestEye3.Models.DTO
         public float Quantity { get; set; } = 0.0f;
         public decimal Price { get; set; } = 0.0m;
         public TaxCategoryEnum TaxCategory { get; set; } = TaxCategoryEnum.Intermediate;
+    }
+
+    public class InvoiceProductDTO: BaseInvoiceProductDTO
+    {
         public int? RMSProductId { get; set; } = 0;
         public string? RMSProductName { get; set; } = string.Empty;
         public int? RMSContainerId { get; set; } = 0;
