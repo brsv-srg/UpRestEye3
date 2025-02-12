@@ -15,7 +15,7 @@ namespace UpRestEye3.Services.BusinessLogic
     {
         Task<(QRCodeData?, Bitmap?)> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath);
         Task<(QRCodeData?, Bitmap?)> DeepQRRecognitionAsync(Bitmap sourceImage, string imagePath);
-        Task<InvoiceDTO> DeepTextRecognitionAsync(Bitmap sourceImage, InvoiceDTO currentInvoice);
+        Task<InvoiceDTO?> DeepTextRecognitionAsync(Bitmap sourceImage, InvoiceDTO currentInvoice);
 
     }
 

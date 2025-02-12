@@ -142,7 +142,6 @@ namespace UpRestEye3.Data
                                 Description = "Product A Description",
                                 Num = "001",
                                 MainUnit = Guid.NewGuid(),
-                                Type = ItemTypeEnum.GOODS,
                                 Containers = new List<RMSContainerDTO>
                                 {
                                     new RMSContainerDTO
@@ -165,7 +164,6 @@ namespace UpRestEye3.Data
                                 Description = "Product A Description",
                                 Num = "002",
                                 MainUnit = Guid.NewGuid(),
-                                Type = ItemTypeEnum.GOODS,
                                 Containers = new List<RMSContainerDTO>
                                 {
                                     new RMSContainerDTO

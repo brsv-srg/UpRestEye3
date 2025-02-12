@@ -14,9 +14,7 @@ namespace UpRestEye3.Services.Recognition
     public interface IGPTService
     {
         Task<InvoiceDTO?> ReceiptParsingByLLM(RecognizedDocument invoiceText, InvoiceDTO currentInvoice);
-        Task<InvoiceAndRmsProductsDTO> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts);
-        
-
+        Task<InvoiceDTO?> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts);
 
     }
 
@@ -66,7 +64,7 @@ namespace UpRestEye3.Services.Recognition
             return invoice;
         }
 
-        public async Task<InvoiceAndRmsProductsDTO> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts)
+        public async Task<InvoiceDTO?> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts)
         {
 
             var jsonBody = _env.GetReceiptMappingRequestBody(currentInvoice, supplierProducts);
@@ -96,8 +94,6 @@ namespace UpRestEye3.Services.Recognition
             var responseContent = await response.Content.ReadAsStringAsync();
             var result = ResponseInvoiceAndRMSProductsParsing(responseContent);
             
-            if (result.Invoice != null)
-                result.Invoice.Status = InvoiceStatusEnum.ProductsMapped;
             
             return result;
 
@@ -148,7 +144,7 @@ namespace UpRestEye3.Services.Recognition
             }
         }
 
-        private InvoiceAndRmsProductsDTO ResponseInvoiceAndRMSProductsParsing(string responseContent)
+        private InvoiceDTO ResponseInvoiceAndRMSProductsParsing(string responseContent)
         {
             try
             {
@@ -172,9 +168,9 @@ namespace UpRestEye3.Services.Recognition
                         Console.WriteLine($"Received response from OpenAI API: {rootContent.GetRawText()}");
 
                         using var invoiceDocument = JsonDocument.Parse(rootContent.GetRawText());
-                        InvoiceAndRmsProductsDTO invoiceRmsProducts = invoiceDocument.Deserialize<InvoiceAndRmsProductsDTO>(options);
+                        var mappedInvoice = invoiceDocument.Deserialize<InvoiceDTO>(options);
 
-                        return invoiceRmsProducts;
+                        return mappedInvoice;
                     }
                     else
                     {

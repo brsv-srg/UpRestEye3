@@ -13,7 +13,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
     public interface IInvoiceProcessor
     {
-        Task<InvoiceAndRmsProductsDTO> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts);
+        Task<InvoiceDTO> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts);
     }
 
     // Класс обработки изображения
@@ -26,7 +26,7 @@ namespace UpRestEye3.Services.BusinessLogic
             _gptParser = gptParser;
         }
 
-        public async Task<InvoiceAndRmsProductsDTO> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts)
+        public async Task<InvoiceDTO> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts)
         {
             return await _gptParser.ReceiptMappingByLLM(currentInvoice, rmsProducts);
         }

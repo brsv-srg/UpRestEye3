@@ -8,6 +8,7 @@
         QRCodeProcessed,
         TextProcessed,
         ProductsMapped,
+        AttentionRequired,
         SavedToSystem,
         Error
     }

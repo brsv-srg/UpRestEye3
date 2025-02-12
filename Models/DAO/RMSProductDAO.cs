@@ -14,7 +14,7 @@ namespace UpRestEye3.Models.DAO
         public string Num { get; set; } // Артикул, используется при печати документов (тех. карт и т.д.)
         public Guid MainUnit { get; set; } // UUID основной единицы измерения продукта
         public ItemTypeEnum Type { get; set; } // Тип элемента номенклатуры
-        public List<ContainerDAO> Containers { get; set; } // Фасовки
+        public List<RMSContainerDAO> Containers { get; set; } // Фасовки
         public RMSProductStatusEnum Status { get; set; } = RMSProductStatusEnum.NewProduct;
         public string Comments { get; set; } // Комментарий
 
@@ -22,7 +22,7 @@ namespace UpRestEye3.Models.DAO
 
 
     // Класс фасовки
-    public class ContainerDAO
+    public class RMSContainerDAO
     {
         public int? Id { get; set; } // ID фасовки
         public Guid RMSContainerExtGuid { get; set; } // UUID фасовки

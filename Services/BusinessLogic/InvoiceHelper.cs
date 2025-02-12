@@ -227,19 +227,18 @@ namespace UpRestEye3.Services.BusinessLogic
                     BankAccount = invoiceDAO.Supplier.BankAccount
                 };
             };
-
+            // DTO = DAO
             invoiceDTO.Products = invoiceDAO.Products.Select(p => new InvoiceProductDTO
             {
+                Id = p.Id,
                 ProductCode = p.ProductCode,
                 ProductName = p.ProductName,
                 Unit = p.Unit,
                 Quantity = p.Quantity,
                 Price = p.Price,
                 TaxCategory = p.TaxCategory,
-                RMSProductId = p.RMSProductId,
-                RMSProductName = p.RMSProduct?.Name,
-                RMSContainerId = p.RMSContainerId,
-                RMSContainerName = p.RMSContainer?.Name
+                RMSProduct = RMSProductHelper.BuildRMSProductDTO(p.RMSProduct),
+                RMSContainer = RMSProductHelper.BuildRMSContainerDTO(p.RMSContainer)
 
             }).ToList();
 
@@ -285,14 +284,26 @@ namespace UpRestEye3.Services.BusinessLogic
                     BankAccount = invoiceDTO.Supplier.BankAccount
                 };
             };
+
+            // DAO = DTO
             invoiceDAO.Products = invoiceDTO.Products.Select(p => new InvoiceProductDAO
             {
                 ProductCode = p.ProductCode,
                 ProductName = p.ProductName,
                 Unit = p.Unit,
                 Quantity = p.Quantity,
-                Price = p.Price
+                Price = p.Price,
+                TaxCategory = p.TaxCategory,
+
+                RMSProductId = p.RMSProduct != null ? p.RMSProduct.Id : null,
+                RMSProduct = RMSProductHelper.BuildRMSProductDAO(p.RMSProduct),
+                
+                RMSContainerId = p.RMSContainer != null ? p.RMSContainer.Id : null,
+                RMSContainer = RMSProductHelper.BuildRMSContainerDAO(p.RMSContainer)
             }).ToList();
+
+
+
             invoiceDAO.TaxCategories = invoiceDTO.TaxCategories.Select(t => new TaxesDAO
             {
                 TaxCategory = t.TaxCategory,

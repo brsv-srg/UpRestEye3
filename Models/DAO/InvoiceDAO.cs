@@ -56,7 +56,8 @@ namespace UpRestEye3.Models.DAO
         public int? RMSProductId { get; set; } = null;
         public RMSProductDAO? RMSProduct { get; set; } = null;
         public int? RMSContainerId { get; set; } = null;
-        public ContainerDAO? RMSContainer { get; set; } = null;
+        public RMSContainerDAO? RMSContainer { get; set; } = null;
+
     }
 }
 

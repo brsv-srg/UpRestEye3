@@ -134,26 +134,26 @@ namespace UpRestEye3.Services.BusinessLogic
                 var mappingResult = await _invoiceProcessor.MappingToRMSProductsAsync(workingInvoice, rmsProducts);
 
                 // Если Invoice замеплен и есть новые продукты, то связываем их с Invoice Products
-                if (mappingResult.Invoice != null)
+                if (mappingResult != null)
                 {
-                    var invoiceProducts = mappingResult.Invoice.Products;
-                    foreach (var rmsProduct in mappingResult.NewRMSProducts)
+                    workingInvoice.Status = InvoiceStatusEnum.ProductsMapped;
+
+                    foreach (var mappedProducts in mappingResult.Products)
                     {
-                        if (rmsProduct.Status == RMSProductStatusEnum.NewProduct ||
-                            rmsProduct.Status == RMSProductStatusEnum.NewContainer)
-                        {
-                            rmsProduct.Id = await _rmsProductService.SaveProductAsync(rmsProduct);
+                        if(mappedProducts.RMSProduct == null)
+                        { 
+                            workingInvoice.Status = InvoiceStatusEnum.AttentionRequired;
+                            continue;
                         }
                         
-                        var matchingProducts = invoiceProducts.Where(p => p.RMSProductName == rmsProduct.Name).ToList();
-                        foreach (var invoiceProduct in matchingProducts)
+                        if (mappedProducts.RMSProduct.Status == RMSProductStatusEnum.NewProduct ||
+                            mappedProducts.RMSProduct.Status == RMSProductStatusEnum.NewContainer)
                         {
-                            invoiceProduct.RMSProductId = rmsProduct.Id;
+                            mappedProducts.RMSProduct.Id = await _rmsProductService.SaveProductAsync(mappedProducts.RMSProduct);
                         }
                     }
 
-                    // Внесение изменений в существующую накладную и сохранение изменений в базу данных
-                    InvoiceHelper.CopyInvoice(workingInvoice, mappingResult.Invoice);
+                    // Внесение изменений в накладную и сохранение изменений в базу данных
                     await _invoiceService.SaveInvoiceAsync(workingInvoice);
                 }
                 else

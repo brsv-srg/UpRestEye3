@@ -113,8 +113,8 @@
                                             <td>@product.Quantity</td>
                                             <td>@product.Price</td>
                                             <td>@product.TaxCategory</td>
-                                            <td>@product.RMSProductName</td>
-                                            <td>@product.RMSContainerName</td>
+                                            <td>@product.RMSProduct?.Name?</td>
+                                            <td>@product.RMSContainer?.Name?</td>
                                         </tr>
                                     }
                                 </tbody>

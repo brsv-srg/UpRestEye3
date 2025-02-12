@@ -264,14 +264,9 @@ namespace UpRestEye3.Services.BusinessLogic
             return _invoiceSchema;
         }
 
-        public static string GetRMSProductsSchema()
+        public static string GetMappedInvoiceSchema()
         {
-            return _rmsProductsSchema;
-        }
-
-        public static string GetInvoiceAndRmsProductsSchema()
-        {
-            return _InvoiceAndRmsProductsSchema;
+            return _mappedInvoiceSchema;
         }
 
 
@@ -322,10 +317,12 @@ namespace UpRestEye3.Services.BusinessLogic
 
 
 
-        public static void ValidateRMSProductsSchema()
+
+
+        public static void ValidateMappedInvoiceSchema()
         {
             // Validate schema version
-            if (!_rmsProductsSchema.Contains(@"""$schema"": ""http://json-schema.org/draft-07/schema#"""))
+            if (!_mappedInvoiceSchema.Contains(@"""$schema"": ""http://json-schema.org/draft-07/schema#"""))
             {
                 throw new Exception("Schema is not compatible with Draft-07.");
             }
@@ -333,7 +330,7 @@ namespace UpRestEye3.Services.BusinessLogic
             // Validate schema structure
             try
             {
-                var schema = JsonDocument.Parse(_rmsProductsSchema);
+                var schema = JsonDocument.Parse(_mappedInvoiceSchema);
                 Console.WriteLine("Schema is valid and compatible with Draft-07.");
             }
             catch (Exception ex)
@@ -342,70 +339,22 @@ namespace UpRestEye3.Services.BusinessLogic
             }
         }
 
-        public static void ValidateRMSProductsObject()
+        public static void ValidateMappedInvoiceObject()
         {
             try
             {
-                List<RMSProductDTO> rmsProducts = new List<RMSProductDTO>();
-                rmsProducts.Add(new RMSProductDTO());
+                var invoice = new InvoiceDTO();
+                invoice.Products = new List<InvoiceProductDTO>();
+                invoice.Products.Add(new InvoiceProductDTO());
 
                 var options = JsonHelper.GetSerializerOptions();
 
-                string rmsProductJsonString = JsonSerializer.Serialize(rmsProducts, options);
+                string rmsProductJsonString = JsonSerializer.Serialize(invoice, options);
                 var rmsProductsJsonDoc = JsonDocument.Parse(rmsProductJsonString);
 
-                var rmsProductsStr = rmsProductsJsonDoc.Deserialize<List<RMSProductDTO>>(options);
-                var context = new ValidationContext(rmsProducts, serviceProvider: null, items: null);
-                Validator.ValidateObject(rmsProducts, context, validateAllProperties: true);
-                Console.WriteLine("Object is valid against the schema.");
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Object validation against schema failed: " + ex.Message);
-            }
-        }
-
-
-        public static void ValidateInvoiceAndRMSProductsSchema()
-        {
-            // Validate schema version
-            if (!_InvoiceAndRmsProductsSchema.Contains(@"""$schema"": ""http://json-schema.org/draft-07/schema#"""))
-            {
-                throw new Exception("Schema is not compatible with Draft-07.");
-            }
-
-            // Validate schema structure
-            try
-            {
-                var schema = JsonDocument.Parse(_InvoiceAndRmsProductsSchema);
-                Console.WriteLine("Schema is valid and compatible with Draft-07.");
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Schema validation failed: " + ex.Message);
-            }
-        }
-
-        public static void ValidateInvoiceAndRMSProductsObject()
-        {
-            try
-            {
-                var invoiceAndRmsProducts = new InvoiceAndRmsProductsDTO();
-                invoiceAndRmsProducts.Invoice = new InvoiceDTO();
-                invoiceAndRmsProducts.NewRMSProducts = new List<RMSProductDTO>();
-                var rmsProduct = new RMSProductDTO();
-                rmsProduct.Status = RMSProductStatusEnum.NewProduct;
-                rmsProduct.Containers.Add(new RMSContainerDTO());
-                invoiceAndRmsProducts.NewRMSProducts.Add(rmsProduct);
-
-                var options = JsonHelper.GetSerializerOptions();
-
-                string rmsProductJsonString = JsonSerializer.Serialize(invoiceAndRmsProducts, options);
-                var rmsProductsJsonDoc = JsonDocument.Parse(rmsProductJsonString);
-
-                var invoiceAndRmsProducts2 = rmsProductsJsonDoc.Deserialize<InvoiceAndRmsProductsDTO>(options);
-                var context = new ValidationContext(invoiceAndRmsProducts2, serviceProvider: null, items: null);
-                Validator.ValidateObject(invoiceAndRmsProducts2, context, validateAllProperties: true);
+                var invoice2 = rmsProductsJsonDoc.Deserialize<InvoiceProductDTO>(options);
+                var context = new ValidationContext(invoice2, serviceProvider: null, items: null);
+                Validator.ValidateObject(invoice2, context, validateAllProperties: true);
                 Console.WriteLine("Object is valid against the schema.");
             }
             catch (Exception ex)
@@ -431,314 +380,163 @@ namespace UpRestEye3.Services.BusinessLogic
             };
         }
 
-
         private const string _invoiceSchema = $@"
-{{
-  ""$schema"": ""http://json-schema.org/draft-07/schema#"",
-  ""type"": ""object"",
-  ""properties"": {{
-    ""InvoiceNumber"": {{
-      ""type"": ""string""
-    }},
-    ""InvoiceDate"": {{
-      ""type"": ""string"",
-      ""format"": ""date-time""
-    }},
-    ""TotalIVA"": {{
-      ""type"": ""number""
-    }},
-    ""TotalAmount"": {{
-      ""type"": ""number""
-    }},
-    ""Consumer"": {{
-      ""type"": ""object"",
-      ""properties"": {{
-        ""Name"": {{
-          ""type"": ""string""
-        }},
-        ""TaxNumber"": {{
-          ""type"": ""string""
-        }}
-      }}
-    }},
-    ""Supplier"": {{
-      ""type"": ""object"",
-      ""properties"": {{
-        ""Name"": {{
-          ""type"": ""string""
-        }},
-        ""TaxNumber"": {{
-          ""type"": ""string""
-        }},
-        ""BankAccount"": {{
-          ""type"": ""string""
-        }}
-      }}
-    }},
-    ""Products"": {{
-      ""type"": ""array"",
-      ""items"": {{
-        ""type"": ""object"",
-        ""properties"": {{
-          ""ProductCode"": {{
-            ""type"": ""string""
-          }},
-          ""ProductName"": {{
-            ""type"": ""string""
-          }},
-          ""Unit"": {{
-            ""type"": ""string""
-          }},
-          ""Quantity"": {{
-            ""type"": ""number""
-          }},
-          ""Price"": {{
-            ""type"": ""number""
-          }},
-          ""TaxCategory"": {{
-            ""type"": ""string""
-          }},
-          ""RMSProductId"": {{
-            ""type"": [""integer"", ""null""]
-          }},
-          ""RMSProductName"": {{
-            ""type"": [""string"", ""null""]
-          }},
-          ""RMSContainerId"": {{
-            ""type"": [""integer"", ""null""]
-          }},
-          ""RMSContainerName"": {{
-            ""type"": [""string"", ""null""]
-          }}
-        }}
-      }}
-    }},
-    ""TaxCategories"": {{
-      ""type"": ""array"",
-      ""items"": {{
-        ""type"": ""object"",
-        ""properties"": {{
-          ""TaxCategory"": {{
-            ""type"": ""string""
-          }},
-          ""Base"": {{
-            ""type"": ""number""
-          }},
-          ""IVA"": {{
-            ""type"": ""number""
-          }},
-          ""Total"": {{
-            ""type"": ""number""
-          }}
-        }}
-      }}
-    }},
-    ""FilePath"": {{
-      ""type"": ""string""
-    }},
-    ""UploadTime"": {{
-      ""type"": ""string"",
-      ""format"": ""date-time""
-    }},
-    ""Comments"": {{
-      ""type"": ""string""
-    }},
-    ""Status"": {{
-      ""type"": ""string"",
-      ""enum"": [""New"", ""RawFile"", ""QRCodeProcessed"", ""TextProcessed"", ""ProductsMapped"", ""SavedToSystem"", ""Error""]
-    }}
-  }}
-}}
-";
-
-
-
-
-
-        private const string _rmsProductsSchema = $@"
-{{
-  ""$schema"": ""http://json-schema.org/draft-07/schema#"",
-  ""type"": ""array"",
-  ""items"": {{
-    ""type"": ""object"",
-    ""properties"": {{
-      ""Id"": {{
-        ""type"": [""integer"", ""null""]
-      }},
-      ""ConsumerId"": {{
-        ""type"": ""integer""
-      }},
-      ""ConsumerTaxId"": {{
-        ""type"": ""string""
-      }},
-      ""RMSProductExtGuid"": {{
-        ""type"": ""string"",
-        ""format"": ""uuid""
-      }},
-      ""Name"": {{
-        ""type"": ""string""
-      }},
-      ""Description"": {{
-        ""type"": ""string""
-      }},
-      ""Num"": {{
-        ""type"": ""string""
-      }},
-      ""MainUnit"": {{
-        ""type"": ""string"",
-        ""format"": ""uuid""
-      }},
-      ""Type"": {{
-        ""type"": ""string"",
-        ""enum"": [""GOODS""]
-      }},
-      ""Containers"": {{
-        ""type"": ""array"",
-        ""items"": {{
-          ""type"": ""object"",
-          ""properties"": {{
-            ""Id"": {{
-              ""type"": [""integer"", ""null""]
-            }},
-            ""RMSContainerExtGuid"": {{
-              ""type"": ""string"",
-              ""format"": ""uuid""
-            }},
-            ""Num"": {{
-              ""type"": ""string""
-            }},
-            ""Name"": {{
-              ""type"": ""string""
-            }},
-            ""Count"": {{
-              ""type"": ""number""
-            }},
-            ""ContainerWeight"": {{
-              ""type"": ""number""
-            }},
-            ""FullContainerWeight"": {{
-              ""type"": ""number""
-            }}
-          }}
-        }}
-      }},
-        ""Status"": {{
-            ""type"": ""string"",
-            ""enum"": [""FromRMS"", ""NewProduct"", ""NewContainer""]
-        }},
-        ""Comments"": {{
-          ""type"": ""string""
-        }}
-    }}
-  }}
-}}
-";
-
-
-
-        private const string _InvoiceAndRmsProductsSchema = $@"
-        {{
-            ""$schema"": ""http://json-schema.org/draft-07/schema#"",
-            ""type"": ""object"",
-            ""properties"": {{
-                ""Invoice"": {{
-                    ""type"": ""object"",
-                    ""properties"": {{
-                        ""InvoiceNumber"": {{ ""type"": ""string"" }},
-                        ""InvoiceDate"": {{ ""type"": ""string"", ""format"": ""date-time"" }},
-                        ""TotalIVA"": {{ ""type"": ""number"" }},
-                        ""TotalAmount"": {{ ""type"": ""number"" }},
-                        ""Consumer"": {{
-                            ""type"": ""object"",
-                            ""properties"": {{
-                                ""Name"": {{ ""type"": ""string"" }},
-                                ""TaxNumber"": {{ ""type"": ""string"" }}
-                            }}
-                        }},
-                        ""Supplier"": {{
-                            ""type"": ""object"",
-                            ""properties"": {{
-                                ""Name"": {{ ""type"": ""string"" }},
-                                ""TaxNumber"": {{ ""type"": ""string"" }},
-                                ""BankAccount"": {{ ""type"": ""string"" }}
-                            }}
-                        }},
-                        ""Products"": {{
-                            ""type"": ""array"",
-                            ""items"": {{
-                                ""type"": ""object"",
-                                ""properties"": {{
-                                    ""ProductCode"": {{ ""type"": ""string"" }},
-                                    ""ProductName"": {{ ""type"": ""string"" }},
-                                    ""Unit"": {{ ""type"": ""string"" }},
-                                    ""Quantity"": {{ ""type"": ""number"" }},
-                                    ""Price"": {{ ""type"": ""number"" }},
-                                    ""TaxCategory"": {{
-                                        ""type"": ""string""
-                                    }},
-                                    ""RMSProductId"": {{ ""type"": [""integer"", ""null""] }},
-                                    ""RMSProductName"": {{ ""type"": [""string"", ""null""] }},
-                                    ""RMSContainerId"": {{ ""type"": [""integer"", ""null""] }},
-                                    ""RMSContainerName"": {{ ""type"": [""string"", ""null""] }}
-                                }}
-                            }}
-                        }},
-                        ""TaxCategories"": {{
-                            ""type"": ""array"",
-                            ""items"": {{
-                                ""type"": ""object"",
-                                ""properties"": {{
-                                    ""TaxCategory"": {{
-                                        ""type"": ""string""
-                                    }},
-                                    ""Base"": {{ ""type"": ""number"" }},
-                                    ""IVA"": {{ ""type"": ""number"" }},
-                                    ""Total"": {{ ""type"": ""number"" }}
-                                }}
-                            }}
-                        }},
-                        ""FilePath"": {{ ""type"": ""string"" }},
-                        ""UploadTime"": {{ ""type"": ""string"", ""format"": ""date-time"" }},
-                        ""Comments"": {{ ""type"": ""string"" }},
-                        ""Status"": {{
-                            ""type"": ""string"",
-                            ""enum"": [""New"", ""RawFile"", ""QRCodeProcessed"", ""TextProcessed"", ""ProductsMapped"", ""SavedToSystem"", ""Error""]
-                        }}
-                    }}
-                }},
-                ""NewRMSProducts"": {{
-                    ""type"": ""array"",
-                    ""items"": {{
+                ""$schema"": ""http://json-schema.org/draft-07/schema#"",
+                ""type"": ""object"",
+                ""properties"": {{
+                    ""Id"": {{ ""type"": [""integer"", ""null""] }},
+                    ""InvoiceNumber"": {{ ""type"": ""string"" }},
+                    ""InvoiceDate"": {{ ""type"": ""string"", ""format"": ""date-time"" }},
+                    ""TotalIVA"": {{ ""type"": ""number"" }},
+                    ""TotalAmount"": {{ ""type"": ""number"" }},
+                    ""Consumer"": {{
                         ""type"": ""object"",
                         ""properties"": {{
                             ""Name"": {{ ""type"": ""string"" }},
-                            ""Description"": {{ ""type"": ""string"" }},
-                            ""Type"": {{
-                                ""type"": ""string"",
-                                ""enum"": [""GOODS""]
-                            }},
-                            ""Containers"": {{
-                                ""type"": ""array"",
-                                ""items"": {{
-                                    ""type"": ""object"",
-                                    ""properties"": {{
-                                        ""Name"": {{ ""type"": ""string"" }},
-                                        ""Count"": {{ ""type"": ""number"" }}
-                                    }}
-                                }}
-                            }},
-                            ""Status"": {{
-                                ""type"": ""string"",
-                                ""enum"": [""NewProduct"", ""NewContainer""]
-                            }},
-                            ""Comments"": {{
-                              ""type"": ""string""
+                            ""TaxNumber"": {{ ""type"": ""string"" }}
+                        }}
+                    }},
+                    ""Supplier"": {{
+                        ""type"": ""object"",
+                        ""properties"": {{
+                            ""Name"": {{ ""type"": ""string"" }},
+                            ""TaxNumber"": {{ ""type"": ""string"" }},
+                            ""BankAccount"": {{ ""type"": ""string"" }}
+                        }}
+                    }},
+                    ""Products"": {{
+                        ""type"": ""array"",
+                        ""items"": {{
+                            ""type"": ""object"",
+                            ""properties"": {{
+                                ""Id"": {{ ""type"": [""integer"", ""null""] }},
+                                ""ProductCode"": {{ ""type"": ""string"" }},
+                                ""ProductName"": {{ ""type"": ""string"" }},
+                                ""Unit"": {{ ""type"": ""string"" }},
+                                ""Quantity"": {{ ""type"": ""number"" }},
+                                ""Price"": {{ ""type"": ""number"" }},
+                                ""TaxCategory"": {{ ""type"": ""string"", ""enum"": [""Normal"", ""Intermediate"", ""Reduced"", ""Zero""] }}
                             }}
                         }}
-                    }}
+                    }},
+                    ""TaxCategories"": {{
+                        ""type"": ""array"",
+                        ""items"": {{
+                            ""type"": ""object"",
+                            ""properties"": {{
+                                ""TaxCategory"": {{ ""type"": ""string"", ""enum"": [""Normal"", ""Intermediate"", ""Reduced"", ""Zero""] }},
+                                ""Base"": {{ ""type"": ""number"" }},
+                                ""IVA"": {{ ""type"": ""number"" }},
+                                ""Total"": {{ ""type"": ""number"" }}
+                            }}
+                        }}
+                    }},
+                    ""FilePath"": {{ ""type"": ""string"" }},
+                    ""UploadTime"": {{ ""type"": ""string"", ""format"": ""date-time"" }},
+                    ""Comments"": {{ ""type"": ""string"" }},
+                    ""Status"": {{ ""type"": ""string"", ""enum"": [""New"", ""RawFile"", ""QRCodeProcessed"", ""TextProcessed"", ""ProductsMapped"", ""AttentionRequired"", ""SavedToSystem"", ""Error""] }}
                 }}
-            }}
-        }}";
+            }}";
+        
+        private const string _mappedInvoiceSchema = $@"
+                ""$schema"": ""http://json-schema.org/draft-07/schema#"",
+                ""type"": ""object"",
+                ""properties"": {{
+                    ""Id"": {{ ""type"": [""integer"", ""null""] }},
+                    ""InvoiceNumber"": {{ ""type"": ""string"" }},
+                    ""InvoiceDate"": {{ ""type"": ""string"", ""format"": ""date-time"" }},
+                    ""TotalIVA"": {{ ""type"": ""number"" }},
+                    ""TotalAmount"": {{ ""type"": ""number"" }},
+                    ""Consumer"": {{
+                        ""type"": ""object"",
+                        ""properties"": {{
+                            ""Name"": {{ ""type"": ""string"" }},
+                            ""TaxNumber"": {{ ""type"": ""string"" }}
+                        }}
+                    }},
+                    ""Supplier"": {{
+                        ""type"": ""object"",
+                        ""properties"": {{
+                            ""Name"": {{ ""type"": ""string"" }},
+                            ""TaxNumber"": {{ ""type"": ""string"" }},
+                            ""BankAccount"": {{ ""type"": ""string"" }}
+                        }}
+                    }},
+                    ""Products"": {{
+                        ""type"": ""array"",
+                        ""items"": {{
+                            ""type"": ""object"",
+                            ""properties"": {{
+                                ""Id"": {{ ""type"": [""integer"", ""null""] }},
+                                ""ProductCode"": {{ ""type"": ""string"" }},
+                                ""ProductName"": {{ ""type"": ""string"" }},
+                                ""Unit"": {{ ""type"": ""string"" }},
+                                ""Quantity"": {{ ""type"": ""number"" }},
+                                ""Price"": {{ ""type"": ""number"" }},
+                                ""TaxCategory"": {{ ""type"": ""string"", ""enum"": [""Normal"", ""Intermediate"", ""Reduced"", ""Zero""] }},
+                                ""RMSProduct"": {{
+                                    ""type"": ""object"",
+                                    ""properties"": {{
+                                        ""Id"": {{ ""type"": [""integer"", ""null""] }},
+                                        ""ConsumerId"": {{ ""type"": ""integer"" }},
+                                        ""ConsumerTaxId"": {{ ""type"": ""string"" }},
+                                        ""Name"": {{ ""type"": ""string"" }},
+                                        ""Description"": {{ ""type"": ""string"" }},
+                                        ""RMSProductExtGuid"": {{ ""type"": ""string"", ""format"": ""uuid"" }},
+                                        ""Num"": {{ ""type"": ""string"" }},
+                                        ""MainUnit"": {{ ""type"": ""string"", ""format"": ""uuid"" }},
+                                        ""Containers"": {{
+                                            ""type"": ""array"",
+                                            ""items"": {{
+                                                ""type"": ""object"",
+                                                ""properties"": {{
+                                                    ""Id"": {{ ""type"": [""integer"", ""null""] }},
+                                                    ""Num"": {{ ""type"": ""string"" }},
+                                                    ""Name"": {{ ""type"": ""string"" }},
+                                                    ""RMSContainerExtGuid"": {{ ""type"": ""string"", ""format"": ""uuid"" }},
+                                                    ""Count"": {{ ""type"": ""number"" }},
+                                                    ""ContainerWeight"": {{ ""type"": ""number"" }},
+                                                    ""FullContainerWeight"": {{ ""type"": ""number"" }}
+                                                }}
+                                            }}
+                                        }},
+                                        ""Status"": {{ ""type"": ""string"", ""enum"": [""FromRMS"", ""NewProduct"", ""NewContainer""] }},
+                                        ""Comments"": {{ ""type"": ""string"" }}
+                                    }}
+                                }},
+                                ""RMSContainer"": {{
+                                    ""type"": ""object"",
+                                    ""properties"": {{
+                                        ""Id"": {{ ""type"": [""integer"", ""null""] }},
+                                        ""Num"": {{ ""type"": ""string"" }},
+                                        ""Name"": {{ ""type"": ""string"" }},
+                                        ""RMSContainerExtGuid"": {{ ""type"": ""string"", ""format"": ""uuid"" }},
+                                        ""Count"": {{ ""type"": ""number"" }},
+                                        ""ContainerWeight"": {{ ""type"": ""number"" }},
+                                        ""FullContainerWeight"": {{ ""type"": ""number"" }}
+                                    }}
+                                }}
+                            }}
+                        }}
+                    }},
+                    ""TaxCategories"": {{
+                        ""type"": ""array"",
+                        ""items"": {{
+                            ""type"": ""object"",
+                            ""properties"": {{
+                                ""TaxCategory"": {{ ""type"": ""string"", ""enum"": [""Normal"", ""Intermediate"", ""Reduced"", ""Zero""] }},
+                                ""Base"": {{ ""type"": ""number"" }},
+                                ""IVA"": {{ ""type"": ""number"" }},
+                                ""Total"": {{ ""type"": ""number"" }}
+                            }}
+                        }}
+                    }},
+                    ""FilePath"": {{ ""type"": ""string"" }},
+                    ""UploadTime"": {{ ""type"": ""string"", ""format"": ""date-time"" }},
+                    ""Comments"": {{ ""type"": ""string"" }},
+                    ""Status"": {{ ""type"": ""string"", ""enum"": [""New"", ""RawFile"", ""QRCodeProcessed"", ""TextProcessed"", ""ProductsMapped"", ""AttentionRequired"", ""SavedToSystem"", ""Error""] }}
+                }}
+            }}";
 
     }
 }
