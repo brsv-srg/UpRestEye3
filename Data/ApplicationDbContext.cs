@@ -16,7 +16,7 @@ namespace UpRestEye3.Data
         public DbSet<ConsumerDAO> Consumers { get; set; }
         public DbSet<ConnectionParameterDAO> ConnectionParameters { get; set; }
         public DbSet<RMSProductDAO> RMSProducts { get; set; }
-        public DbSet<ContainerDAO> Containers { get; set; }
+        public DbSet<RMSContainerDAO> Containers { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

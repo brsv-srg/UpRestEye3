@@ -37,7 +37,7 @@ namespace UpRestEye3.Services.Recognition
         public GPTEnvironment()
         {
             _invoiceSchema = JsonHelper.GetInvoiceSchema();
-            _invoiceAndRmsProductsSchema = JsonHelper.GetInvoiceAndRmsProductsSchema();
+            _invoiceAndRmsProductsSchema = JsonHelper.GetMappedInvoiceSchema();
         }
 
         public string GetSystemPrompt(InvoiceDTO currentInvoice)

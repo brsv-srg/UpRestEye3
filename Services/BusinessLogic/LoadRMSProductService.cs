@@ -45,7 +45,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
             foreach (var product in products)
             {
-                var rmsProductDTO = RMSProductMappingService.ToDTO(product);
+                var rmsProductDTO = RMSProductHelper.BuildRMSProductDTO(product);
                 rmsProductDTO.ConsumerId = consumerId;
                 rmsProductDTO.Status = RMSProductStatusEnum.FromRMS;
                 await _productService.SaveProductAsync(rmsProductDTO);

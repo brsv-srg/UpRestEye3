@@ -133,10 +133,8 @@ using (var scope = app.Services.CreateScope())
     //Валидация схемы и класса Invoice
     JsonHelper.ValidateInvoiceSchema();
     JsonHelper.ValidateInvoiceObject();
-    JsonHelper.ValidateRMSProductsSchema();
-    JsonHelper.ValidateRMSProductsObject();
-    JsonHelper.ValidateInvoiceAndRMSProductsSchema();
-    JsonHelper.ValidateInvoiceAndRMSProductsObject();
+    JsonHelper.ValidateMappedInvoiceSchema();
+    JsonHelper.ValidateInvoiceObject();
 
     var testInvoiceService = new TestInvoiceService(services);
     await testInvoiceService.RunTests();

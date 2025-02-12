@@ -121,6 +121,38 @@ namespace UpRestEye3.Services.BusinessLogic
 
             return rmsContainerDAO;
         }
+
+
+        public static RMSProductDTO BuildRMSProductDTO(ProductDTO dto)
+        {
+
+            if (dto == null)
+                return null;
+
+            var rmsProductDTO = new RMSProductDTO
+            {
+                RMSProductExtGuid = dto.id,
+                Name = dto.name,
+                Description = dto.description,
+                Num = dto.num,
+                MainUnit = dto.mainUnit,
+                Status = RMSProductStatusEnum.FromRMS,
+                Containers = dto.containers.Select(c => new RMSContainerDTO
+                {
+                    RMSContainerExtGuid = c.id,
+                    Num = c.num,
+                    Name = c.name,
+                    Count = c.count,
+                    ContainerWeight = c.containerWeight,
+                    FullContainerWeight = c.fullContainerWeight
+                }).ToList()
+            };
+
+            return rmsProductDTO;
+
+        }
+
+
     }
 
 }

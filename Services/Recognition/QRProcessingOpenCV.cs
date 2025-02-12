@@ -1,6 +1,5 @@
 ﻿using System.Drawing;
 using System.Drawing.Imaging;
-using AForge.Imaging.Filters;
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
 using System.Runtime.InteropServices;
@@ -31,13 +30,7 @@ namespace UpRestEye3.Services.Recognition
             }
         }
 
-        private async Task<Bitmap> GrayScale2(Bitmap sourceImage)
-        {
-            // Преобразование изображения в оттенки серого
-            var grayFilter = new Grayscale(0.2125, 0.7154, 0.0721);
-            return grayFilter.Apply(sourceImage);
-        }
-
+       
         public ImageDigest GenerateImageDigest(Bitmap sourceImage)
         {
             using Mat matImage = sourceImage.ToMat();

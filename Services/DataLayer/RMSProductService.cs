@@ -31,7 +31,7 @@ namespace UpRestEye3.Services.DataLayer
                 .Where(p => p.ConsumerId == consumerId)
                 .ToListAsync();
 
-            return products.Select(p => RMSProductMappingService.ToDTO(p)).ToList();
+            return products.Select(p => RMSProductHelper.BuildRMSProductDTO(p)).ToList();
         }
 
         public async Task<int?> SaveProductAsync(RMSProductDTO productDto)
@@ -55,7 +55,7 @@ namespace UpRestEye3.Services.DataLayer
                     .Include(p => p.Containers)
                     .FirstOrDefaultAsync(p => p.ConsumerId == productDto.ConsumerId && p.RMSProductExtGuid == productDto.RMSProductExtGuid);
 
-                var newProduct = RMSProductMappingService.ToDAO(productDto);
+                var newProduct = RMSProductHelper.BuildRMSProductDAO(productDto);
                 if (existingProduct == null)
                 {
                     await _context.RMSProducts.AddAsync(newProduct);

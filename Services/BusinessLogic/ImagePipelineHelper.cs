@@ -1,5 +1,4 @@
-﻿using AForge.Imaging.Filters;
-using OpenCvSharp;
+﻿using OpenCvSharp;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Drawing;
