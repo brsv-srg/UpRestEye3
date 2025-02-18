@@ -61,6 +61,7 @@ namespace UpRestEye3.Services.DataLayer
                 .Include(i => i.TaxCategories)
                 .Include(i => i.Products)
                     .ThenInclude(p => p.RMSProduct) // Include RMSProducts through Products
+                        .ThenInclude(p => p.Consumer)
                 .Include(i => i.Products)
                     .ThenInclude(p => p.RMSContainer) // Include RMSContainers through Products
                 .Include(i => i.Supplier)
@@ -165,6 +166,7 @@ namespace UpRestEye3.Services.DataLayer
                         else
                         {
                             newCategory.Id = existingCategory.Id;
+                            newCategory.InvoiceId = existingCategory.InvoiceId;
                             _context.Entry(newCategory).State = EntityState.Modified;
                         }
                     }
@@ -174,6 +176,7 @@ namespace UpRestEye3.Services.DataLayer
                     {
                         if (!newTaxCategories.Any(c => c.TaxCategory == existingCategory.TaxCategory))
                         {
+                            newTaxCategories.Add(existingCategory);
                             _context.Remove(existingCategory);
                             _context.Entry(existingCategory).State = EntityState.Deleted;
 
@@ -198,6 +201,7 @@ namespace UpRestEye3.Services.DataLayer
                         else
                         {
                             newProduct.Id = existingProduct.Id;
+
                             _context.Entry(newProduct).State = EntityState.Modified;
                         }
                     }
@@ -207,6 +211,7 @@ namespace UpRestEye3.Services.DataLayer
                     {
                         if (!newInvoiceProducts.Any(c => c.ProductName == existingProduct.ProductName && c.ProductCode == existingProduct.ProductCode))
                         {
+                            newInvoiceProducts.Add(existingProduct);
                             _context.Remove(existingProduct);
                             _context.Entry(existingProduct).State = EntityState.Deleted;
 
@@ -218,7 +223,7 @@ namespace UpRestEye3.Services.DataLayer
 
 
                     // Update invoice
-                    invoice.Id = existingInvoice.Id;
+                    _context.Entry(existingInvoice).State = EntityState.Detached;
                     _context.Entry(invoice).State = EntityState.Modified;
 
                     

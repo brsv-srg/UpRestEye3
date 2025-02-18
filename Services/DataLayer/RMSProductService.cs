@@ -28,6 +28,7 @@ namespace UpRestEye3.Services.DataLayer
             var products = await _context.RMSProducts
                 .AsNoTracking()
                 .Include(p => p.Containers)
+                .Include(p => p.Consumer)   
                 .Where(p => p.ConsumerId == consumerId)
                 .ToListAsync();
 
@@ -39,29 +40,46 @@ namespace UpRestEye3.Services.DataLayer
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                _context.ChangeTracker.Clear();
 
                 var consumer = await _context.Consumers
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(c => c.Id == productDto.ConsumerId);
+                    .FirstOrDefaultAsync(c => (productDto.ConsumerId != null && c.Id == productDto.ConsumerId) ||
+                                                (productDto.ConsumerId == null && c.TaxNumber == productDto.ConsumerTaxId));
 
                 if (consumer == null)
                 {
                     throw new Exception("Consumer not found");
                 }
+                else
+                {
+                    productDto.ConsumerId = (int)consumer.Id;
+                }
+
+                var newProductDao = RMSProductHelper.BuildRMSProductDAO(productDto);
+                _context.ChangeTracker.Clear();
 
                 var existingProduct = await _context.RMSProducts
                     .AsNoTracking()
                     .Include(p => p.Containers)
-                    .FirstOrDefaultAsync(p => p.ConsumerId == productDto.ConsumerId && p.RMSProductExtGuid == productDto.RMSProductExtGuid);
+                    .FirstOrDefaultAsync(p => p.ConsumerId == newProductDao.ConsumerId && 
+                        
+                                            ((newProductDao.RMSProductExtGuid != null && 
+                                                newProductDao.RMSProductExtGuid != Guid.Empty && 
+                                                p.RMSProductExtGuid == newProductDao.RMSProductExtGuid) ||
 
-                var newProduct = RMSProductHelper.BuildRMSProductDAO(productDto);
+                                            (newProductDao.RMSProductExtGuid == null || 
+                                                newProductDao.RMSProductExtGuid == Guid.Empty) &&
+                                                p.Name == newProductDao.Name));
+
                 if (existingProduct == null)
                 {
-                    await _context.RMSProducts.AddAsync(newProduct);
+                    
+                    await _context.RMSProducts.AddAsync(newProductDao);
+                    _context.Entry(newProductDao.Consumer).State = EntityState.Unchanged;
+
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
-                    return newProduct.Id;
+                    return newProductDao.Id;
                 }
                 else
                 {
@@ -69,7 +87,7 @@ namespace UpRestEye3.Services.DataLayer
 
                     // Update Containers
                     var existingContainers = existingProduct.Containers.ToList();
-                    var newContainers = newProduct.Containers;
+                    var newContainers = newProductDao.Containers;
 
                     // Add or update containers
                     foreach (var newContainer in newContainers)
@@ -100,8 +118,8 @@ namespace UpRestEye3.Services.DataLayer
                         }
                     }
 
-                    newProduct.Id = existingProduct.Id;
-                    _context.Entry(newProduct).State = EntityState.Modified;
+                    newProductDao.Id = existingProduct.Id;
+                    _context.Entry(newProductDao).State = EntityState.Modified;
 
 
                     await _context.SaveChangesAsync();

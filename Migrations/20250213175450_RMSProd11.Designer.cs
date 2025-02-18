@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UpRestEye3.Data;
 
@@ -10,9 +11,11 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250213175450_RMSProd11")]
+    partial class RMSProd11
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
@@ -386,9 +389,10 @@ namespace UpRestEye3.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Num")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("RMSContainerExtGuid")
+                    b.Property<Guid>("RMSContainerExtGuid")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("RMSProductId")
@@ -407,6 +411,10 @@ namespace UpRestEye3.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Comments")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("ConsumerId")
                         .HasColumnType("INTEGER");
 
@@ -422,9 +430,10 @@ namespace UpRestEye3.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Num")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("RMSProductExtGuid")
+                    b.Property<Guid>("RMSProductExtGuid")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Status")

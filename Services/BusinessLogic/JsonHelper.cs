@@ -267,7 +267,13 @@ namespace UpRestEye3.Services.BusinessLogic
         {
             return _mappedInvoiceSchema;
         }
+        
+        public static string GetMappedProductSchema()
+        {
+            return _mappedProductsSchema;
+        }
 
+        
 
 
         public static void ValidateInvoiceSchema()
@@ -380,6 +386,7 @@ namespace UpRestEye3.Services.BusinessLogic
         }
 
         private const string _invoiceSchema = $@"
+            {{
                 ""$schema"": ""http://json-schema.org/draft-07/schema#"",
                 ""type"": ""object"",
                 ""properties"": {{
@@ -438,6 +445,7 @@ namespace UpRestEye3.Services.BusinessLogic
             }}";
         
         private const string _mappedInvoiceSchema = $@"
+            {{
                 ""$schema"": ""http://json-schema.org/draft-07/schema#"",
                 ""type"": ""object"",
                 ""properties"": {{
@@ -499,8 +507,7 @@ namespace UpRestEye3.Services.BusinessLogic
                                                 }}
                                             }}
                                         }},
-                                        ""Status"": {{ ""type"": ""string"", ""enum"": [""FromRMS"", ""NewProduct"", ""NewContainer""] }},
-                                        ""Comments"": {{ ""type"": ""string"" }}
+                                        ""Status"": {{ ""type"": ""string"", ""enum"": [""FromRMS"", ""NewProduct"", ""NewContainer""] }}
                                     }}
                                 }},
                                 ""RMSContainer"": {{
@@ -514,7 +521,8 @@ namespace UpRestEye3.Services.BusinessLogic
                                         ""ContainerWeight"": {{ ""type"": ""number"" }},
                                         ""FullContainerWeight"": {{ ""type"": ""number"" }}
                                     }}
-                                }}
+                                }},
+                                ""Comments"": {{ ""type"": ""string"" }}
                             }}
                         }}
                     }},
@@ -536,6 +544,74 @@ namespace UpRestEye3.Services.BusinessLogic
                     ""Status"": {{ ""type"": ""string"", ""enum"": [""New"", ""RawFile"", ""QRCodeProcessed"", ""TextProcessed"", ""ProductsMapped"", ""AttentionRequired"", ""SavedToSystem"", ""Error""] }}
                 }}
             }}";
+
+
+        private const string _mappedProductsSchema = $@"
+          {{
+            ""$schema"": ""http://json-schema.org/draft-07/schema#"",
+            ""type"": ""object"",
+            ""properties"": 
+            {{
+                ""MatchedInvoiceProducts"": 
+                {{
+                    ""type"": ""array"",
+                    ""items"": {{
+                        ""type"": ""object"",
+                        ""properties"": {{
+                            ""InvoiceProduct"": {{
+                                ""type"": ""object"",
+                                ""description"": ""Invoice product"",
+                                ""properties"": {{
+                                    ""Id"": {{ ""type"": ""integer"", ""description"": ""ID of the invoice product"" }},
+                                    ""ProductCode"": {{ ""type"": ""string"", ""description"": ""Product code from the supplier"" }},
+                                    ""ProductName"": {{ ""type"": ""string"", ""description"": ""Product name from the supplier"" }},
+                                    ""Unit"": {{ ""type"": ""string"", ""description"": ""Unit of measurement"" }}
+                                }}
+                            }},
+                            ""RMSProduct"": {{
+                                ""type"": ""object"",
+                                ""description"": ""A matched (if found) or new product from the restaurant system"",
+                                ""properties"": {{
+                                    ""Id"": {{ ""type"": [""integer"",""null""], ""description"": ""ID of the RMS product"" }},
+                                    ""Name"": {{ ""type"": ""string"", ""description"": ""The name of the product in the restaurant system"" }},
+                                    ""Description"": {{ ""type"": ""string"", ""description"": ""The description of the product in the restaurant system"" }},
+                                    ""Num"": {{ ""type"": [""string"",""null""], ""description"": ""Product item in the restaurant system"" }},
+                                    ""Unit"": {{ ""type"": ""string"", ""description"": ""Unit of measurement"" }},
+                                    ""Containers"": {{
+                                        ""type"": ""array"",
+                                        ""description"": ""List of containers for the RMS product"",
+                                        ""items"": {{
+                                            ""type"": ""object"",
+                                            ""properties"": {{
+                                                ""Id"": {{ ""type"": [""integer"",""null""], ""description"": ""Container ID"" }},
+                                                ""Num"": {{ ""type"": [""string"",""null""], ""description"": ""Container item in the restaurant system"" }},
+                                                ""Name"": {{ ""type"": ""string"", ""description"": ""Container name in the restaurant system"" }},
+                                                ""Count"": {{ ""type"": ""number"", ""description"": ""Quantity, volume"" }}
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }},
+                            ""RMSContainer"": {{
+                                ""type"": ""object"",
+                                ""description"": ""Mapping of the RMS container"",
+                                ""properties"": {{
+                                    ""Id"": {{ ""type"": [""integer"",""null""], ""description"": ""Container ID"" }},
+                                    ""Num"": {{ ""type"": [""string"",""null""], ""description"": ""Container item in the restaurant system"" }},
+                                    ""Name"": {{ ""type"": ""string"", ""description"": ""Container name in the restaurant system"" }},
+                                    ""Count"": {{ ""type"": ""number"", ""description"": ""Quantity, volume"" }}
+                                }}
+                            }},
+                            ""NewRMSProduct"": {{ ""type"": ""boolean"", ""description"": ""Whether a new product has been created"" }},
+                            ""NewRMSContainer"": {{ ""type"": ""boolean"", ""description"": ""Whether a new container has been created"" }},
+                            ""Comments"": {{ ""type"": ""string"", ""description"": ""Comments about the mapping"" }}
+                        }},
+                        ""required"": [""InvoiceProduct"", ""RMSProduct"", ""RMSContainer"", ""NewRMSProduct"", ""NewRMSContainer"", ""Comments""],
+                        ""additionalProperties"": false
+                    }}
+                }}
+            }}
+        }}";
 
     }
 }

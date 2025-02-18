@@ -118,8 +118,16 @@ namespace UpRestEye3.Services.BusinessLogic
                 {
                     // Внесение изменений в существующую накладную и сохранение изменений в базу данных
                     InvoiceHelper.CopyInvoice(workingInvoice, recognisedInvoice);
+                    invoiceId = await _invoiceService.SaveInvoiceAsync(workingInvoice);
 
-                    await _invoiceService.SaveInvoiceAsync(workingInvoice);
+                    //invoiceId = await _invoiceService.SaveInvoiceAsync(recognisedInvoice);
+                    
+                    if (invoiceId == null)
+                        throw new Exception("Failed to save invoice.");
+
+                    workingInvoice = await _invoiceService.GetInvoiceDTOByIdAsync((int)invoiceId);
+
+
                 }
                 else
                     throw new Exception("Failed to recognize text.");
@@ -132,29 +140,33 @@ namespace UpRestEye3.Services.BusinessLogic
 
                 // Мапинг на продукты из RMS, подготовка к сохранению в RMS  
                 var mappingResult = await _invoiceProcessor.MappingToRMSProductsAsync(workingInvoice, rmsProducts);
+                var mappedInvoice = mappingResult.Item1;
+                var newRmsProducts = mappingResult.Item2;
 
                 // Если Invoice замеплен и есть новые продукты, то связываем их с Invoice Products
-                if (mappingResult != null)
+                if (mappedInvoice != null)
                 {
-                    workingInvoice.Status = InvoiceStatusEnum.ProductsMapped;
 
-                    foreach (var mappedProducts in mappingResult.Products)
+                    foreach (var newRMSProduct in newRmsProducts)
                     {
-                        if(mappedProducts.RMSProduct == null)
-                        { 
-                            workingInvoice.Status = InvoiceStatusEnum.AttentionRequired;
-                            continue;
-                        }
-                        
-                        if (mappedProducts.RMSProduct.Status == RMSProductStatusEnum.NewProduct ||
-                            mappedProducts.RMSProduct.Status == RMSProductStatusEnum.NewContainer)
-                        {
-                            mappedProducts.RMSProduct.Id = await _rmsProductService.SaveProductAsync(mappedProducts.RMSProduct);
-                        }
-                    }
+                        // Сохранение нового продукта в БД
+                        newRMSProduct.Id = await _rmsProductService.SaveProductAsync(newRMSProduct);
+                        if (newRMSProduct.Id == null)
+                            throw new Exception("Failed to save product.");
 
-                    // Внесение изменений в накладную и сохранение изменений в базу данных
-                    await _invoiceService.SaveInvoiceAsync(workingInvoice);
+                        // Сохраняем ID сохраненного продукта в накладной
+                        var rmsToSaveId = mappedInvoice.Products.Where(p => p.RMSProduct.Name == newRMSProduct.Name && p.RMSProduct.Id == null).FirstOrDefault();
+                        if (rmsToSaveId != null)
+                            rmsToSaveId.Id = (int)newRMSProduct.Id;
+
+                    }
+                   
+                    // Внесение изменений в существующую накладную и сохранение изменений в базу данных
+                    InvoiceHelper.CopyInvoice(workingInvoice, mappedInvoice);
+                    invoiceId = await _invoiceService.SaveInvoiceAsync(workingInvoice);
+                    if (invoiceId == null)
+                        throw new Exception("Failed to save invoice.");
+
                 }
                 else
                     throw new Exception("Failed to map products.");

@@ -29,7 +29,6 @@ namespace UpRestEye3.Services.BusinessLogic
                 Num = rmsProductDAO.Num,
                 MainUnit = rmsProductDAO.MainUnit,
                 Status = rmsProductDAO.Status,
-                Comments = rmsProductDAO.Comments,
                 Containers = rmsProductDAO.Containers.Select(c => new RMSContainerDTO
                 {
                     Id = c.Id,
@@ -54,7 +53,7 @@ namespace UpRestEye3.Services.BusinessLogic
             var rmsProductDAO = new RMSProductDAO
             {
                 Id = rmsProductDTO.Id,
-                ConsumerId = rmsProductDTO.ConsumerId,
+                ConsumerId = (int)rmsProductDTO.ConsumerId,
                 Consumer = new ConsumerDAO
                 {
                     Id = rmsProductDTO.ConsumerId,
@@ -66,7 +65,6 @@ namespace UpRestEye3.Services.BusinessLogic
                 Num = rmsProductDTO.Num,
                 MainUnit = rmsProductDTO.MainUnit,
                 Status = rmsProductDTO.Status,
-                Comments = rmsProductDTO.Comments,
                 Containers = rmsProductDTO.Containers.Select(c => new RMSContainerDAO
                 {
                     Id = c.Id,
@@ -80,6 +78,37 @@ namespace UpRestEye3.Services.BusinessLogic
             };
 
             return rmsProductDAO;
+        }        
+
+        public static RMSProductDTO? CopyRMSProductDTO(RMSProductDTO? rmsProductDTO)
+        {
+            if (rmsProductDTO == null)
+                return null;
+
+            var _rmsProductDAO = new RMSProductDTO
+            {
+                Id = rmsProductDTO.Id,
+                ConsumerId = rmsProductDTO.ConsumerId,
+                ConsumerTaxId = rmsProductDTO.ConsumerTaxId,
+                Name = rmsProductDTO.Name,
+                Description = rmsProductDTO.Description,
+                RMSProductExtGuid = rmsProductDTO.RMSProductExtGuid,
+                Num = rmsProductDTO.Num,
+                MainUnit = rmsProductDTO.MainUnit,
+                Status = rmsProductDTO.Status,
+                Containers = rmsProductDTO.Containers.Select(c => new RMSContainerDTO
+                {
+                    Id = c.Id,
+                    Num = c.Num,
+                    Name = c.Name,
+                    RMSContainerExtGuid = c.RMSContainerExtGuid,
+                    Count = c.Count,
+                    ContainerWeight = c.ContainerWeight,
+                    FullContainerWeight = c.FullContainerWeight
+                }).ToList()
+            };
+
+            return rmsProductDTO;
         }        
         
         

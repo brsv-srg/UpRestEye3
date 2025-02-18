@@ -50,6 +50,7 @@ namespace UpRestEye3.Models.DTO
         public TaxCategoryEnum TaxCategory { get; set; } = TaxCategoryEnum.Intermediate;
         public RMSProductDTO? RMSProduct { get; set; }
         public RMSContainerDTO? RMSContainer { get; set; }
+        public string Comments { get; set; } = string.Empty;
     }
 
 }

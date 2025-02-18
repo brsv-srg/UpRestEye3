@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations;
 using UpRestEye3.Models.DAO;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DTO;
+using System.Linq.Expressions;
 
 
 
@@ -102,6 +103,7 @@ namespace UpRestEye3.Services.BusinessLogic
             }
             if (invoiceSource.Consumer != null)
             {
+                invoiceTarget.Consumer.Id = invoiceSource.Consumer.Id;
                 invoiceTarget.Consumer.Name = invoiceSource.Consumer.Name;
                 invoiceTarget.Consumer.TaxNumber = invoiceSource.Consumer.TaxNumber;
             }
@@ -204,7 +206,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 return null;
 
             var invoiceDTO = new InvoiceDTO();
-
+            invoiceDTO.Id = invoiceDAO.Id;
             invoiceDTO.InvoiceNumber = invoiceDAO.InvoiceNumber;
             invoiceDTO.InvoiceDate = invoiceDAO.InvoiceDate;
             invoiceDTO.TotalIVA = invoiceDAO.TotalIVA;
@@ -213,6 +215,7 @@ namespace UpRestEye3.Services.BusinessLogic
             {
                 invoiceDTO.Consumer = new ConsumerDTO
                 {
+                    Id = invoiceDAO.Consumer.Id,
                     Name = invoiceDAO.Consumer.Name,
                     TaxNumber = invoiceDAO.Consumer.TaxNumber
                 };
@@ -238,7 +241,8 @@ namespace UpRestEye3.Services.BusinessLogic
                 Price = p.Price,
                 TaxCategory = p.TaxCategory,
                 RMSProduct = RMSProductHelper.BuildRMSProductDTO(p.RMSProduct),
-                RMSContainer = RMSProductHelper.BuildRMSContainerDTO(p.RMSContainer)
+                RMSContainer = RMSProductHelper.BuildRMSContainerDTO(p.RMSContainer),
+                Comments = p.Comments
 
             }).ToList();
 
@@ -259,63 +263,73 @@ namespace UpRestEye3.Services.BusinessLogic
 
         public static InvoiceDAO? BuildInvoiceDAO(InvoiceDTO? invoiceDTO)
         {
-            if (invoiceDTO == null)
-                return null;
-            var invoiceDAO = new InvoiceDAO();
-            invoiceDAO.Id = invoiceDTO.Id;
-            invoiceDAO.InvoiceNumber = invoiceDTO.InvoiceNumber;
-            invoiceDAO.InvoiceDate = invoiceDTO.InvoiceDate;
-            invoiceDAO.TotalIVA = invoiceDTO.TotalIVA;
-            invoiceDAO.TotalAmount = invoiceDTO.TotalAmount;
-            if (invoiceDTO.Consumer != null)
+            try
             {
-                invoiceDAO.Consumer = new ConsumerDAO
+                if (invoiceDTO == null)
+                    return null;
+                var invoiceDAO = new InvoiceDAO();
+                invoiceDAO.Id = invoiceDTO.Id;
+                invoiceDAO.InvoiceNumber = invoiceDTO.InvoiceNumber;
+                invoiceDAO.InvoiceDate = invoiceDTO.InvoiceDate;
+                invoiceDAO.TotalIVA = invoiceDTO.TotalIVA;
+                invoiceDAO.TotalAmount = invoiceDTO.TotalAmount;
+                if (invoiceDTO.Consumer != null)
                 {
-                    Name = invoiceDTO.Consumer.Name,
-                    TaxNumber = invoiceDTO.Consumer.TaxNumber
+                    invoiceDAO.Consumer = new ConsumerDAO
+                    {
+                        Id = invoiceDTO.Consumer.Id,
+                        Name = invoiceDTO.Consumer.Name,
+                        TaxNumber = invoiceDTO.Consumer.TaxNumber
+                    };
                 };
-            };
-            if (invoiceDTO.Supplier != null)
-            {
-                invoiceDAO.Supplier = new SupplierDAO
+                if (invoiceDTO.Supplier != null)
                 {
-                    Name = invoiceDTO.Supplier.Name,
-                    TaxNumber = invoiceDTO.Supplier.TaxNumber,
-                    BankAccount = invoiceDTO.Supplier.BankAccount
+                    invoiceDAO.Supplier = new SupplierDAO
+                    {
+                        Name = invoiceDTO.Supplier.Name,
+                        TaxNumber = invoiceDTO.Supplier.TaxNumber,
+                        BankAccount = invoiceDTO.Supplier.BankAccount
+                    };
                 };
-            };
 
-            // DAO = DTO
-            invoiceDAO.Products = invoiceDTO.Products.Select(p => new InvoiceProductDAO
+                // DAO = DTO
+                invoiceDAO.Products = invoiceDTO.Products.Select(p => new InvoiceProductDAO
+                {
+                    Id = p.Id,
+                    ProductCode = p.ProductCode,
+                    ProductName = p.ProductName,
+                    Unit = p.Unit,
+                    Quantity = p.Quantity,
+                    Price = p.Price,
+                    TaxCategory = p.TaxCategory,
+
+                    RMSProductId = p.RMSProduct != null ? p.RMSProduct.Id : null,
+                    RMSProduct = RMSProductHelper.BuildRMSProductDAO(p.RMSProduct),
+
+                    RMSContainerId = p.RMSContainer != null ? p.RMSContainer.Id : null,
+                    RMSContainer = RMSProductHelper.BuildRMSContainerDAO(p.RMSContainer),
+                    Comments = p.Comments
+                }).ToList();
+
+
+
+                invoiceDAO.TaxCategories = invoiceDTO.TaxCategories.Select(t => new TaxesDAO
+                {
+                    TaxCategory = t.TaxCategory,
+                    Base = t.Base,
+                    IVA = t.IVA,
+                    Total = t.Total
+                }).ToList();
+                invoiceDAO.FilePath = invoiceDTO.FilePath;
+                invoiceDAO.UploadTime = invoiceDTO.UploadTime;
+                invoiceDAO.Comments = invoiceDTO.Comments;
+                invoiceDAO.Status = invoiceDTO.Status;
+                return invoiceDAO;
+            }
+            catch (Exception ex)
             {
-                ProductCode = p.ProductCode,
-                ProductName = p.ProductName,
-                Unit = p.Unit,
-                Quantity = p.Quantity,
-                Price = p.Price,
-                TaxCategory = p.TaxCategory,
-
-                RMSProductId = p.RMSProduct != null ? p.RMSProduct.Id : null,
-                RMSProduct = RMSProductHelper.BuildRMSProductDAO(p.RMSProduct),
-                
-                RMSContainerId = p.RMSContainer != null ? p.RMSContainer.Id : null,
-                RMSContainer = RMSProductHelper.BuildRMSContainerDAO(p.RMSContainer)
-            }).ToList();
-
-
-
-            invoiceDAO.TaxCategories = invoiceDTO.TaxCategories.Select(t => new TaxesDAO
-            {
-                TaxCategory = t.TaxCategory,
-                Base = t.Base,
-                IVA = t.IVA,
-                Total = t.Total
-            }).ToList();
-            invoiceDAO.FilePath = invoiceDTO.FilePath;
-            invoiceDAO.UploadTime = invoiceDTO.UploadTime;
-            invoiceDAO.Comments = invoiceDTO.Comments;
-            invoiceDAO.Status = invoiceDTO.Status;
-            return invoiceDAO;
+                throw new Exception("Error in BuildInvoiceDAO", ex);
+            }
         }
     }
 
