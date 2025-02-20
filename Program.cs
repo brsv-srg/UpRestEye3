@@ -13,6 +13,7 @@ using UpRestEye3.Services.DataLayer;
 using UpRestEye3.Services.MLServices;
 using UpRestEye3.Services.Recognition;
 using UpRestEye3.Services.Account;
+using UpRestEye3.Controllers;
 
 
 // TODO добавить логирование
@@ -117,6 +118,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+app.MapHub<NotificationHub>("/notificationHub");
 
 app.MapAdditionalIdentityEndpoints();
 
