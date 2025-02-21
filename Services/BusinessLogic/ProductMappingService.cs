@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+﻿ using System.Drawing;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Services.MLServices;
@@ -12,17 +12,17 @@ namespace UpRestEye3.Services.BusinessLogic
 
 
 
-    public interface IInvoiceProcessor
+    public interface IProductMappingService
     {
         Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts);
     }
 
     // Класс обработки изображения
-    public class InvoiceProcessor : IInvoiceProcessor
+    public class ProductMappingService : IProductMappingService
     {
         private readonly IGPTService2 _gptParser;
 
-        public InvoiceProcessor(IGPTService2 gptParser)
+        public ProductMappingService(IGPTService2 gptParser)
         {
             _gptParser = gptParser;
         }

@@ -180,50 +180,55 @@
 
     private async Task InitializeDataAsync()
     {
-
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         appUser = await UserManager.GetUserAsync(user);
 
         if (user.Identity.IsAuthenticated && appUser?.ConsumerId != null)
         {
-            var baseUri = Navigation.BaseUri;
-            if (baseUri.EndsWith('/'))
-            {
-                baseUri = baseUri.Substring(0, baseUri.Length - 1);
-            }
-
-            try
-            {
-                invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices/{appUser.ConsumerId}"); 
-            }
-            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                Console.WriteLine("Invoices not found.");
-
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"An error occurred: {ex.Message}");
-            }
+            await LoadInvoicesAsync();
         }
         else
         {
             var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
             Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
         }
-
     }
-    private async Task InitializeSignalRAsync() // Добавлено: Метод для инициализации SignalR
+
+
+    private async Task LoadInvoicesAsync()
+    {
+        var baseUri = Navigation.BaseUri;
+        if (baseUri.EndsWith('/'))
+        {
+            baseUri = baseUri.Substring(0, baseUri.Length - 1);
+        }
+
+        try
+        {
+            invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices/{appUser.ConsumerId}");
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            Console.WriteLine("Invoices not found.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+
+    private async Task InitializeSignalRAsync()
     {
         hubConnection = new HubConnectionBuilder()
             .WithUrl(Navigation.ToAbsoluteUri("/notificationHub"))
             .Build();
 
-        hubConnection.On<string>("ReceiveMessage", (message) =>
+        hubConnection.On<string>("ReceiveMessage", async (message) =>
         {
             uploadMessage = message;
             uploadMessageClass = "alert-info";
+            await LoadInvoicesAsync(); // Обновление списка инвойсов при получении сообщения
             InvokeAsync(StateHasChanged);
         });
 
@@ -258,20 +263,19 @@
                 var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/upload", content);
 
 
-                if (response.IsSuccessStatusCode)
-                {
-                    Console.WriteLine("File uploaded successfully.");
-                    uploadMessage = "File uploaded successfully.";
-                    uploadMessageClass = "alert-success";
-                    invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices/{appUser.ConsumerId}");
-
-                }
-                else
-                {
-                    Console.WriteLine("File upload failed.");
-                    uploadMessage = "File upload failed.";
-                    uploadMessageClass = "alert-danger";
-                }
+                // if (response.IsSuccessStatusCode)
+                // {
+                //     Console.WriteLine("File uploaded successfully.");
+                //     uploadMessage = "File uploaded successfully.";
+                //     uploadMessageClass = "alert-success";
+                //     await LoadInvoicesAsync(); 
+                // }
+                // else
+                // {
+                //     Console.WriteLine("File upload failed.");
+                //     uploadMessage = "File upload failed.";
+                //     uploadMessageClass = "alert-danger";
+                // }
             }
             else
             {

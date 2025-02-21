@@ -11,7 +11,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
 
 
-    public interface IImageFileProcessor
+    public interface IImageRecognitionService
     {
         Task<(QRCodeData?, Bitmap?)> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath);
         Task<(QRCodeData?, Bitmap?)> DeepQRRecognitionAsync(Bitmap sourceImage, string imagePath);
@@ -20,16 +20,16 @@ namespace UpRestEye3.Services.BusinessLogic
     }
 
     // Класс обработки изображения
-    public class ImageProcessor : IImageFileProcessor
+    public class ImageRecognitionService : IImageRecognitionService
     {
         private readonly ILocalMLService _predictor;
         private readonly IGPTService _gptParser;
         private readonly IQRProcessing _qrProcessor;
         private readonly IEnumerable<IQRRecognition> _qrRecognizers;
         private readonly ITextRecognition _textRecognizer;
-        private readonly IImageProcessingPipelineHelper _pipelineHelper;
+        private readonly IImagePipelineHelper _pipelineHelper;
 
-        public ImageProcessor(IQRProcessing qrProcessor, ILocalMLService predictor, IGPTService gptParser, IEnumerable<IQRRecognition> qrRecognizers, ITextRecognition textRecognizer, IImageProcessingPipelineHelper pipelineHelper)
+        public ImageRecognitionService(IQRProcessing qrProcessor, ILocalMLService predictor, IGPTService gptParser, IEnumerable<IQRRecognition> qrRecognizers, ITextRecognition textRecognizer, IImagePipelineHelper pipelineHelper)
         {
             _predictor = predictor;
             _qrProcessor = qrProcessor;

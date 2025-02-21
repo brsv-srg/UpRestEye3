@@ -15,10 +15,10 @@ namespace UpRestEye3.Controllers
     public class InvoicesFilesController : ControllerBase
     {
         private readonly IInvoiceService _invoiceService;
-        private readonly IInvoiceFileService _imageProcessor;
+        private readonly IImageFileProcessor _imageProcessor;
         private readonly IHubContext<NotificationHub> _hubContext;
 
-        public InvoicesFilesController(IInvoiceService invoiceService, IInvoiceFileService imageProcessor, IHubContext<NotificationHub> hubContext)
+        public InvoicesFilesController(IInvoiceService invoiceService, IImageFileProcessor imageProcessor, IHubContext<NotificationHub> hubContext)
         {
             _invoiceService = invoiceService;
             _imageProcessor = imageProcessor;
@@ -38,30 +38,9 @@ namespace UpRestEye3.Controllers
                 await file.CopyToAsync(stream);
             }
 
-            _ = ProcessFileAsync(filePath, consumerId);
-
+            _ = _imageProcessor.FileProcessAsync(filePath, consumerId); 
 
             return Ok(new { message = "File uploaded successfully, processing started." });
-        }
-
-        private async Task ProcessFileAsync(string filePath, int consumerId)
-        {
-            // Notify clients that processing has started
-            await _hubContext.Clients.All.SendAsync("ReceiveMessage", "File processing started.");
-
-
-            var result = await _imageProcessor.FileProcessAsync(filePath, consumerId); // ExtProcessImageAsync(filePath);
-
-
-            if (result)
-            {
-                await _hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice image recognized successfully.");
-            }
-            else
-            {
-                await _hubContext.Clients.All.SendAsync("ReceiveMessage", "Failed to recognize invoice image.");
-            }
-
         }
     }
 }

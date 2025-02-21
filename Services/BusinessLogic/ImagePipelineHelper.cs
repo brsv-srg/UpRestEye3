@@ -7,7 +7,7 @@ using UpRestEye3.Models.BLO;
 
 namespace UpRestEye3.Services.BusinessLogic
 {
-    public interface IImageProcessingPipelineHelper
+    public interface IImagePipelineHelper
     {
         List<(ImageDigest.ImageType, ImageProcessingPipeline)> GetPipelines();
         ImageProcessingPipeline GetCalculatedPipeline(ImageDigest digest);
@@ -15,7 +15,7 @@ namespace UpRestEye3.Services.BusinessLogic
     }
 
     // Класс обработки изображения
-    public class ImagePipelineHelper : IImageProcessingPipelineHelper
+    public class ImagePipelineHelper : IImagePipelineHelper
     {
         private readonly List<(ImageDigest.ImageType, ImageProcessingPipeline)> _pipelines;
 

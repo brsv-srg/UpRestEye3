@@ -4,33 +4,26 @@ using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.DataLayer;
 using UpRestEye3.Services.Account;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using UpRestEye3.Controllers;
 
 namespace UpRestEye3.Services.BusinessLogic
 {
-    public interface IInvoiceFileService
+    public interface IImageFileProcessor
     {
         Task<bool> FileProcessAsync(string imagePath, int consumerID);
     }
 
     // Класс обработки изображения
-    public class FileService : IInvoiceFileService
+    public class ImageFileProcessor : IImageFileProcessor
     {
-        private readonly IImageFileProcessor _imageProcessor;
-        private readonly IInvoiceService _invoiceService;
-        private readonly IInvoiceProcessor _invoiceProcessor;
-        private readonly IRMSProductService _rmsProductService;
-        private readonly IConsumerService _consumerService;
         private readonly IServiceScopeFactory _serviceScopeFactory; // Добавлено: IServiceScopeFactory
 
 
 
-        public FileService(IInvoiceService invoiceService, IImageFileProcessor imageProcessor, IInvoiceProcessor invoiceProcessor, IRMSProductService rmsProductService, IConsumerService consumerService, IServiceScopeFactory serviceScopeFactory)
+        public ImageFileProcessor(IServiceScopeFactory serviceScopeFactory)
         {
-            _invoiceService = invoiceService;
-            _imageProcessor = imageProcessor;
-            _invoiceProcessor = invoiceProcessor;
-            _rmsProductService = rmsProductService;
-            _consumerService = consumerService;
             _serviceScopeFactory = serviceScopeFactory;
         }
 
@@ -42,9 +35,10 @@ namespace UpRestEye3.Services.BusinessLogic
             {
                 var invoiceService = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
                 var consumerService = scope.ServiceProvider.GetRequiredService<IConsumerService>();
-                var imageProcessor = scope.ServiceProvider.GetRequiredService<IImageFileProcessor>();
-                var invoiceProcessor = scope.ServiceProvider.GetRequiredService<IInvoiceProcessor>();
+                var imageProcessor = scope.ServiceProvider.GetRequiredService<IImageRecognitionService>();
+                var invoiceProcessor = scope.ServiceProvider.GetRequiredService<IProductMappingService>();
                 var rmsProductService = scope.ServiceProvider.GetRequiredService<IRMSProductService>();
+                var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<NotificationHub>>(); 
 
                 var workingInvoice = new InvoiceDTO();
 
@@ -54,7 +48,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     if (consumerId == null)
                         throw new Exception("ConsumerId not found");
 
-                    var consumer = await _consumerService.GetConsumerDTOByIdAsync(consumerId);
+                    var consumer = await consumerService.GetConsumerDTOByIdAsync(consumerId);
 
                     if (consumer == null)
                         throw new Exception("ConsumerId not found");
@@ -68,12 +62,13 @@ namespace UpRestEye3.Services.BusinessLogic
                         Name = consumer.Name,
                         TaxNumber = consumer.TaxNumber
                     };
-                    var invoiceId = await _invoiceService.SaveInvoiceAsync(workingInvoice);
+                    var invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
 
                     if (invoiceId == null)
                         throw new Exception("Failed to save invoice.");
-                    else
-                        workingInvoice.Id = invoiceId;
+                    
+                    workingInvoice.Id = invoiceId;
+                    await hubContext.Clients.All.SendAsync("ReceiveMessage", "File saved successfully.");
 
 
                     // Загрузка изображения
@@ -83,7 +78,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
 
                     // Распознование QR-кода "в лоб" и с помощью предсказания
-                    var (basicQRCode, basicProcessedImage) = await _imageProcessor.BasicQRRecognitionAsync(image, filePath);
+                    var (basicQRCode, basicProcessedImage) = await imageProcessor.BasicQRRecognitionAsync(image, filePath);
 
 
                     if (basicQRCode != null)
@@ -96,16 +91,19 @@ namespace UpRestEye3.Services.BusinessLogic
 
                         // Внесение изменений в существующую накладную и схранение изменений в базу данных
                         InvoiceHelper.UpdateInvoiceByQR(workingInvoice, basicQRCode, filePath);
-                        await _invoiceService.SaveInvoiceAsync(workingInvoice);
+                        await invoiceService.SaveInvoiceAsync(workingInvoice);
 
                         // Если есть улучшенное изображение берем его
                         if (basicProcessedImage != null)
                             image = basicProcessedImage;
+                        
+                        await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognized successfully.");
+
                     }
                     else
                     {
                         // Если QR-код в лоб и с предсказанием не распознан, идем на распознавание через подбор вариантов
-                        var (deepQRCode, deepProcessedImage) = await _imageProcessor.DeepQRRecognitionAsync(image, filePath);
+                        var (deepQRCode, deepProcessedImage) = await imageProcessor.DeepQRRecognitionAsync(image, filePath);
                         if (deepQRCode != null)
                         {
                             // Проверяем тот ли Consumer
@@ -115,29 +113,31 @@ namespace UpRestEye3.Services.BusinessLogic
                             // Внесение изменений в существующую накладную и сохранение изменений в базу данных
                             InvoiceHelper.UpdateInvoiceByQR(workingInvoice, deepQRCode, filePath);
 
-                            await _invoiceService.SaveInvoiceAsync(workingInvoice);
+                            await invoiceService.SaveInvoiceAsync(workingInvoice);
 
                             // Если есть улучшенное изображение берем его
                             if (deepProcessedImage != null)
                                 image = deepProcessedImage;
+                            
+                            await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognized successfully.");
                         }
                     }
                     // todo передавать и идентификатор инвойса
                     // Распознование текста и формирование полной накладной  
-                    var recognisedInvoice = await _imageProcessor.DeepTextRecognitionAsync(image, workingInvoice);
+                    var recognisedInvoice = await imageProcessor.DeepTextRecognitionAsync(image, workingInvoice);
                     // Если текст распознан, то сохраняем полный документ
                     if (recognisedInvoice != null)
                     {
                         // Внесение изменений в существующую накладную и сохранение изменений в базу данных
                         InvoiceHelper.CopyInvoice(workingInvoice, recognisedInvoice);
-                        invoiceId = await _invoiceService.SaveInvoiceAsync(workingInvoice);
+                        invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
 
-                        //invoiceId = await _invoiceService.SaveInvoiceAsync(recognisedInvoice);
+                        await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognized successfully.");
 
                         if (invoiceId == null)
                             throw new Exception("Failed to save invoice.");
 
-                        workingInvoice = await _invoiceService.GetInvoiceDTOByIdAsync((int)invoiceId);
+                        workingInvoice = await invoiceService.GetInvoiceDTOByIdAsync((int)invoiceId);
 
 
                     }
@@ -148,21 +148,23 @@ namespace UpRestEye3.Services.BusinessLogic
 
 
                     // Получение продуктов из RMS
-                    var rmsProducts = await _rmsProductService.GetProductsByConsumerIdAsync((int)consumerId);
+                    var rmsProducts = await rmsProductService.GetProductsByConsumerIdAsync((int)consumerId);
 
                     // Мапинг на продукты из RMS, подготовка к сохранению в RMS  
-                    var mappingResult = await _invoiceProcessor.MappingToRMSProductsAsync(workingInvoice, rmsProducts);
+                    var mappingResult = await invoiceProcessor.MappingToRMSProductsAsync(workingInvoice, rmsProducts);
                     var mappedInvoice = mappingResult.Item1;
                     var newRmsProducts = mappingResult.Item2;
 
                     // Если Invoice замеплен и есть новые продукты, то связываем их с Invoice Products
                     if (mappedInvoice != null)
                     {
+                        await hubContext.Clients.All.SendAsync("ReceiveMessage", "Product mapped successfully.");
+
 
                         foreach (var newRMSProduct in newRmsProducts)
                         {
                             // Сохранение нового продукта в БД
-                            newRMSProduct.Id = await _rmsProductService.SaveProductAsync(newRMSProduct);
+                            newRMSProduct.Id = await rmsProductService.SaveProductAsync(newRMSProduct);
                             if (newRMSProduct.Id == null)
                                 throw new Exception("Failed to save product.");
 
@@ -175,7 +177,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
                         // Внесение изменений в существующую накладную и сохранение изменений в базу данных
                         InvoiceHelper.CopyInvoice(workingInvoice, mappedInvoice);
-                        invoiceId = await _invoiceService.SaveInvoiceAsync(workingInvoice);
+                        invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
                         if (invoiceId == null)
                             throw new Exception("Failed to save invoice.");
 
@@ -191,7 +193,9 @@ namespace UpRestEye3.Services.BusinessLogic
                 {
                     workingInvoice.Comments = ex.Message;
                     workingInvoice.Status = InvoiceStatusEnum.Error;
-                    await _invoiceService.SaveInvoiceAsync(workingInvoice);
+                    await invoiceService.SaveInvoiceAsync(workingInvoice);
+
+                    await hubContext.Clients.All.SendAsync("ReceiveMessage", "Failed to recognize invoice image.");
 
                     Console.WriteLine(ex.Message);
                     return false;
