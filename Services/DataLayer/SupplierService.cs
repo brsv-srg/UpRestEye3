@@ -12,8 +12,8 @@ namespace UpRestEye3.Services.DataLayer
         Task<SupplierDAO?> GetSupplierDAOByIdAsync(int id);
         Task<SupplierDTO?> GetSupplierDTOByIdAsync(int id);
 
-        Task<ActionResult<IEnumerable<SupplierDAO>>> GetSupplierDAOAsync(ConsumerDAO? consumer);
-        Task<ActionResult<IEnumerable<SupplierDTO>>> GetSupplierDTOAsync(ConsumerDAO? consumer);
+        Task<List<SupplierDAO>> GetSuppliersDAOAsync(int? consumerId);
+        Task<List<SupplierDTO>> GetSuppliersDTOAsync(int? consumerId);
 
         //Task<int?> SaveSupplierAsync(SupplierDTO invoice);
         //Task<int?> SaveSupplierAsync(SupplierDAO invoice);
@@ -52,26 +52,23 @@ namespace UpRestEye3.Services.DataLayer
             } : null;
         }
 
-        public async Task<ActionResult<IEnumerable<SupplierDAO>>> GetSupplierDAOAsync(ConsumerDAO? consumer)
+        public async Task<List<SupplierDAO>> GetSuppliersDAOAsync(int? consumerId)
         {
 
             return await _context.Suppliers
                 .AsNoTracking()
                 .Include(i => i.Invoices)
-                .Include(i => i.Consumer)
-                .Where(s => consumer != null &&
-                            (consumer.Id != null && s.ConsumerId == consumer.Id ||
-                                 consumer.Id == null && s.TaxNumber == consumer.TaxNumber))
-
+                    .Include(i => i.Consumer)
+                .Where(s => consumerId == null || consumerId != null && s.ConsumerId == consumerId)
                 .ToListAsync();
         }
 
-        public async Task<ActionResult<IEnumerable<SupplierDTO>>> GetSupplierDTOAsync(ConsumerDAO? consumer)
+        public async Task<List<SupplierDTO>> GetSuppliersDTOAsync(int? consumerId)
         {
 
-            var suppliersDAO = await GetSupplierDAOAsync(consumer);
-            return new ActionResult<IEnumerable<SupplierDTO>>(
-                    suppliersDAO.Value.Select(s => new SupplierDTO
+            var suppliersDAO = await GetSuppliersDAOAsync(consumerId);
+            return new List<SupplierDTO>(
+                    suppliersDAO.Select(s => new SupplierDTO
                     {
                         Name = s.Name,
                         TaxNumber = s.TaxNumber,

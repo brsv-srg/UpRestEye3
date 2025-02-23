@@ -9,6 +9,9 @@
 @inject UserManager<AppUser> UserManager
 
 @using Microsoft.AspNetCore.SignalR.Client
+@using System.Text.Json;
+@using System.Text;
+@using System.ComponentModel;
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
@@ -56,7 +59,7 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <button class="custom-btn" @onclick="async () => await ShowProductsAsync(invoice.Products)">
+                                    <button class="custom-btn" @onclick="async () => await ShowInvoiceAsync(invoice)">
                                         <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                 </td>
@@ -83,16 +86,51 @@
             </div>
         }
 
-        @if (showProductsModal)
+        @if (showInvoiceModal)
         {
             <div class="modal-backdrop"></div>
             <div class="modal show d-block" tabindex="-1" role="dialog">
                 <div class="modal-dialog modal-lg" role="document">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Products</h5>
+                            <h5 class="modal-title">Invoice Details</h5>
                         </div>
                         <div class="modal-body">
+                            <div class="form-group">
+                                <label for="invoiceNumber">Invoice Number</label>
+                                <input type="text" class="form-control" id="invoiceNumber" @bind="selectedInvoice.InvoiceNumber" />
+                            </div>
+                            <div class="form-group">
+                                <label for="invoiceDate">Invoice Date</label>
+                                <input type="date" class="form-control" id="invoiceDate" @bind="selectedInvoice.InvoiceDate" />
+                            </div>
+                            <div class="form-group">
+                                <label for="supplier">Supplier</label>
+                                <select class="form-control" id="supplier" @bind="selectedInvoice.Supplier">
+                                    @foreach (var supplier in suppliers)
+                                    {
+                                        <option value="@supplier.TaxNumber">@supplier.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="totalIVA">Total IVA</label>
+                                <input type="number" class="form-control" id="totalIVA" @bind="selectedInvoice.TotalIVA" />
+                            </div>
+                            <div class="form-group">
+                                <label for="totalAmount">Total Amount</label>
+                                <input type="number" class="form-control" id="totalAmount" @bind="selectedInvoice.TotalAmount" />
+                            </div>
+                            @* <div class="form-group"> *@
+                            @*     <label for="status">Status</label> *@
+                            @*     <select class="form-control" id="status" @bind="selectedInvoice.Status"> *@
+                            @*         @foreach (var status in Enum.GetValues(typeof(InvoiceStatusEnum))) *@
+                            @*         { *@
+                            @*             <option value="@status">@status</option> *@
+                            @*         } *@
+                            @*     </select> *@
+                            @* </div> *@
+                            <h5>Products</h5>
                             <table class="table">
                                 <thead>
                                     <tr>
@@ -103,27 +141,48 @@
                                         <th>TAX Category</th>
                                         <th>RMS Product</th>
                                         <th>RMS Container</th>
-
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var product in selectedProducts)
+                                    @foreach (var product in selectedInvoice.Products)
                                     {
                                         <tr>
-                                            <td>@product.ProductCode</td>
-                                            <td>@product.ProductName</td>
-                                            <td>@product.Quantity</td>
-                                            <td>@product.Price</td>
-                                            <td>@product.TaxCategory</td>
-                                            <td>@product.RMSProduct?.Name?</td>
-                                            <td>@product.RMSContainer?.Name?</td>
+                                            <td><input type="text" class="form-control" @bind="product.ProductCode" /></td>
+                                            <td><input type="text" class="form-control" @bind="product.ProductName" /></td>
+                                            <td><input type="number" class="form-control" @bind="product.Quantity" /></td>
+                                            <td><input type="number" class="form-control" @bind="product.Price" /></td>
+                                            <td>
+                                                <select class="form-control" @bind="product.TaxCategory">
+                                                    @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
+                                                    {
+                                                        <option value="@taxCategory">@taxCategory</option>
+                                                    }
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <select class="form-control" @bind="product.RMSProduct">
+                                                    @foreach (var rmsProduct in rmsProducts)
+                                                    {
+                                                        <option value="@rmsProduct.Id">@rmsProduct.Name</option>
+                                                    }
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <select class="form-control" @bind="product.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, product))">
+                                                    @foreach (var rmsContainer in product.RMSProduct.Containers)
+                                                    {
+                                                    <option value="@rmsContainer.Id">@rmsContainer.Name</option>
+                                                    }
+                                                </select>
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
                             </table>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" @onclick="async () => await CloseProductsModalAsync()">Close</button>
+                            <button type="button" class="btn btn-secondary" @onclick="async () => await CloseInvoiceModalAsync()">Close</button>
+                            <button type="button" class="btn btn-primary" @onclick="async () => await SaveInvoiceAsync()">Save changes</button>
                         </div>
                     </div>
                 </div>
@@ -161,15 +220,27 @@
     private IBrowserFile? selectedFile;
     private string? uploadMessage;
     private string? uploadMessageClass;
-    private bool showProductsModal = false;
-    private List<InvoiceProductDTO>? selectedProducts;
+    private bool showInvoiceModal = false; // Изменено: Переименовано для отображения модальной формы Invoice
+    private InvoiceDTO? selectedInvoice; // Добавлено: Выбранный Invoice для редактирования
+
+    private SupplierDTO[]? suppliers;   // Добавлено: Список поставщиков
+    private RMSProductDTO[]? rmsProducts; // Добавлено: Список продуктов
+    private RMSContainerDTO[]? rmsContainers; // Добавлено: Список контейнеров
+
+    // private List<InvoiceProductDTO>? selectedProducts;
     private AppUser appUser;
     private string? errorMessage;
     private bool isInitialized = false;
     private HubConnection? hubConnection; // Добавлено: HubConnection для SignalR
+    private string baseUri;
 
     protected override async Task OnInitializedAsync()
     {
+        baseUri = Navigation.BaseUri;
+        if (baseUri.EndsWith('/'))
+        {
+            baseUri = baseUri.Substring(0, baseUri.Length - 1);
+        }
         if (!isInitialized)
         {
             isInitialized = true;
@@ -187,6 +258,10 @@
         if (user.Identity.IsAuthenticated && appUser?.ConsumerId != null)
         {
             await LoadInvoicesAsync();
+            await LoadSuppliersAsync(); // Добавлено: Загрузка списка поставщиков
+            await LoadRMSProductsAsync(); // Добавлено: Загрузка списка продуктов
+			await SetTypeConverters(); // Добавлено: Установка конвертеров для SupplierDTO
+
         }
         else
         {
@@ -195,15 +270,32 @@
         }
     }
 
+    private async Task SetTypeConverters()
+    {
+        // Получаем экземпляр конвертера
+        var converterSupplier = TypeDescriptor.GetConverter(typeof(SupplierDTO)) as SupplierDTOConverter;
+        // Устанавливаем список
+        converterSupplier.SetSourceList(suppliers);
+
+        // Получаем экземпляр конвертера
+        var converterProduct = TypeDescriptor.GetConverter(typeof(RMSProductDTO)) as RMSProductDTOConverter;
+        // Устанавливаем список
+        converterProduct.SetSourceList(rmsProducts);
+
+        
+    }
+
+    private void HandleDropdownOpened(FocusEventArgs e, InvoiceProductDTO product)
+    {
+        // Получаем экземпляр конвертера
+        var converterProduct = TypeDescriptor.GetConverter(typeof(RMSContainerDTO)) as RMSContainerDTOConverter;
+        // Устанавливаем список
+        converterProduct.SetSourceList(product.RMSProduct.Containers);
+    }
+
 
     private async Task LoadInvoicesAsync()
     {
-        var baseUri = Navigation.BaseUri;
-        if (baseUri.EndsWith('/'))
-        {
-            baseUri = baseUri.Substring(0, baseUri.Length - 1);
-        }
-
         try
         {
             invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices/{appUser.ConsumerId}");
@@ -211,6 +303,39 @@
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
             Console.WriteLine("Invoices not found.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+    private async Task LoadSuppliersAsync() // Добавлено: Метод для загрузки списка поставщиков
+    {
+        try
+        {
+            suppliers = await Http.GetFromJsonAsync<SupplierDTO[]>($"{baseUri}/api/suppliers/{appUser.ConsumerId}");
+
+            
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            Console.WriteLine("Suppliers not found.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+
+    private async Task LoadRMSProductsAsync() // Добавлено: Метод для загрузки списка продуктов
+    {
+        try
+        {
+            rmsProducts = await Http.GetFromJsonAsync<RMSProductDTO[]>($"{baseUri}/api/rmsproducts/{appUser.ConsumerId}");
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            Console.WriteLine("RMS Products not found.");
         }
         catch (Exception ex)
         {
@@ -254,12 +379,6 @@
                 content.Add(new StreamContent(selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)), "file", selectedFile.Name);
                 content.Add(new StringContent(appUser.ConsumerId.ToString()), "consumerId");
 
-                var baseUri = Navigation.BaseUri;
-                if (baseUri.EndsWith('/'))
-                {
-                    baseUri = baseUri.Substring(0, baseUri.Length - 1);
-                }
-
                 var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/upload", content);
 
 
@@ -298,19 +417,44 @@
 		}
     }
 
-    private async Task ShowProductsAsync(List<InvoiceProductDTO> products)
+    private async Task ShowInvoiceAsync(InvoiceDTO invoice) // Изменено: Метод для отображения модальной формы Invoice
     {
-        selectedProducts = products;
-        showProductsModal = true;
-        // await JS.InvokeVoidAsync("showModal", "productsModal");
+        selectedInvoice = invoice;
+        showInvoiceModal = true;
     }
 
-    private async Task CloseProductsModalAsync()
+    private async Task CloseInvoiceModalAsync() // Изменено: Метод для закрытия модальной формы Invoice
     {
-        showProductsModal = false;
-        selectedProducts = null;
-        // await JS.InvokeVoidAsync("hideModal", "productsModal");
+        showInvoiceModal = false;
+        selectedInvoice = null;
     }
+
+    private async Task SaveInvoiceAsync() // Добавлено: Метод для сохранения изменений Invoice
+    {
+        if (selectedInvoice != null)
+        {
+            var response = await Http.PutAsJsonAsync($"{baseUri}/api/invoices/{selectedInvoice.Id}", selectedInvoice);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Invoice updated successfully.");
+                uploadMessage = "Invoice updated successfully.";
+                uploadMessageClass = "alert-success";
+                await LoadInvoicesAsync();
+            }
+            else
+            {
+                Console.WriteLine("Invoice update failed.");
+                uploadMessage = "Invoice update failed.";
+                uploadMessageClass = "alert-danger";
+            }
+
+            showInvoiceModal = false;
+            selectedInvoice = null;
+            StateHasChanged();
+        }
+    }
+
     private string GetStatusClass(InvoiceStatusEnum status) // Изменено: Метод для получения CSS-класса статуса
     {
         return status switch

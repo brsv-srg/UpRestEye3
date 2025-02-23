@@ -9,6 +9,9 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UserManager<AppUser> UserManager
 
+@using System.Text.Json;
+@using System.Text;
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
 
@@ -166,6 +169,7 @@
         try
         {
             products = await Http.GetFromJsonAsync<RMSProductDTO[]>($"{baseUri}/api/rmsproducts/{appUser.ConsumerId}");
+
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {

@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using UpRestEye3.Models.BLO;
+using UpRestEye3.Services.BusinessLogic;
 
 namespace UpRestEye3.Models.DTO
 {
+
+    [TypeConverter(typeof(RMSProductDTOConverter))]
     public class RMSProductDTO
     {
         public int? Id { get; set; }
@@ -19,7 +23,7 @@ namespace UpRestEye3.Models.DTO
     }
 
 
-
+    [TypeConverter(typeof(RMSContainerDTOConverter))]
     public class RMSContainerDTO
     {
         public int? Id { get; set; }
