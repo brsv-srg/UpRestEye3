@@ -10,6 +10,7 @@ namespace UpRestEye3.Services.DataLayer
     public interface IRMSProductService
     {
         Task<List<RMSProductDTO>> GetProductsByConsumerIdAsync(int consumerId);
+        Task<RMSProductDTO> GetProductByIdAsync(int productId);
         Task<int?> SaveProductAsync(RMSProductDTO productDTO);
     }
 
@@ -34,6 +35,20 @@ namespace UpRestEye3.Services.DataLayer
 
             return products.Select(p => RMSProductHelper.BuildRMSProductDTO(p)).ToList();
         }
+        public async Task<RMSProductDTO> GetProductByIdAsync(int productId)
+        {
+            var product = await _context.RMSProducts
+                .AsNoTracking()
+                .Include(p => p.Containers)
+                .Include(p => p.Consumer)   
+                .Where(p => p.Id == productId)
+                .FirstOrDefaultAsync();
+
+            return RMSProductHelper.BuildRMSProductDTO(product);
+        }
+
+
+
 
         public async Task<int?> SaveProductAsync(RMSProductDTO productDto)
         {
@@ -93,7 +108,14 @@ namespace UpRestEye3.Services.DataLayer
                     foreach (var newContainer in newContainers)
                     {
                         var existingContainer = existingContainers
-                            .FirstOrDefault(c => c.RMSContainerExtGuid == newContainer.RMSContainerExtGuid);
+                            .FirstOrDefault(c => (newContainer.Id != null && c.Id == newContainer.Id) ||
+                                                    (newContainer.Id == null && 
+                                                        newContainer.RMSContainerExtGuid != null && 
+                                                        c.RMSContainerExtGuid == newContainer.RMSContainerExtGuid) ||
+                                                    (newContainer.Id == null &&
+                                                        newContainer.RMSContainerExtGuid == null &&
+                                                        newContainer.Name != null &&
+                                                        c.Name == newContainer.Name));
 
                         if (existingContainer == null)
                         {
@@ -110,7 +132,14 @@ namespace UpRestEye3.Services.DataLayer
                     // Remove containers that are not in the new list
                     foreach (var existingContainer in existingContainers)
                     {
-                        if (!newContainers.Any(c => c.RMSContainerExtGuid == existingContainer.RMSContainerExtGuid))
+                        if (!newContainers.Any(c => (c.Id != null && c.Id == existingContainer.Id) ||
+                                                    (c.Id == null &&
+                                                        c.RMSContainerExtGuid != null &&
+                                                        c.RMSContainerExtGuid == existingContainer.RMSContainerExtGuid) ||
+                                                    (c.Id == null &&
+                                                        c.RMSContainerExtGuid == null &&
+                                                        c.Name != null &&
+                                                        c.Name == existingContainer.Name)))
                         {
                             _context.Remove(existingContainer);
                             _context.Entry(existingContainer).State = EntityState.Deleted;

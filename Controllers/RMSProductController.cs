@@ -31,5 +31,15 @@ namespace UpRestEye3.Controllers
             await _loadProductsService.LoadProductsAsync(consumerId);
             return Ok();
         }
+
+
+        [HttpPost("save")]
+        public async Task<ActionResult<RMSProductDTO>> SaveRMSProduct([FromBody] RMSProductDTO rmsProduct)
+        {
+            var invoiceId = await _productService.SaveProductAsync(rmsProduct);
+            var updatedInvoice = await _productService.GetProductByIdAsync((int)invoiceId);
+            return Ok(updatedInvoice);
+        }
+
     }
 }

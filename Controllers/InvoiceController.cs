@@ -30,11 +30,12 @@ namespace UpRestEye3.Controllers
             return Ok(result);
         }
 
-        [HttpPost]
+        [HttpPost("save")]
         public async Task<ActionResult<InvoiceDTO>> SaveInvoice(InvoiceDTO invoice)
         {
             var invoiceId = await _invoiceService.SaveInvoiceAsync(invoice);
-            return CreatedAtAction(nameof(GetInvoices), new { id = invoiceId }, invoice);
+            var updatedInvoice = await _invoiceService.GetInvoiceDTOByIdAsync((int)invoiceId);
+            return Ok(updatedInvoice);
         }
     }
 }

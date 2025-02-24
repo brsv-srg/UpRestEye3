@@ -42,8 +42,15 @@ namespace UpRestEye3.Services.DataLayer
                 .Include(i => i.TaxCategories)
                 .Include(i => i.Products)
                     .ThenInclude(p => p.RMSProduct) // Include RMSProducts through Products
+                        .ThenInclude(p => p.Consumer) // Include Consumer through RMSProducts
+
+                .Include(i => i.Products)
+                    .ThenInclude(p => p.RMSProduct) // Include RMSContainers through Products
+                        .ThenInclude(p => p.Containers) // Include Containers through RMSProducts
+
                 .Include(i => i.Products)
                     .ThenInclude(p => p.RMSContainer) // Include RMSContainers through Products
+
                 .Include(i => i.Supplier)
                 .Include(i => i.Consumer)
                 .FirstOrDefaultAsync(i => i.Id == id);

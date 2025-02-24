@@ -15,7 +15,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
 
-
 <AuthorizeView>
     <Authorized>
         <PageTitle>RMS Products</PageTitle>
@@ -65,8 +64,8 @@
                                 </td>
 
                                 <td>
-                                    <button class="custom-btn" @onclick="async () => await ShowContainers(product.Containers)">
-                                        <i class="fas fa-ellipsis-v"></i>
+                                    <button class="custom-btn" @onclick="async () => await ShowProductDetailsAsync(product)">
+                                        <i class="fa fa-pencil" aria-hidden="true"></i>
                                     </button>
                                 </td>
                             </tr>
@@ -75,49 +74,145 @@
                 </table>
             </div>
 
-            @if (showContainersModal)
+            @if (!string.IsNullOrEmpty(uploadMessage))
+            {
+                <div class="alert @uploadMessageClass" role="alert" style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
+                    @uploadMessage
+                </div>
+            }
+
+            @if (showProductModal)
             {
                 <div class="modal-backdrop"></div>
                 <div class="modal show d-block" tabindex="-1" role="dialog">
-                    <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-dialog modal-xl" role="document">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title">Containers</h5>
+                                <h2 class="modal-title">Product Details</h2>
                             </div>
                             <div class="modal-body">
-                                <table class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>Num</th>
-                                            <th>Name</th>
-                                            <th>Count</th>
-                                            <th>Container Weight</th>
-                                            <th>Full Weight</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var container in selectedContainers)
-                                        {
-                                            <tr>
-                                                <td>@container.Num</td>
-                                                <td>@container.Name</td>
-                                                <td>@container.Count</td>
-                                                <td>@container.ContainerWeight</td>
-                                                <td>@container.FullContainerWeight</td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="productName" class="form-label">Name</label>
+                                            <InputText id="productName" class="form-control" @bind-Value="selectedProduct.Name" />
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="productDescription" class="form-label">Description</label>
+                                            <InputText id="productDescription" class="form-control" @bind-Value="selectedProduct.Description" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="productNum" class="form-label">Num</label>
+                                            <InputText id="productNum" class="form-control" @bind-Value="selectedProduct.Num" />
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="productStatus" class="form-label">Status</label>
+                                            <select id="productStatus" class="form-control" @bind="selectedProduct.Status">
+                                                @foreach (var status in Enum.GetValues(typeof(RMSProductStatusEnum)))
+                                                {
+                                                    <option value="@status">@status</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="mb-3 d-flex justify-content-start align-items-center">
+                                        <label for="containers" class="form-label font-weight-bold fs-4">Containers</label>
+                                        <button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewContainer()">
+                                            <i class="fa fa-plus-square fa-2x" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                    @* <button class="btn btn-primary" @onclick="AddNewContainer"> Add New Container</button> *@
+
+                                    <div style="max-height: 400px; overflow-y: auto;">
+                                        <table class="table table-striped table-sm">
+                                            <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
+                                                <tr>
+                                                    <th class="p-1">Num</th>
+                                                    <th class="p-1">Name</th>
+                                                    <th class="p-1">Count</th>
+                                                    <th class="p-1">Container Weight</th>
+                                                    <th class="p-1">Full Weight</th>
+                                                    <th style="text-align: center;">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var container in selectedProduct.Containers)
+                                                {
+                                                    <tr>
+                                                        @if (editContainerId != null && editContainerId == container.Id)
+                                                        {
+                                                            <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="container.Num" /></td>
+                                                            <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="container.Name" /></td>
+                                                            <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="container.Count" /></td>
+                                                            <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="container.ContainerWeight" /></td>
+                                                            <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="container.FullContainerWeight" /></td>
+                                                            <td class="p-1 align-middle">
+                                                                <div class="d-flex justify-content-around align-items-center">
+                                                                    <button class="custom-btn" @onclick="async () => SaveContainer(container)">
+                                                                        <i class="fa fa-save" aria-hidden="true"></i>
+                                                                    </button>
+                                                                    <button class="custom-btn" @onclick="async () => CancelEditContainer()">
+                                                                        <i class="fa fa-undo" aria-hidden="true"></i>
+                                                                    </button>
+                                                                    <button class="custom-btn" @onclick="async () => DeleteContainer(container.Id)">
+                                                                        <i class="fa fa-trash" aria-hidden="true"></i>
+																	</button>
+                                                                </div>
+                                                            </td>
+                                                        }
+                                                        else
+                                                        {
+                                                            <td class="p-1">@container.Num</td>
+                                                            <td class="p-1">@container.Name</td>
+                                                            <td class="p-1">@container.Count</td>
+                                                            <td class="p-1">@container.ContainerWeight</td>
+                                                            <td class="p-1">@container.FullContainerWeight</td>
+                                                            <td class="p-1">
+                                                                <button class="custom-btn" @onclick="async () => EditContainer(container.Id)">
+                                                                    <i class="fa fa-pencil" aria-hidden="true"></i>
+                                                                </button>
+                                                            </td>
+                                                        }
+                                                    </tr>
+                                                }
+                                                @if (isAddingNewContainer)
+                                                {
+                                                    <tr>
+                                                        <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newContainer.Num" /></td>
+                                                        <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newContainer.Name" /></td>
+                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newContainer.Count" /></td>
+                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newContainer.ContainerWeight" /></td>
+                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newContainer.FullContainerWeight" /></td>
+                                                        <td class="p-1 align-middle">
+                                                            <div class="d-flex justify-content-around align-items-center">
+                                                                <button class="custom-btn" @onclick="async () => SaveNewContainer()">
+                                                                    <i class="fa fa-save" aria-hidden="true"></i>
+                                                                </button>
+                                                                <button class="custom-btn" @onclick="async () => CancelNewContainer()">
+                                                                    <i class="fa fa-undo" aria-hidden="true"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+
+                                    </div>
+                                </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" @onclick="async () => await CloseContainersModalAsync()">Close</button>
+                                <button type="button" class="btn btn-secondary" @onclick="async () => await CloseProductModalAsync()">Close</button>
+                                <button type="button" class="btn btn-primary" @onclick="async () => await SaveProductAsync()">Save changes</button>
                             </div>
                         </div>
                     </div>
                 </div>
             }
-
-
         }
     </Authorized>
     <NotAuthorized>
@@ -128,9 +223,16 @@
 @code {
 
     private RMSProductDTO[]? products;
-    private List<RMSContainerDTO>? selectedContainers;
-    private bool showContainersModal = false;
+    private RMSProductDTO? selectedProduct;
+    private RMSContainerDTO newContainer = new RMSContainerDTO(); // Добавлено: Новый контейнер
+    private int? editContainerId; // Добавлено: ID редактируемого контейнера
+    private bool showProductModal = false;
+    private bool isAddingNewContainer = false; // Добавлено: Флаг для добавления нового контейнера
     private AppUser appUser;
+
+    private string? uploadMessage;
+    private string? uploadMessageClass;
+
 
 
     protected override async Task OnInitializedAsync()
@@ -150,8 +252,8 @@
         }
 
     }
-    
-    
+
+
     protected async Task ReadRMSProducts()
     {
         if (appUser == null || appUser?.ConsumerId == null)
@@ -183,18 +285,104 @@
     }
 
 
-    private async Task ShowContainers(List<RMSContainerDTO> containers)
+    private async Task ShowProductDetailsAsync(RMSProductDTO product)
     {
-        selectedContainers = containers;
-        showContainersModal = true;
+        selectedProduct = product;
+        showProductModal = true;
     }
 
-    private async Task CloseContainersModalAsync()
+    private void EditContainer(int? containerId)
     {
-        showContainersModal = false;
-        selectedContainers = null;
+        editContainerId = containerId;
     }
-    
+
+    private void SaveContainer(RMSContainerDTO container)
+    {
+        // Save container logic here
+        editContainerId = null;
+    }
+
+    private void CancelEditContainer()
+    {
+        editContainerId = null;
+    }
+
+    private void DeleteContainer(int? containerId)
+    {
+        if (containerId != null)
+        {
+            var container = selectedProduct.Containers.FirstOrDefault(c => c.Id == containerId);
+            if (container != null)
+            {
+                selectedProduct.Containers.Remove(container);
+            }
+        }
+    }
+
+    private void AddNewContainer()
+    {
+        isAddingNewContainer = true;
+        newContainer = new RMSContainerDTO();
+    }
+
+    private void SaveNewContainer()
+    {
+        if (selectedProduct != null)
+        {
+            selectedProduct.Containers.Add(newContainer);
+            isAddingNewContainer = false;
+            newContainer = new RMSContainerDTO();
+        }
+    }
+
+    private void CancelNewContainer()
+    {
+        isAddingNewContainer = false;
+        newContainer = new RMSContainerDTO();
+    }
+
+    private async Task CloseProductModalAsync()
+    {
+        showProductModal = false;
+        selectedProduct = null;
+    }
+
+    private async Task SaveProductAsync()
+    {
+        if (selectedProduct != null)
+        {
+            var baseUri = Navigation.BaseUri;
+            if (baseUri.EndsWith('/'))
+            {
+                baseUri = baseUri.Substring(0, baseUri.Length - 1);
+            }
+
+            var response = await Http.PostAsJsonAsync($"{baseUri}/api/RMSProducts/save", selectedProduct);
+                                                                      
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Product updated successfully.");
+                uploadMessage = "Invoice updated successfully.";
+                uploadMessageClass = "alert-success";
+                selectedProduct = await response.Content.ReadFromJsonAsync<RMSProductDTO>();
+
+                //await ReadRMSProducts();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Product update failed. Status code: {response.StatusCode}, Error: {errorContent}");
+                uploadMessage = "Invoice update failed.";
+                uploadMessageClass = "alert-danger";
+            }
+
+            showProductModal = false;
+            selectedProduct = null;
+            StateHasChanged();
+        }
+    }
+
+
     private async Task LoadRMSData()
     {
         if (appUser == null || appUser?.ConsumerId == null)
@@ -218,7 +406,7 @@
             if (response.IsSuccessStatusCode)
             {
                 Console.WriteLine("Parameters saved successfully.");
-                ReadRMSProducts();
+                await ReadRMSProducts();
             }
             else
             {
@@ -235,9 +423,6 @@
         {
             Console.WriteLine($"An unexpected error occurred: {ex.Message}");
         }
-    
-    
-    
     }
 
     private string GetStatusClass(RMSProductStatusEnum status) // Изменено: Метод для получения CSS-класса статуса
@@ -247,6 +432,7 @@
             RMSProductStatusEnum.NewProduct => "text-info",
 			RMSProductStatusEnum.NewContainer => "text-info",
             RMSProductStatusEnum.FromRMS => "text-success",
+            _ => "text-secondary",
         };
     }
 

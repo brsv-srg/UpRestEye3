@@ -248,6 +248,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
             invoiceDTO.TaxCategories = invoiceDAO.TaxCategories.Select(t => new TaxesDTO
             {
+                Id = t.Id,
                 TaxCategory = t.TaxCategory,
                 Base = t.Base,
                 IVA = t.IVA,
@@ -315,6 +316,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
                 invoiceDAO.TaxCategories = invoiceDTO.TaxCategories.Select(t => new TaxesDAO
                 {
+                    Id = t.Id,
                     TaxCategory = t.TaxCategory,
                     Base = t.Base,
                     IVA = t.IVA,

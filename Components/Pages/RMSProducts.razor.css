@@ -55,9 +55,37 @@
 .custom-btn:hover i {
     font-size: 20px;
 }
-    .custom-btn:active {
+.custom-btn:active {
 /*        transform: scale(0.9);*/
+}
+
+
+.btn-light {
+/*    background-color: transparent;*/
+/*    border: none;*/
+    color: gray;
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+.btn-light:focus {
+    outline:none;
+}
+
+.btn-light:active {
+    border: none;
+}
+.btn-light:hover {
+    color: dimgray;
+}
+
+.btn-light:hover i {
+        transform: scale(1.1);
     }
+
+.btn-light:active i {
+    transform: scale(0.9);
+}
+
 
    
 /* Стили для модальной формы */

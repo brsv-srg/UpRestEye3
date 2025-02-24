@@ -33,6 +33,7 @@ namespace UpRestEye3.Models.DTO
     
     public class TaxesDTO
     {
+        public int? Id { get; set; }
         public TaxCategoryEnum TaxCategory { get; set; } = TaxCategoryEnum.Intermediate;
         public decimal Base { get; set; } = 0.0m;
         public decimal IVA { get; set; } = 0.0m;
