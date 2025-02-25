@@ -87,6 +87,8 @@ builder.Services.AddScoped<IProductMappingService, ProductMappingService>();
 builder.Services.AddScoped<IConnectionParameterService, ConnectionParameterService>();
 builder.Services.AddScoped<IRMSProductService, RMSProductService>();
 builder.Services.AddScoped<ILoadRMSProductsService, LoadRMSProductsService>();
+builder.Services.AddScoped<ILoadRMSMeasureUnitsService, LoadRMSMeasureUnitsService>();
+builder.Services.AddScoped<IRMSMeasureUnitService, RMSMeasureUnitService>();
 
 
 

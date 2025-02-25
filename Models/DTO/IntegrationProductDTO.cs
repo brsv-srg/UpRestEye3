@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace UpRestEye3.Models.DTO
 {
-    public class ProductDTO
+    public class IntegrationProductDTO
     {
         public Guid id { get; set; } = Guid.NewGuid();
         public bool deleted { get; set; } = false;
@@ -17,10 +17,10 @@ namespace UpRestEye3.Models.DTO
         public decimal unitWeight { get; set; } = 0;
         public decimal unitCapacity { get; set; } = 0;
         public bool notInStoreMovement { get; set; } = false;
-        public List<ContainerDTO> containers { get; set; } = new List<ContainerDTO>();
+        public List<IntegrationContainerDTO> containers { get; set; } = new List<IntegrationContainerDTO>();
     }
 
-    public class ContainerDTO
+    public class IntegrationContainerDTO
     {
         public Guid id { get; set; } = Guid.NewGuid();
         public string num { get; set; } = "";

@@ -108,11 +108,11 @@
                                             <InputText id="productNum" class="form-control" @bind-Value="selectedProduct.Num" />
                                         </div>
                                         <div class="mb-3">
-                                            <label for="productStatus" class="form-label">Status</label>
-                                            <select id="productStatus" class="form-control" @bind="selectedProduct.Status">
-                                                @foreach (var status in Enum.GetValues(typeof(RMSProductStatusEnum)))
+                                            <label for="measureUnit" class="form-label">Measure Unit</label>
+                                            <select id="measureUnit" class="form-control" @onchange="HandleMeasureUnitChange">
+                                                @foreach (var unit in measureUnits)
                                                 {
-                                                    <option value="@status">@status</option>
+                                                    <option value="@unit.Id">@unit.Name</option>
                                                 }
                                             </select>
                                         </div>
@@ -233,6 +233,8 @@
     private string? uploadMessage;
     private string? uploadMessageClass;
 
+    private List<RMSMeasureUnitDTO> measureUnits = new List<RMSMeasureUnitDTO>(); // Добавлено: Список MeasureUnitDTO
+
 
 
     protected override async Task OnInitializedAsync()
@@ -244,6 +246,7 @@
         if (user.Identity.IsAuthenticated && appUser?.ConsumerId != null)
         {
             await ReadRMSProducts();
+			await ReadRMSMeasureUnits();
         }
         else
         {
@@ -284,6 +287,32 @@
         }
     }
 
+
+    private async Task ReadRMSMeasureUnits() // Добавлено: Метод для загрузки списка MeasureUnitDTO
+    {
+        var baseUri = Navigation.BaseUri;
+        if (baseUri.EndsWith('/'))
+        {
+            baseUri = baseUri.Substring(0, baseUri.Length - 1);
+        }
+
+        try
+        {
+            measureUnits = await Http.GetFromJsonAsync<List<RMSMeasureUnitDTO>>($"{baseUri}/api/measureunits");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred while loading measure units: {ex.Message}");
+        }
+    }
+
+    private void HandleMeasureUnitChange(ChangeEventArgs e)
+    {
+        if (selectedProduct != null && Guid.TryParse(e.Value?.ToString(), out var selectedUnitId))
+        {
+            selectedProduct.MainUnit = selectedUnitId;
+        }
+    }
 
     private async Task ShowProductDetailsAsync(RMSProductDTO product)
     {

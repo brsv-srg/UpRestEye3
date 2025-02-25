@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UpRestEye3.Data;
 
@@ -10,9 +11,11 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250225221032_RMSProd15")]
+    partial class RMSProd15
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.12");
@@ -366,6 +369,40 @@ namespace UpRestEye3.Migrations
                     b.ToTable("InvoiceProducts");
                 });
 
+            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSMeasureUnitDAO", b =>
+                {
+                    b.Property<int?>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ConsumerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("MeasureUnitExtGuid")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RootType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsumerId");
+
+                    b.ToTable("MeasureUnits");
+                });
+
             modelBuilder.Entity("UpRestEye3.Models.DAO.RMSContainerDAO", b =>
                 {
                     b.Property<int?>("Id")
@@ -399,39 +436,6 @@ namespace UpRestEye3.Migrations
                     b.HasIndex("RMSProductId");
 
                     b.ToTable("Containers");
-                });
-
-            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSMeasureUnitDAO", b =>
-                {
-                    b.Property<int?>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Code")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("ConsumerId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("Deleted")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("MeasureUnitExtGuid")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RootType")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ConsumerId");
-
-                    b.ToTable("MeasureUnits");
                 });
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.RMSProductDAO", b =>
@@ -632,15 +636,6 @@ namespace UpRestEye3.Migrations
                     b.Navigation("RMSProduct");
                 });
 
-            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSContainerDAO", b =>
-                {
-                    b.HasOne("UpRestEye3.Models.DAO.RMSProductDAO", null)
-                        .WithMany("Containers")
-                        .HasForeignKey("RMSProductId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("UpRestEye3.Models.DAO.RMSMeasureUnitDAO", b =>
                 {
                     b.HasOne("UpRestEye3.Models.DAO.ConsumerDAO", "Consumer")
@@ -649,6 +644,15 @@ namespace UpRestEye3.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Consumer");
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSContainerDAO", b =>
+                {
+                    b.HasOne("UpRestEye3.Models.DAO.RMSProductDAO", null)
+                        .WithMany("Containers")
+                        .HasForeignKey("RMSProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.RMSProductDAO", b =>

@@ -17,6 +17,7 @@ namespace UpRestEye3.Data
         public DbSet<ConnectionParameterDAO> ConnectionParameters { get; set; }
         public DbSet<RMSProductDAO> RMSProducts { get; set; }
         public DbSet<RMSContainerDAO> Containers { get; set; }
+        public DbSet<RMSMeasureUnitDAO> MeasureUnits { get; set; } // Add this line
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -30,6 +31,9 @@ namespace UpRestEye3.Data
             
 
             // Configure auto-generated IDs
+            modelBuilder.Entity<InvoiceDAO>()
+                .HasKey(i => i.Id);
+
             modelBuilder.Entity<InvoiceDAO>()
                 .Property(i => i.Id)
                 .ValueGeneratedOnAdd();
@@ -70,13 +74,16 @@ namespace UpRestEye3.Data
 
             // Configure unique index for SupplierInfo
             modelBuilder.Entity<SupplierDAO>()
-                .HasIndex(s => new { s.ConsumerId, s.TaxNumber })
-                .IsUnique();
+                .HasKey(s => s.Id);
 
             modelBuilder.Entity<SupplierDAO>()
                 .Property(s => s.Id)
                 .ValueGeneratedOnAdd();
                 
+            modelBuilder.Entity<SupplierDAO>()
+                .HasIndex(s => new { s.ConsumerId, s.TaxNumber })
+                .IsUnique();
+
             modelBuilder.Entity<SupplierDAO>()
                 .HasKey(s => s.Id);
 
@@ -97,15 +104,15 @@ namespace UpRestEye3.Data
 
             // Configure unique index for ConsumerInfo
             modelBuilder.Entity<ConsumerDAO>()
-                .HasIndex(c => c.TaxNumber)
-                .IsUnique();
+               .HasKey(s => s.Id);
 
             modelBuilder.Entity<ConsumerDAO>()
                 .Property(c => c.Id)
                 .ValueGeneratedOnAdd();
 
             modelBuilder.Entity<ConsumerDAO>()
-               .HasKey(s => s.Id);
+                .HasIndex(c => c.TaxNumber)
+                .IsUnique();
 
             modelBuilder.Entity<ConsumerDAO>()
                 .HasMany(c => c.Invoices)
@@ -163,6 +170,14 @@ namespace UpRestEye3.Data
             /// RMS Products relationships
             ////////////////////////////////////////////////////////////////
 
+            // Configure auto-generated IDs
+            modelBuilder.Entity<RMSProductDAO>()
+                .HasKey(p => p.Id);
+
+            modelBuilder.Entity<RMSProductDAO>()
+                .Property(p => p.Id)
+                .ValueGeneratedOnAdd();
+
             // Configure Invoice relationships
             modelBuilder.Entity<RMSProductDAO>()
                 .HasOne(p => p.Consumer)
@@ -170,16 +185,9 @@ namespace UpRestEye3.Data
                 .HasForeignKey(i => i.ConsumerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-
-            // Configure auto-generated IDs
-            modelBuilder.Entity<RMSProductDAO>()
-                .Property(p => p.Id)
-                .ValueGeneratedOnAdd();
-
             modelBuilder.Entity<RMSProductDAO>()
                 .HasIndex(p => new { p.ConsumerId, p.RMSProductExtGuid })
                 .IsUnique();
-
 
             // Configure RMSProduct vs RMSContainer
             modelBuilder.Entity<RMSProductDAO>()
@@ -189,12 +197,17 @@ namespace UpRestEye3.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
 
-
-
             ////////////////////////////////////////////////////////////////
             /// Invoice Products
             ////////////////////////////////////////////////////////////////
 
+            // Configure auto-generated IDs
+            modelBuilder.Entity<InvoiceProductDAO>()
+                .HasKey(p => p.Id);
+            
+            modelBuilder.Entity<InvoiceProductDAO>()
+                .Property(p => p.Id)
+                .ValueGeneratedOnAdd();
 
             // Configure Invoice Product vs Invoice 
             modelBuilder.Entity<InvoiceProductDAO>()
@@ -222,7 +235,13 @@ namespace UpRestEye3.Data
             ////////////////////////////////////////////////////////////////
             /// Invoice Tax Categories
             ////////////////////////////////////////////////////////////////
+            // Configure auto-generated IDs
+            modelBuilder.Entity<TaxesDAO>()
+                .HasKey(t => t.Id);
 
+            modelBuilder.Entity<TaxesDAO>()
+                .Property(t => t.Id)
+                .ValueGeneratedOnAdd();
 
             // Configure Taxes vs Invoices
             modelBuilder.Entity<TaxesDAO>()
@@ -231,11 +250,24 @@ namespace UpRestEye3.Data
                 .HasForeignKey(t => t.InvoiceId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            ////////////////////////////////////////////////////////////////
+            /// Measure Unit 
+            ////////////////////////////////////////////////////////////////
 
+            // Configure auto-generated IDs
+            modelBuilder.Entity<RMSMeasureUnitDAO>()
+                .HasKey(t => t.Id);
 
+            modelBuilder.Entity<RMSMeasureUnitDAO>()
+                .Property(t => t.Id)
+                .ValueGeneratedOnAdd();
 
-            // TODO надо ли вписывать связь с продуктами инвойса для продукта ОМС
-            // TODO надо ли вписывать связь с продуктами инвойса для контейнера ОМС
+            // Configure MeasureUnit vs Consumer
+            modelBuilder.Entity<RMSMeasureUnitDAO>()
+                .HasOne(c => c.Consumer)
+                .WithMany()
+                .HasForeignKey(t => t.ConsumerId)
+                .OnDelete(DeleteBehavior.Restrict);
 
         }
     }

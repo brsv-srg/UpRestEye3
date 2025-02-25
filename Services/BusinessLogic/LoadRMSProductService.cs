@@ -65,7 +65,7 @@ namespace UpRestEye3.Services.BusinessLogic
             _token = response;
         }
 
-        private async Task<List<ProductDTO>> GetProductsAsync()
+        private async Task<List<IntegrationProductDTO>> GetProductsAsync()
         {
             var productsUrl = $"{_apiUrl}api/v2/entities/products/list?includeDeleted=false&type=GOODS&key={_token}";
 
@@ -76,17 +76,17 @@ namespace UpRestEye3.Services.BusinessLogic
                 throw new Exception("Failed to fetch products");
             }
 
-            //var products = await response.Content.ReadFromJsonAsync<List<ProductDTO>>();
+            //var products = await response.Content.ReadFromJsonAsync<List<IntegrationProductDTO>>();
 
             var json = await response.Content.ReadAsStringAsync();
 
-            var products = JsonSerializer.Deserialize<List<ProductDTO>>(json, new JsonSerializerOptions
+            var products = JsonSerializer.Deserialize<List<IntegrationProductDTO>>(json, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true/*,
                 Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }*/
             });
 
-            return products?.Where(p => p.type == "GOODS")?.ToList() ?? new List<ProductDTO>();
+            return products?.Where(p => p.type == "GOODS")?.ToList() ?? new List<IntegrationProductDTO>();
         }
 
         //var productsUrl = $"{_apiUrl}api/v2/entities/products/list";

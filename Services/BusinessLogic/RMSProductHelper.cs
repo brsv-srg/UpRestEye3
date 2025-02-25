@@ -152,7 +152,7 @@ namespace UpRestEye3.Services.BusinessLogic
         }
 
 
-        public static RMSProductDTO BuildRMSProductDTO(ProductDTO dto)
+        public static RMSProductDTO BuildRMSProductDTO(IntegrationProductDTO dto)
         {
 
             if (dto == null)

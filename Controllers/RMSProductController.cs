@@ -11,11 +11,13 @@ namespace UpRestEye3.Controllers
     {
         private readonly IRMSProductService _productService;
         private readonly ILoadRMSProductsService _loadProductsService;
+        private readonly ILoadRMSMeasureUnitsService _loadRMSMeasureUnits;
 
-        public RMSProductsController(IRMSProductService productService, ILoadRMSProductsService loadProductsService)
+        public RMSProductsController(IRMSProductService productService, ILoadRMSProductsService loadProductsService, ILoadRMSMeasureUnitsService loadRMSMeasureUnits)
         {
             _productService = productService;
             _loadProductsService = loadProductsService;
+            _loadRMSMeasureUnits = loadRMSMeasureUnits;
         }
 
         [HttpGet("{consumerId}")]
@@ -28,8 +30,16 @@ namespace UpRestEye3.Controllers
         [HttpPost("load")]
         public async Task<ActionResult> LoadRMSProducts([FromQuery] int consumerId)
         {
-            await _loadProductsService.LoadProductsAsync(consumerId);
-            return Ok();
+            try
+            {
+                await _loadProductsService.LoadProductsAsync(consumerId);
+                await _loadRMSMeasureUnits.LoadMeasureUnitsAsync(consumerId);
+                return Ok();
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
         }
 
 
