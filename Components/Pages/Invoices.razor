@@ -23,58 +23,58 @@
 
         @if (invoices == null)
         {
-        <p><em>Loading...</em></p>
+            <p><em>Loading...</em></p>
         }
         else
         {
-        <div style="overflow-y: auto; max-height: 70vh; ">
-            <table class="table table-striped" style="background-color: white; ">
-                <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
-                    <tr>
-                        <th>Upload Time</th>
-                        <th>Invoice Number</th>
-                        <th>Invoice Date</th>
-                        <th>Supplier Name</th>
-                        <th>Supplier TaxID</th>
-                        <th>Total IVA</th>
-                        <th>Total Amount</th>
-                        <th>Status</th>
-                        <th style="text-align: center;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var invoice in invoices.OrderByDescending(i => i.UploadTime))
-                    {
+            <div style="overflow-y: auto; max-height: 70vh; ">
+                <table class="table table-striped" style="background-color: white; ">
+                    <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
                         <tr>
-                            <td>@invoice.UploadTime.ToString("dd.MM.yy hh:mm")</td>
-                            <td>@invoice.InvoiceNumber</td>
-                            <td>@invoice.InvoiceDate.ToString("dd.MM.yy")</td>
-                            <td>@(invoice.Supplier != null ? invoice.Supplier.Name : "")</td>
-                            <td>@(invoice.Supplier != null ? invoice.Supplier.TaxNumber : "")</td>
-                            <td>@invoice.TotalIVA</td>
-                            <td>@invoice.TotalAmount</td>
-                            <td>
-                                <span class="@GetStatusClass(invoice.Status)">
-                                    @invoice.Status.ToString()
-                                </span>
-                            </td>
-                            <td>
-                                <button class="custom-btn" @onclick="async () => await ShowInvoiceAsync(invoice)">
-                                    @* <i class="fas fa-ellipsis-v"></i> *@
-                                    <i class="fa fa-pencil" aria-hidden="true"></i>
-                                </button>
-                            </td>
+                            <th>Upload Time</th>
+                            <th>Invoice Number</th>
+                            <th>Invoice Date</th>
+                            <th>Supplier Name</th>
+                            <th>Supplier TaxID</th>
+                            <th>Total IVA</th>
+                            <th>Total Amount</th>
+                            <th>Status</th>
+                            <th style="text-align: center;">Actions</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-        <div class="upload-button-container"> 
-            <label class="upload-button"> 
-                <span class="plus-icon">+</span>
-                <InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.png" />
-            </label> 
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach (var invoice in invoices.OrderByDescending(i => i.UploadTime))
+                        {
+                            <tr>
+                                <td>@invoice.UploadTime.ToString("dd.MM.yy hh:mm")</td>
+                                <td>@invoice.InvoiceNumber</td>
+                                <td>@invoice.InvoiceDate.ToString("dd.MM.yy")</td>
+                                <td>@(invoice.Supplier != null ? invoice.Supplier.Name : "")</td>
+                                <td>@(invoice.Supplier != null ? invoice.Supplier.TaxNumber : "")</td>
+                                <td>@invoice.TotalIVA</td>
+                                <td>@invoice.TotalAmount</td>
+                                <td>
+                                    <span class="@GetStatusClass(invoice.Status)">
+                                        @invoice.Status.ToString()
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="custom-btn" @onclick="async () => await ShowInvoiceAsync(invoice)">
+                                        @* <i class="fas fa-ellipsis-v"></i> *@
+                                        <i class="fa fa-pencil" aria-hidden="true"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="upload-button-container"> 
+                <label class="upload-button"> 
+                    <span class="plus-icon">+</span>
+                    <InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.png" />
+                </label> 
+            </div>
 
         }
 
@@ -82,78 +82,141 @@
 
         @if (!string.IsNullOrEmpty(uploadMessage))
         {
-        <div class="alert @uploadMessageClass" role="alert" style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
-            @uploadMessage
-        </div>
+            <div class="alert @uploadMessageClass" role="alert" style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
+                @uploadMessage
+            </div>
         }
 
         @if (showInvoiceModal)
         {
-        <div class="modal-backdrop"></div>
-        <div class="modal show d-block" tabindex="-1" role="dialog">
-            <div class="modal-dialog modal-xl" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h2 class="modal-title">Invoice Details</h2>
-                    </div>
-
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="invoiceNumber" class="form-label">Invoice Number</label>
-                                    <InputText id="invoiceNumber" class="form-control" @bind-Value="selectedInvoice.InvoiceNumber" />
-                                </div>
-                                <div class="mb-3">
-                                    <label for="invoiceDate" class="form-label">Invoice Date</label>
-                                    <InputDate id="invoiceDate" class="form-control" @bind-Value="selectedInvoice.InvoiceDate" />
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="supplier" class="form-label">Supplier</label>
-                                    <InputText id="supplier" class="form-control" @bind-Value="selectedInvoice.Supplier.Name" />
-                                </div>
-                                <div class="mb-3">
-                                    <label for="supplierTaxNumber" class="form-label">Supplier Tax Number</label>
-                                    <InputText id="supplierTaxNumber" class="form-control" @bind-Value="selectedInvoice.Supplier.TaxNumber" />
-                                </div>
-                            </div>
+            <div class="modal-backdrop"></div>
+            <div class="modal show d-block" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-xl" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 class="modal-title">Invoice Details</h2>
                         </div>
-                        <div class="mb-3">
-                            <div class="mb-3 d-flex justify-content-between align-items-center">
-                                <label for="products" class="form-label font-weight-bold fs-4">Products</label>
-                                <button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewProduct()">
-                                    <i class="fa fa-plus-square fa-2x" aria-hidden="true"></i>
-                                </button>
-                            </div>
 
-                            <div style="max-height: 400px; overflow-y: auto;">
-                                <table class="table table-striped table-sm">
-                                    <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
-                                        <tr>
-                                            <th class ="p-1">Code</th>
-                                            <th class="p-1">Name</th>
-                                            <th class="p-1">Quantity</th>
-                                            <th class="p-1">Price</th>
-                                            <th class="p-1">TAX Category</th>
-                                            <th class="p-1">RMS Product</th>
-                                            <th class="p-1">RMS Container</th>
-                                            <th style="text-align: center;">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var product in selectedInvoice.Products)
-                                        {
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="invoiceNumber" class="form-label">Invoice Number</label>
+                                        <InputText id="invoiceNumber" class="form-control" @bind-Value="selectedInvoice.InvoiceNumber" />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="invoiceDate" class="form-label">Invoice Date</label>
+                                        <InputDate id="invoiceDate" class="form-control" @bind-Value="selectedInvoice.InvoiceDate" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplier" class="form-label">Supplier</label>
+                                        <InputText id="supplier" class="form-control" @bind-Value="selectedInvoice.Supplier.Name" />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="supplierTaxNumber" class="form-label">Supplier Tax Number</label>
+                                        <InputText id="supplierTaxNumber" class="form-control" @bind-Value="selectedInvoice.Supplier.TaxNumber" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="mb-3 d-flex justify-content-between align-items-center">
+                                    <label for="products" class="form-label font-weight-bold fs-4">Products</label>
+                                    <button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewProduct()">
+                                        <i class="fa fa-plus-square fa-2x" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+
+                                <div style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-striped table-sm">
+                                        <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
                                             <tr>
-                                                @if (editProductId != null && editProductId == product.Id)
-                                                {
-                                                    <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductCode" /></td>
-                                                    <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductName" /></td>
-                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Quantity" /></td>
-                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Price" /></td>
+                                                <th class ="p-1">Code</th>
+                                                <th class="p-1">Name</th>
+                                                <th class="p-1">Quantity</th>
+                                                <th class="p-1">Price</th>
+                                                <th class="p-1">TAX Category</th>
+                                                <th class="p-1">RMS Product</th>
+                                                <th class="p-1">RMS Container</th>
+                                                <th style="text-align: center;">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var product in selectedInvoice.Products)
+                                            {
+                                                <tr>
+                                                    @if (editProductId != null && editProductId == product.Id)
+                                                    {
+                                                        <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductCode" /></td>
+                                                        <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductName" /></td>
+                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Quantity" /></td>
+                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Price" /></td>
+                                                        <td class="p-1">
+                                                            <select class="form-control form-control-sm" @bind="product.TaxCategory">
+                                                                @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
+                                                                {
+                                                                    <option value="@taxCategory">@taxCategory</option>
+                                                                }
+                                                            </select>
+                                                        </td>
+                                                        <td class="p-1">
+                                                            <select class="form-control form-control-sm" @bind="product.RMSProduct">
+                                                                @foreach (var rmsProduct in rmsProducts)
+                                                                {
+                                                                    <option value="@rmsProduct.Id">@rmsProduct.Name</option>
+                                                                }
+                                                            </select>
+                                                        </td>
+                                                        <td class="p-1">
+                                                            <select class="form-control form-control-sm" @bind="product.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, product))">
+                                                                @foreach (var rmsContainer in product.RMSProduct.Containers)
+                                                                {
+                                                                    <option value="@rmsContainer.Id">@rmsContainer.Name</option>
+                                                                }
+                                                            </select>
+                                                        </td>
+                                                        <td class="p-1 align-middle">
+                                                            <div class="d-flex justify-content-around align-items-center">
+                                                                <button class="custom-btn" @onclick="async () => SaveProduct(product)">
+                                                                    <i class="fa fa-save" aria-hidden="true"></i>
+                                                                </button>
+                                                                <button class="custom-btn" @onclick="async () => CancelEditProduct()">
+                                                                    <i class="fa fa-undo" aria-hidden="true"></i>
+                                                                </button>
+                                                                <button class="custom-btn" @onclick="async () => DeleteProduct(product)">
+                                                                    <i class="fa fa-trash" aria-hidden="true"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+
+                                                    }
+                                                    else
+                                                    {
+                                                        <td class="p-1">@product.ProductCode</td>
+                                                        <td class="p-1">@product.ProductName</td>
+                                                        <td class="p-1">@product.Quantity</td>
+                                                        <td class="p-1">@product.Price</td>
+                                                        <td class="p-1">@product.TaxCategory</td>
+                                                        <td class="p-1">@product.RMSProduct?.Name</td>
+                                                        <td class="p-1">@product.RMSContainer?.Name</td>
+                                                        <td class="p-1">
+                                                            <button class="custom-btn" @onclick="async () => EditProduct(product.Id)">
+                                                                <i class="fa fa-pencil" aria-hidden="true"></i>
+                                                            </button>
+                                                        </td>
+                                                    }
+                                                </tr>
+                                            }
+                                            @if (isAddingNewProduct)
+                                            {
+                                                <tr>
+                                                    <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductCode" /></td>
+                                                    <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductName" /></td>
+                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Quantity" /></td>
+                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Price" /></td>
                                                     <td class="p-1">
-                                                        <select class="form-control form-control-sm" @bind="product.TaxCategory">
+                                                        <select class="form-control form-control-sm" @bind="newProduct.TaxCategory">
                                                             @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
                                                             {
                                                                 <option value="@taxCategory">@taxCategory</option>
@@ -161,7 +224,7 @@
                                                         </select>
                                                     </td>
                                                     <td class="p-1">
-                                                        <select class="form-control form-control-sm" @bind="product.RMSProduct">
+                                                        <select class="form-control form-control-sm" @bind="newProduct.RMSProduct">
                                                             @foreach (var rmsProduct in rmsProducts)
                                                             {
                                                                 <option value="@rmsProduct.Id">@rmsProduct.Name</option>
@@ -169,77 +232,14 @@
                                                         </select>
                                                     </td>
                                                     <td class="p-1">
-                                                        <select class="form-control form-control-sm" @bind="product.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, product))">
-                                                            @foreach (var rmsContainer in product.RMSProduct.Containers)
+                                                        <select class="form-control form-control-sm" @bind="newProduct.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, newProduct))">
+                                                            @if (newProduct.RMSProduct != null)
                                                             {
-                                                                <option value="@rmsContainer.Id">@rmsContainer.Name</option>
+                                                                @foreach (var rmsContainer in newProduct.RMSProduct.Containers)
+                                                                {
+                                                                    <option value="@rmsContainer.Id">@rmsContainer.Name</option>
+                                                                }
                                                             }
-                                                        </select>
-                                                    </td>
-                                                    <td class="p-1 align-middle">
-                                                        <div class="d-flex justify-content-around align-items-center">
-                                                            <button class="custom-btn" @onclick="async () => SaveProduct(product)">
-                                                                <i class="fa fa-save" aria-hidden="true"></i>
-                                                            </button>
-                                                            <button class="custom-btn" @onclick="async () => CancelEdit()">
-                                                                <i class="fa fa-undo" aria-hidden="true"></i>
-                                                            </button>
-                                                            <button class="custom-btn" @onclick="async () => DeleteProduct(product)">
-                                                                <i class="fa fa-trash" aria-hidden="true"></i>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-
-                                                }
-                                                else
-                                                {
-                                                    <td class="p-1">@product.ProductCode</td>
-                                                    <td class="p-1">@product.ProductName</td>
-                                                    <td class="p-1">@product.Quantity</td>
-                                                    <td class="p-1">@product.Price</td>
-                                                    <td class="p-1">@product.TaxCategory</td>
-                                                    <td class="p-1">@product.RMSProduct?.Name</td>
-                                                    <td class="p-1">@product.RMSContainer?.Name</td>
-                                                    <td class="p-1">
-                                                        <button class="custom-btn" @onclick="async () => EditProduct(product.Id)">
-                                                            <i class="fa fa-pencil" aria-hidden="true"></i>
-                                                        </button>
-                                                    </td>
-                                                }
-                                            </tr>
-                                        }
-                                        @if (isAddingNewProduct)
-                                        {
-                                            <tr>
-                                                <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductCode" /></td>
-                                                <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductName" /></td>
-                                                <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Quantity" /></td>
-                                                <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Price" /></td>
-                                                <td class="p-1">
-                                                    <select class="form-control form-control-sm" @bind="newProduct.TaxCategory">
-                                                        @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
-                                                        {
-                                                            <option value="@taxCategory">@taxCategory</option>
-                                                        }
-                                                    </select>
-                                                </td>
-                                                <td class="p-1">
-                                                    <select class="form-control form-control-sm" @bind="newProduct.RMSProduct">
-                                                        @foreach (var rmsProduct in rmsProducts)
-                                                        {
-                                                            <option value="@rmsProduct.Id">@rmsProduct.Name</option>
-                                                        }
-                                                    </select>
-                                                </td>
-                                                <td class="p-1">
-                                                    <select class="form-control form-control-sm" @bind="newProduct.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, newProduct))">
-                                                        @if (newProduct.RMSProduct != null)
-                                                        {
-                                                            @foreach (var rmsContainer in newProduct.RMSProduct.Containers)
-                                                            {
-                                                                <option value="@rmsContainer.Id">@rmsContainer.Name</option>
-                                                            }
-                                                        }
                                                         </select>
                                                     </td>
                                                     <td class="p-1 align-middle">
@@ -260,7 +260,12 @@
                             </div>
                             <div class="row">
                                 <div class="col-md-6">
-                                    <label for="taxCategories" class="form-label font-weight-bold fs-4">Tax Categories</label>
+                                    <div class="mb-3 d-flex justify-content-between align-items-center">
+                                        <label for="taxCategories" class="form-label font-weight-bold fs-4">Tax Categories</label>
+                                        <button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewTaxCategory()">
+                                            <i class="fa fa-plus-square fa-2x" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
                                     <div style="max-height: 200px; overflow-y: auto;">
                                         <table class="table table-striped table-sm">
                                             <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
@@ -276,7 +281,7 @@
                                                 @foreach (var tax in selectedInvoice.TaxCategories)
                                                 {
                                                     <tr>
-                                                        @if (editTaxCategoryId == tax.Id)
+                                                        @if (editTaxCategoryId != null && editTaxCategoryId == tax.Id)
                                                         {
                                                             <td class="p-1">
                                                                 <select class="form-control form-control-sm" @bind="tax.TaxCategory">
@@ -289,14 +294,20 @@
                                                             <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="tax.Base" /></td>
                                                             <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="tax.IVA" /></td>
                                                             <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="tax.Total" /></td>
-                                                            <td class="p-1">
-                                                                <button class="custom-btn" @onclick="async () => SaveTaxCategory(tax)">
-                                                                    <i class="fa fa-save" aria-hidden="true"></i>
-                                                                </button>
-                                                                <button class="custom-btn" @onclick="async () => CancelEditTaxCategory()">
-                                                                    <i class="fa fa-undo" aria-hidden="true"></i>
-                                                                </button>
+                                                            <td class="p-1 align-middle">
+                                                                <div class="d-flex justify-content-around align-items-center">
+                                                                    <button class="custom-btn" @onclick="async () => SaveTaxCategory(tax)">
+                                                                        <i class="fa fa-save" aria-hidden="true"></i>
+                                                                    </button>
+                                                                    <button class="custom-btn" @onclick="async () => CancelEditTaxCategory()">
+                                                                        <i class="fa fa-undo" aria-hidden="true"></i>
+                                                                    </button>
+                                                                    <button class="custom-btn" @onclick="async () => DeleteTaxCategory(tax)">
+                                                                        <i class="fa fa-trash" aria-hidden="true"></i>
+                                                                    </button>
+                                                                </div>
                                                             </td>
+
                                                         }
                                                         else
                                                         {
@@ -311,6 +322,30 @@
                                                             </td>
                                                         }
                                                     </tr>
+                                                }
+                                                @if (isAddingNewTaxCategory)
+                                                {
+                                                    <td class="p-1">
+                                                        <select class="form-control form-control-sm" @bind="newTaxCategory.TaxCategory">
+                                                            @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
+                                                            {
+                                                                <option value="@taxCategory">@taxCategory</option>
+                                                            }
+                                                        </select>
+                                                    </td>
+                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newTaxCategory.Base" /></td>
+                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newTaxCategory.IVA" /></td>
+                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newTaxCategory.Total" /></td>
+                                                    <td class="p-1 align-middle">
+                                                        <div class="d-flex justify-content-around align-items-center">
+                                                            <button class="custom-btn" @onclick="async () => SaveNewTaxCategory()">
+                                                                <i class="fa fa-save" aria-hidden="true"></i>
+                                                            </button>
+                                                            <button class="custom-btn" @onclick="async () => CancelNewTaxCategory()">
+                                                                <i class="fa fa-undo" aria-hidden="true"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
                                                 }
                                             </tbody>
                                         </table>
@@ -375,6 +410,11 @@
     private int? editTaxCategoryId;
     private bool isAddingNewProduct = false; // Добавлено: Флаг для добавления нового продукта
     private InvoiceProductDTO newProduct = new InvoiceProductDTO(); // Добавлено: Новый продукт
+
+    private bool isAddingNewTaxCategory = false; // Добавлено: Флаг для добавления нового продукта
+    private TaxesDTO newTaxCategory = new TaxesDTO(); // Добавлено: Новый продукт
+
+
 
 
     private SupplierDTO[]? suppliers;   // Добавлено: Список поставщиков
@@ -577,6 +617,8 @@
         showInvoiceModal = true;
     }
 
+    /////////////// Редактирование продукта  ////////////////////////
+
     private void EditProduct(int? productId)
     {
         editProductId = productId;
@@ -588,27 +630,21 @@
         editProductId = null;
     }
 
-    private void CancelEdit()
+    private void CancelEditProduct()
     {
         editProductId = null;
     }
-
-    private void EditTaxCategory(int? taxCategoryId)
+    
+    private void DeleteProduct(InvoiceProductDTO product)
     {
-        editTaxCategoryId = taxCategoryId;
+        if (selectedInvoice != null)
+        {
+            selectedInvoice.Products.Remove(product);
+        }
     }
 
-    private void SaveTaxCategory(TaxesDTO tax)
-    {
-        // Save tax category logic here
-        editTaxCategoryId = null;
-    }
-
-    private void CancelEditTaxCategory()
-    {
-        editTaxCategoryId = null;
-    }
-
+    /////////////// Добавление нового продукта  ////////////////////////
+    
     private void AddNewProduct()
     {
         isAddingNewProduct = true;
@@ -630,14 +666,60 @@
         isAddingNewProduct = false;
         newProduct = new InvoiceProductDTO();
     }
+   
 
-    private void DeleteProduct(InvoiceProductDTO product)
+    /////////////// Редактирование категории /////////////////////
+
+    private void EditTaxCategory(int? taxCategoryId)
+    {
+        editTaxCategoryId = taxCategoryId;
+    }
+
+    private void SaveTaxCategory(TaxesDTO tax)
+    {
+        // Save tax category logic here
+        editTaxCategoryId = null;
+    }
+
+    private void CancelEditTaxCategory()
+    {
+        editTaxCategoryId = null;
+    }
+
+    private void DeleteTaxCategory(TaxesDTO taxCategory)
     {
         if (selectedInvoice != null)
         {
-            selectedInvoice.Products.Remove(product);
+            selectedInvoice.TaxCategories.Remove(taxCategory);
         }
     }
+
+
+    /////////////// Добавление новой категории /////////////////////////
+    
+    private void AddNewTaxCategory()
+    {
+        isAddingNewTaxCategory = true;
+        newTaxCategory = new TaxesDTO();
+    }
+
+    private void SaveNewTaxCategory()
+    {
+        if (selectedInvoice != null)
+        {
+            selectedInvoice.TaxCategories.Add(newTaxCategory);
+            isAddingNewTaxCategory = false;
+            newTaxCategory = new TaxesDTO();
+        }
+    }
+    private void CancelNewTaxCategory()
+    {
+        isAddingNewTaxCategory = false;
+        newTaxCategory = new TaxesDTO();
+    }
+
+    ////////////////////////////////////////////////////////////////////
+
 
     private async Task CloseInvoiceModalAsync() // Изменено: Метод для закрытия модальной формы Invoice
     {
@@ -664,7 +746,8 @@
             }
             else
             {
-                Console.WriteLine("Invoice update failed.");
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Invoice update failed. Status code: {response.StatusCode}, Error: {errorContent}");
                 uploadMessage = "Invoice update failed.";
                 uploadMessageClass = "alert-danger";
             }

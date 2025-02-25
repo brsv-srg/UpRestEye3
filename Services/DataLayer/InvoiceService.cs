@@ -189,8 +189,8 @@ namespace UpRestEye3.Services.DataLayer
                     {
                         if (!newTaxCategories.Any(c => c.TaxCategory == existingCategory.TaxCategory))
                         {
+                            //_context.Remove(existingCategory);
                             newTaxCategories.Add(existingCategory);
-                            _context.Remove(existingCategory);
                             _context.Entry(existingCategory).State = EntityState.Deleted;
 
                         }
@@ -224,16 +224,14 @@ namespace UpRestEye3.Services.DataLayer
                     {
                         if (!newInvoiceProducts.Any(c => c.ProductName == existingProduct.ProductName && c.ProductCode == existingProduct.ProductCode))
                         {
+                            //_context.Remove(existingProduct);
                             newInvoiceProducts.Add(existingProduct);
-                            _context.Remove(existingProduct);
                             _context.Entry(existingProduct).State = EntityState.Deleted;
 
                         }
                     }
 
-                    //
-
-
+                   
 
                     // Update invoice
                     _context.Entry(existingInvoice).State = EntityState.Detached;
