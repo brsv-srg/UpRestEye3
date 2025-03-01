@@ -19,12 +19,16 @@
     <Authorized>
         <PageTitle>RMS Products</PageTitle>
 
-        @* <h1>Products in RMS</h1> *@
         <div class="d-flex justify-content-between align-items-center">
             <h1 class="flex-grow-1 text-nowrap">Products in RMS</h1>
-            <button class="btn btn-outline-primary ml-auto" style="width: auto; margin-left: auto;" @onclick="async () => await LoadRMSData()">
-                <i class="fas fa-sync-alt"></i> 
-                @* <i class="bi bi-box-arrow-in-down"></i> TODO разобраться с этой кнопкой *@
+            <button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await ReadRMSProducts()" title="Read Products from DB">
+                <i class="fa fa-arrows-rotate"></i>
+            </button>
+            <button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await DownloadRMSData()" title="Download Products from RMS">
+                <i class="fa fa-download"></i>
+            </button>
+            <button class="btn btn-outline-primary ml-auto" style="width: auto; margin-left: auto;" @onclick="async () => await UploadRMSData()" title="Upload Products into RMS">
+                <i class="fa fa-upload"></i>
             </button>
         </div>
 
@@ -43,9 +47,10 @@
                 <table class="table" style="background-color: white; ">
                     <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
                         <tr>
+                            <th>Num</th>
                             <th>Name</th>
                             <th>Description</th>
-                            <th>Num</th>
+                            <th>Unit</th>
                             <th>Status</th>
                             <th style="text-align: center;">Actions</th>
                         </tr>
@@ -54,9 +59,11 @@
                         @foreach (var product in products)
                         {
                             <tr>
+                                <td>@product.Num</td>
                                 <td>@product.Name</td>
                                 <td>@product.Description</td>
-                                <td>@product.Num</td>
+                                <td>@GetMeasureUnitName(product.MainUnit)</td>
+
                                 <td>
                                     <span class="@GetStatusClass(product.Status)">
                                         @product.Status.ToString()
@@ -95,31 +102,32 @@
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label for="productName" class="form-label">Name</label>
-                                            <InputText id="productName" class="form-control" @bind-Value="selectedProduct.Name" />
+                                            <InputText id="productName" class="form-control" @bind-Value="editProduct.Name" />
                                         </div>
                                         <div class="mb-3">
                                             <label for="productDescription" class="form-label">Description</label>
-                                            <InputText id="productDescription" class="form-control" @bind-Value="selectedProduct.Description" />
+                                            <InputText id="productDescription" class="form-control" @bind-Value="editProduct.Description" />
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label for="productNum" class="form-label">Num</label>
-                                            <InputText id="productNum" class="form-control" @bind-Value="selectedProduct.Num" />
+                                            <InputText id="productNum" class="form-control" @bind-Value="editProduct.Num" />
                                         </div>
                                         <div class="mb-3">
                                             <label for="measureUnit" class="form-label">Measure Unit</label>
-                                            <select id="measureUnit" class="form-control" @onchange="HandleMeasureUnitChange">
+                                            <select id="measureUnit" class="form-control"  @bind="editProduct.MainUnit">
+                                                @* @onchange="HandleMeasureUnitChange" *@
                                                 @foreach (var unit in measureUnits)
                                                 {
-                                                    <option value="@unit.Id">@unit.Name</option>
+                                                    <option value="@unit.MeasureUnitExtGuid">@unit.Name</option>
                                                 }
                                             </select>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="mb-3">
-                                    <div class="mb-3 d-flex justify-content-start align-items-center">
+                                    <div class="mb-3 d-flex justify-content-between align-items-center">
                                         <label for="containers" class="form-label font-weight-bold fs-4">Containers</label>
                                         <button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewContainer()">
                                             <i class="fa fa-plus-square fa-2x" aria-hidden="true"></i>
@@ -140,10 +148,10 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                @foreach (var container in selectedProduct.Containers)
+                                                @foreach (var container in editProduct.Containers)
                                                 {
                                                     <tr>
-                                                        @if (editContainerId != null && editContainerId == container.Id)
+                                                        @if (editContainer != null && editContainer == container)
                                                         {
                                                             <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="container.Num" /></td>
                                                             <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="container.Name" /></td>
@@ -155,12 +163,12 @@
                                                                     <button class="custom-btn" @onclick="async () => SaveContainer(container)">
                                                                         <i class="fa fa-save" aria-hidden="true"></i>
                                                                     </button>
-                                                                    <button class="custom-btn" @onclick="async () => CancelEditContainer()">
+                                                                    <button class="custom-btn" @onclick="async () => CancelEditContainer(container)">
                                                                         <i class="fa fa-undo" aria-hidden="true"></i>
                                                                     </button>
-                                                                    <button class="custom-btn" @onclick="async () => DeleteContainer(container.Id)">
+                                                                    <button class="custom-btn" @onclick="async () => DeleteContainer(container)">
                                                                         <i class="fa fa-trash" aria-hidden="true"></i>
-																	</button>
+                                                                    </button>
                                                                 </div>
                                                             </td>
                                                         }
@@ -172,7 +180,7 @@
                                                             <td class="p-1">@container.ContainerWeight</td>
                                                             <td class="p-1">@container.FullContainerWeight</td>
                                                             <td class="p-1">
-                                                                <button class="custom-btn" @onclick="async () => EditContainer(container.Id)">
+                                                                <button class="custom-btn" @onclick="async () => EditContainer(container)">
                                                                     <i class="fa fa-pencil" aria-hidden="true"></i>
                                                                 </button>
                                                             </td>
@@ -221,19 +229,32 @@
 </AuthorizeView>
 
 @code {
-
+    // Cписок продуктов
     private RMSProductDTO[]? products;
+    // Редактируемый продукт (выбранный в списке)
     private RMSProductDTO? selectedProduct;
-    private RMSContainerDTO newContainer = new RMSContainerDTO(); // Добавлено: Новый контейнер
-    private int? editContainerId; // Добавлено: ID редактируемого контейнера
-    private bool showProductModal = false;
-    private bool isAddingNewContainer = false; // Добавлено: Флаг для добавления нового контейнера
-    private AppUser appUser;
+    // Временная модель для редактирования, чтобы не менять объект из списка напрямую
+    private RMSProductDTO editProduct = new RMSProductDTO(); 
 
+    // Редактируемый контейнер
+    private RMSContainerDTO? editContainer; 
+    // Временная модель для бэкапа контейнера
+    private RMSContainerDTO? backupContainer; 
+
+    // Новый контейнер 
+    private RMSContainerDTO newContainer = new RMSContainerDTO(); 
+    // Флаг добавления нового контейнера
+    private bool isAddingNewContainer = false;
+
+    // Признак отображения модального окна
+    private bool showProductModal = false;
+
+    private AppUser appUser;
     private string? uploadMessage;
     private string? uploadMessageClass;
 
-    private List<RMSMeasureUnitDTO> measureUnits = new List<RMSMeasureUnitDTO>(); // Добавлено: Список MeasureUnitDTO
+    // Список MeasureUnitDTO
+    private RMSMeasureUnitDTO[] measureUnits = []; 
 
 
 
@@ -246,7 +267,7 @@
         if (user.Identity.IsAuthenticated && appUser?.ConsumerId != null)
         {
             await ReadRMSProducts();
-			await ReadRMSMeasureUnits();
+            await ReadRMSMeasureUnits();
         }
         else
         {
@@ -298,7 +319,7 @@
 
         try
         {
-            measureUnits = await Http.GetFromJsonAsync<List<RMSMeasureUnitDTO>>($"{baseUri}/api/measureunits");
+            measureUnits = await Http.GetFromJsonAsync<RMSMeasureUnitDTO[]>($"{baseUri}/api/rmsproducts/units/{appUser.ConsumerId}");
         }
         catch (Exception ex)
         {
@@ -306,47 +327,108 @@
         }
     }
 
+
+    private string GetMeasureUnitName(Guid measureUnitId) // Добавлено: Метод для получения имени единицы измерения
+    {
+        return measureUnits.FirstOrDefault(u => u.MeasureUnitExtGuid == measureUnitId)?.Name ?? "";
+    }
+
+
     private void HandleMeasureUnitChange(ChangeEventArgs e)
     {
-        if (selectedProduct != null && Guid.TryParse(e.Value?.ToString(), out var selectedUnitId))
+        if (editProduct != null && Guid.TryParse(e.Value?.ToString(), out var selectedUnitId))
         {
-            selectedProduct.MainUnit = selectedUnitId;
+            editProduct.MainUnit = selectedUnitId;
         }
     }
+
+
+    private void CopyToEditModel(RMSProductDTO source, RMSProductDTO target)
+    {
+        target.Id = source.Id;
+        target.ConsumerId = source.ConsumerId;
+        target.Name = source.Name;
+        target.Description = source.Description;
+        target.Num = source.Num;
+        target.MainUnit = source.MainUnit;
+        target.Containers = source.Containers.Select(c => new RMSContainerDTO
+            {
+                Id = c.Id,
+                Num = c.Num,
+                Name = c.Name,
+                Count = c.Count,
+                ContainerWeight = c.ContainerWeight,
+                FullContainerWeight = c.FullContainerWeight
+            }).ToList();
+    }
+
 
     private async Task ShowProductDetailsAsync(RMSProductDTO product)
     {
         selectedProduct = product;
+        CopyToEditModel(selectedProduct, editProduct); // Копирование данных в временную модель
         showProductModal = true;
     }
 
-    private void EditContainer(int? containerId)
+
+    //////////////////////////////////////////////////////////////////////////////////////////
+    // Редактирование контейнера
+    private void EditContainer(RMSContainerDTO container)
     {
-        editContainerId = containerId;
+        if (container != null)
+        {
+            backupContainer = new RMSContainerDTO
+				{
+					Id = container.Id,
+					Num = container.Num,
+					Name = container.Name,
+					Count = container.Count,
+					ContainerWeight = container.ContainerWeight,
+					FullContainerWeight = container.FullContainerWeight
+				};
+            editContainer = container;
+        }
     }
 
     private void SaveContainer(RMSContainerDTO container)
     {
-        // Save container logic here
-        editContainerId = null;
-    }
-
-    private void CancelEditContainer()
-    {
-        editContainerId = null;
-    }
-
-    private void DeleteContainer(int? containerId)
-    {
-        if (containerId != null)
+        if (editContainer == container)
         {
-            var container = selectedProduct.Containers.FirstOrDefault(c => c.Id == containerId);
-            if (container != null)
-            {
-                selectedProduct.Containers.Remove(container);
-            }
+            editContainer = null;
+            backupContainer = null;
         }
     }
+
+    private void CancelEditContainer(RMSContainerDTO container)
+    {
+        if (backupContainer != null && editContainer != null && 
+            container != null && editContainer == container)
+        {
+            editContainer.Num = backupContainer.Num;
+            editContainer.Name = backupContainer.Name;
+            editContainer.Count = backupContainer.Count;
+            editContainer.ContainerWeight = backupContainer.ContainerWeight;
+            editContainer.FullContainerWeight = backupContainer.FullContainerWeight;
+
+            editContainer = null;
+            backupContainer = null;
+        }
+    }
+
+    private void DeleteContainer(RMSContainerDTO container)
+    {
+        if (container != null)
+        {
+            editProduct.Containers.Remove(container);
+            editContainer = null;
+            backupContainer = null;
+        }
+    }
+    //////////////////////////////////////////////////////////////////////////////////////////
+
+
+    //////////////////////////////////////////////////////////////////////////////////////////
+    // Добавление нового контейнера
 
     private void AddNewContainer()
     {
@@ -356,12 +438,9 @@
 
     private void SaveNewContainer()
     {
-        if (selectedProduct != null)
-        {
-            selectedProduct.Containers.Add(newContainer);
-            isAddingNewContainer = false;
-            newContainer = new RMSContainerDTO();
-        }
+        editProduct.Containers.Add(newContainer);
+        isAddingNewContainer = false;
+        newContainer = new RMSContainerDTO();
     }
 
     private void CancelNewContainer()
@@ -369,16 +448,20 @@
         isAddingNewContainer = false;
         newContainer = new RMSContainerDTO();
     }
+    //////////////////////////////////////////////////////////////////////////////////////////
 
     private async Task CloseProductModalAsync()
     {
+        CancelEditContainer(editContainer);
+        CancelNewContainer();
         showProductModal = false;
         selectedProduct = null;
+        editProduct = new RMSProductDTO();
     }
 
     private async Task SaveProductAsync()
     {
-        if (selectedProduct != null)
+        if (editProduct != null)
         {
             var baseUri = Navigation.BaseUri;
             if (baseUri.EndsWith('/'))
@@ -386,16 +469,16 @@
                 baseUri = baseUri.Substring(0, baseUri.Length - 1);
             }
 
-            var response = await Http.PostAsJsonAsync($"{baseUri}/api/RMSProducts/save", selectedProduct);
+            var response = await Http.PostAsJsonAsync($"{baseUri}/api/RMSProducts/save", editProduct);
                                                                       
             if (response.IsSuccessStatusCode)
             {
                 Console.WriteLine("Product updated successfully.");
                 uploadMessage = "Invoice updated successfully.";
                 uploadMessageClass = "alert-success";
-                selectedProduct = await response.Content.ReadFromJsonAsync<RMSProductDTO>();
 
-                //await ReadRMSProducts();
+                CopyToEditModel(editProduct, selectedProduct); // Копирование данных из временной модели в оригинальную
+
             }
             else
             {
@@ -407,12 +490,13 @@
 
             showProductModal = false;
             selectedProduct = null;
+            editProduct = new RMSProductDTO();
             StateHasChanged();
         }
     }
 
 
-    private async Task LoadRMSData()
+    private async Task DownloadRMSData()
     {
         if (appUser == null || appUser?.ConsumerId == null)
         {
@@ -430,7 +514,7 @@
         try
         {
 
-            var response = await Http.PostAsync($"{baseUri}/api/rmsproducts/load?consumerId={appUser.ConsumerId}", null);
+            var response = await Http.PostAsync($"{baseUri}/api/rmsproducts/download?consumerId={appUser.ConsumerId}", null);
 
             if (response.IsSuccessStatusCode)
             {
@@ -453,6 +537,50 @@
             Console.WriteLine($"An unexpected error occurred: {ex.Message}");
         }
     }
+
+
+    private async Task UploadRMSData()
+    {
+        if (appUser == null || appUser?.ConsumerId == null)
+        {
+            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+            Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+        }
+
+        var baseUri = Navigation.BaseUri;
+        if (baseUri.EndsWith('/'))
+        {
+            baseUri = baseUri.Substring(0, baseUri.Length - 1);
+        }
+
+
+        try
+        {
+
+            var response = await Http.PostAsync($"{baseUri}/api/rmsproducts/upload?consumerId={appUser.ConsumerId}", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Parameters saved successfully.");
+                await ReadRMSProducts();
+            }
+            else
+            {
+                Console.WriteLine($"Parameters save failed. Status code: {response.StatusCode}");
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error content: {errorContent}");
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"Request error: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An unexpected error occurred: {ex.Message}");
+        }
+    }
+
 
     private string GetStatusClass(RMSProductStatusEnum status) // Изменено: Метод для получения CSS-класса статуса
     {

@@ -5,12 +5,12 @@ using UpRestEye3.Services.DataLayer;
 
 namespace UpRestEye3.Services.BusinessLogic
 {
-    public interface ILoadRMSMeasureUnitsService
+    public interface IIntegrationRMSMeasureUnitsService
     {
-        Task LoadMeasureUnitsAsync(int consumerId);
+        Task<bool> GetMeasureUnitsAsync(int consumerId);
     }
 
-    public class LoadRMSMeasureUnitsService : ILoadRMSMeasureUnitsService
+    public class IntegrationRMSMeasureUnitsService : IIntegrationRMSMeasureUnitsService
     {
         private readonly ApplicationDbContext _context;
         private readonly IRMSMeasureUnitService _measureUnitService;
@@ -21,7 +21,7 @@ namespace UpRestEye3.Services.BusinessLogic
         private string _password;
         private string _apiUrl;
 
-        public LoadRMSMeasureUnitsService(
+        public IntegrationRMSMeasureUnitsService(
             ApplicationDbContext context,
             IRMSMeasureUnitService measureUnitService,
             IConnectionParameterService connectionParameterService,
@@ -33,24 +33,33 @@ namespace UpRestEye3.Services.BusinessLogic
             _httpClient = httpClient;
         }
 
-        public async Task LoadMeasureUnitsAsync(int consumerId)
+        public async Task<bool> GetMeasureUnitsAsync(int consumerId)
         {
-            await InitConnectionParams(consumerId);
-            await AuthenticateAsync();
-            var integrationUnits = await GetMeasureUnitsAsync();
-
-            foreach (var integrationUnit in integrationUnits)
+            try
             {
-                var measureUnitDTO = new RMSMeasureUnitDTO
+                await InitConnectionParams(consumerId);
+                await AuthenticateAsync();
+                var integrationUnits = await GetMeasureUnitsAsync();
+
+                foreach (var integrationUnit in integrationUnits)
                 {
-                    MeasureUnitExtGuid = integrationUnit.id,
-                    ConsumerId = consumerId,
-                    RootType = integrationUnit.rootType,
-                    Deleted = integrationUnit.deleted,
-                    Code = integrationUnit.code,
-                    Name = integrationUnit.name,
-                };
-                await _measureUnitService.SaveMeasureUnitAsync(measureUnitDTO);
+                    var measureUnitDTO = new RMSMeasureUnitDTO
+                    {
+                        MeasureUnitExtGuid = integrationUnit.id,
+                        ConsumerId = consumerId,
+                        RootType = integrationUnit.rootType,
+                        Deleted = integrationUnit.deleted,
+                        Code = integrationUnit.code,
+                        Name = integrationUnit.name,
+                    };
+                    await _measureUnitService.SaveMeasureUnitAsync(measureUnitDTO);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting products from RMS: {ex.Message}");
+                return false;
             }
         }
 

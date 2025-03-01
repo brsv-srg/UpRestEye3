@@ -22,6 +22,8 @@ namespace UpRestEye3.Services.BusinessLogic
 
         public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
         {
+            if (string.IsNullOrEmpty(value.ToString()))
+                return null;
             if (value is string idStr && int.TryParse(idStr, out int id) && _rnsProducts != null)
             {
                 return _rnsProducts.FirstOrDefault(c => c.Id == id);

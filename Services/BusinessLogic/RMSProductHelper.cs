@@ -68,6 +68,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 Containers = rmsProductDTO.Containers.Select(c => new RMSContainerDAO
                 {
                     Id = c.Id,
+                    RMSProductId = (int)rmsProductDTO.ConsumerId,
                     Num = c.Num,
                     Name = c.Name,
                     RMSContainerExtGuid = c.RMSContainerExtGuid,
@@ -109,9 +110,84 @@ namespace UpRestEye3.Services.BusinessLogic
             };
 
             return rmsProductDTO;
-        }        
-        
-        
+        }
+
+        public static RMSProductDAO? CopyRMSProductDAO(RMSProductDAO? rmsProductDAO)
+        {
+            if (rmsProductDAO == null)
+                return null;
+
+            var _rmsProductDAO = new RMSProductDAO
+            {
+                Id = rmsProductDAO.Id,
+                ConsumerId = rmsProductDAO.ConsumerId,
+                Name = rmsProductDAO.Name,
+                Description = rmsProductDAO.Description,
+                RMSProductExtGuid = rmsProductDAO.RMSProductExtGuid,
+                Num = rmsProductDAO.Num,
+                MainUnit = rmsProductDAO.MainUnit,
+                Status = rmsProductDAO.Status,
+                Containers = rmsProductDAO.Containers.Select(c => new RMSContainerDAO
+                {
+                    Id = c.Id,
+                    Num = c.Num,
+                    Name = c.Name,
+                    RMSContainerExtGuid = c.RMSContainerExtGuid,
+                    Count = c.Count,
+                    ContainerWeight = c.ContainerWeight,
+                    FullContainerWeight = c.FullContainerWeight
+                }).ToList()
+            };
+
+            return rmsProductDAO;
+        }
+
+
+        public static RMSContainerDAO? CopyRMSContainerDAO(RMSContainerDAO? rmsContainerDAO)
+        {
+            if (rmsContainerDAO == null)
+                return null;
+
+            var _rmsContainerDAO = new RMSContainerDAO
+            {
+                
+                Id = rmsContainerDAO.Id,
+                RMSProductId = rmsContainerDAO.RMSProductId,
+                Num = rmsContainerDAO.Num,
+                Name = rmsContainerDAO.Name,
+                RMSContainerExtGuid = rmsContainerDAO.RMSContainerExtGuid,
+                Count = rmsContainerDAO.Count,
+                ContainerWeight = rmsContainerDAO.ContainerWeight,
+                FullContainerWeight = rmsContainerDAO.FullContainerWeight
+                
+            };
+
+            return _rmsContainerDAO;
+        }
+
+        public static RMSContainerDTO? CopyRMSContainerDTO(RMSContainerDTO? rmsContainerDTO)
+        {
+            if (rmsContainerDTO == null)
+                return null;
+
+            var _rmsContainerDTO = new RMSContainerDTO
+            {
+
+                Id = rmsContainerDTO.Id,
+                Num = rmsContainerDTO.Num,
+                Name = rmsContainerDTO.Name,
+                RMSContainerExtGuid = rmsContainerDTO.RMSContainerExtGuid,
+                Count = rmsContainerDTO.Count,
+                ContainerWeight = rmsContainerDTO.ContainerWeight,
+                FullContainerWeight = rmsContainerDTO.FullContainerWeight
+
+            };
+
+            return _rmsContainerDTO;
+        }
+
+
+
         public static RMSContainerDTO? BuildRMSContainerDTO(RMSContainerDAO? rmsContainerDAO)
         {
             if (rmsContainerDAO == null)
@@ -152,7 +228,7 @@ namespace UpRestEye3.Services.BusinessLogic
         }
 
 
-        public static RMSProductDTO BuildRMSProductDTO(IntegrationProductDTO dto)
+        public static RMSProductDTO BuildRMSProductDTO(GetProductDTO dto)
         {
 
             if (dto == null)
@@ -181,6 +257,62 @@ namespace UpRestEye3.Services.BusinessLogic
 
         }
 
+        public static GetProductDTO BuildGetProductDTO(RMSProductDTO dto)
+        {
+
+            if (dto == null)
+                return null;
+
+            int counter = 1;
+            var integrationProduct = new GetProductDTO
+            {
+                id = dto.RMSProductExtGuid,
+                name = dto.Name,
+                description = dto.Description,
+                num = string.IsNullOrEmpty(dto.Num) ? null : dto.Num,
+                mainUnit = dto.MainUnit,
+                containers = dto.Containers.Select(c => new GetContainerDTO
+                {
+                    id = c.RMSContainerExtGuid,
+                    num = string.IsNullOrEmpty(c.Num) ? counter++.ToString("D3") : c.Num,
+                    name = c.Name,
+                    count = c.Count,
+                    containerWeight = c.ContainerWeight,
+                    fullContainerWeight = c.FullContainerWeight
+                }).ToList()
+            };
+
+            return integrationProduct;
+
+        }
+        
+
+        public static SaveProductDTO BuildSaveProductDTO(RMSProductDTO dto)
+        {
+
+            if (dto == null)
+                return null;
+            int counter = 1;
+            var integrationProduct = new SaveProductDTO
+            {
+                name = dto.Name,
+                description = dto.Description,
+                num = string.IsNullOrEmpty(dto.Num) ? null : dto.Num,
+                mainUnit = dto.MainUnit,
+                type = "GOODS",
+                containers = dto.Containers.Select(c => new SaveContainerDTO
+                {
+                    num = string.IsNullOrEmpty(c.Num) ? counter++.ToString("D3") : c.Num,
+                    name = c.Name,
+                    count = c.Count,
+                    containerWeight = c.ContainerWeight,
+                    fullContainerWeight = c.FullContainerWeight
+                }).ToList()
+            };
+
+            return integrationProduct;
+
+        }
 
     }
 

@@ -86,8 +86,8 @@ builder.Services.AddScoped<IImagePipelineHelper, ImagePipelineHelper>();
 builder.Services.AddScoped<IProductMappingService, ProductMappingService>();
 builder.Services.AddScoped<IConnectionParameterService, ConnectionParameterService>();
 builder.Services.AddScoped<IRMSProductService, RMSProductService>();
-builder.Services.AddScoped<ILoadRMSProductsService, LoadRMSProductsService>();
-builder.Services.AddScoped<ILoadRMSMeasureUnitsService, LoadRMSMeasureUnitsService>();
+builder.Services.AddScoped<IIntegrationRMSProductsService, IntegrationRMSProductsService>();
+builder.Services.AddScoped<IIntegrationRMSMeasureUnitsService, IntegrationRMSMeasureUnitsService>();
 builder.Services.AddScoped<IRMSMeasureUnitService, RMSMeasureUnitService>();
 
 

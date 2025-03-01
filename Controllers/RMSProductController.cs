@@ -10,14 +10,16 @@ namespace UpRestEye3.Controllers
     public class RMSProductsController : ControllerBase
     {
         private readonly IRMSProductService _productService;
-        private readonly ILoadRMSProductsService _loadProductsService;
-        private readonly ILoadRMSMeasureUnitsService _loadRMSMeasureUnits;
+        private readonly IRMSMeasureUnitService _unitService;
+        private readonly IIntegrationRMSProductsService _loadProductsService;
+        private readonly IIntegrationRMSMeasureUnitsService _loadRMSMeasureUnits;
 
-        public RMSProductsController(IRMSProductService productService, ILoadRMSProductsService loadProductsService, ILoadRMSMeasureUnitsService loadRMSMeasureUnits)
+        public RMSProductsController(IRMSProductService productService, IRMSMeasureUnitService unitService, IIntegrationRMSProductsService loadProductsService, IIntegrationRMSMeasureUnitsService loadRMSMeasureUnits)
         {
             _productService = productService;
             _loadProductsService = loadProductsService;
             _loadRMSMeasureUnits = loadRMSMeasureUnits;
+            _unitService = unitService;
         }
 
         [HttpGet("{consumerId}")]
@@ -27,14 +29,42 @@ namespace UpRestEye3.Controllers
             return Ok(products);
         }
 
-        [HttpPost("load")]
-        public async Task<ActionResult> LoadRMSProducts([FromQuery] int consumerId)
+        [HttpGet("units/{consumerId}")]
+        public async Task<ActionResult<List<RMSMeasureUnitDTO>>> GetUnitsByConsumerId(int consumerId)
+        {
+            var units = await _unitService.GetUnitsByConsumerIdAsync(consumerId);
+            return Ok(units);
+        }
+
+
+        [HttpPost("download")]
+        public async Task<ActionResult> DownloadRMSProducts([FromQuery] int consumerId)
         {
             try
             {
-                await _loadProductsService.LoadProductsAsync(consumerId);
-                await _loadRMSMeasureUnits.LoadMeasureUnitsAsync(consumerId);
-                return Ok();
+                var resGetProds = await _loadProductsService.GetProductsAsync(consumerId);
+                var resGetUnits = await _loadRMSMeasureUnits.GetMeasureUnitsAsync(consumerId);
+                if (resGetProds && resGetUnits)
+                    return Ok();
+                else
+                    return BadRequest("An error occurred when downloading the products.");
+            }
+            catch (Exception e)
+            {
+                return BadRequest(e.Message);
+            }
+        }
+
+
+        [HttpPost("upload")]
+        public async Task<ActionResult> UploadRMSProducts([FromQuery] int consumerId)
+        {
+            try
+            {
+                if (await _loadProductsService.PostProductsAsync(consumerId))
+                    return Ok();
+                else
+                    return BadRequest("An error occurred when uploading the products.");
             }
             catch (Exception e)
             {

@@ -86,6 +86,7 @@ namespace UpRestEye3.Services.BusinessLogic
         // TODO Перенести в сервис и запрашивать новые объекты через билдер/фабрику
         public static void CopyInvoice(InvoiceDTO invoiceTarget, InvoiceDTO invoiceSource)
         {
+            invoiceTarget.Id = invoiceSource.Id;
             if (invoiceTarget.Supplier == null)
             {
                 invoiceTarget.Supplier = new SupplierDTO();
@@ -117,6 +118,28 @@ namespace UpRestEye3.Services.BusinessLogic
 
             invoiceTarget.TaxCategories = new List<TaxesDTO>(invoiceSource.TaxCategories);
 
+            invoiceTarget.Products = invoiceSource.Products.Select(p => new InvoiceProductDTO
+            {
+                Id = p.Id,
+                ProductCode = p.ProductCode,
+                ProductName = p.ProductName,
+                Unit = p.Unit,
+                Quantity = p.Quantity,
+                Price = p.Price,
+                TaxCategory = p.TaxCategory,
+                RMSProduct = RMSProductHelper.CopyRMSProductDTO(p.RMSProduct),
+                RMSContainer = RMSProductHelper.CopyRMSContainerDTO(p.RMSContainer),
+                Comments = p.Comments
+            }).ToList();
+
+            invoiceTarget.TaxCategories = invoiceSource.TaxCategories.Select(t => new TaxesDTO
+            {
+                Id = t.Id,
+                TaxCategory = t.TaxCategory,
+                Base = t.Base,
+                IVA = t.IVA,
+                Total = t.Total
+            }).ToList();
 
             if (invoiceSource.Status != null)
             {
@@ -164,9 +187,31 @@ namespace UpRestEye3.Services.BusinessLogic
             invoiceTarget.TotalIVA = invoiceSource.TotalIVA;
             invoiceTarget.TotalAmount = invoiceSource.TotalAmount;
 
-            invoiceTarget.Products = new List<InvoiceProductDAO>(invoiceSource.Products);
+            invoiceTarget.Products = invoiceSource.Products.Select(p => new InvoiceProductDAO
+            {
+                Id = p.Id,
+                InvoiceId = p.InvoiceId,
+                ProductCode = p.ProductCode,
+                ProductName = p.ProductName,
+                Unit = p.Unit,
+                Quantity = p.Quantity,
+                Price = p.Price,
+                TaxCategory = p.TaxCategory,
+                RMSProduct = RMSProductHelper.CopyRMSProductDAO(p.RMSProduct),
+                RMSContainer = RMSProductHelper.CopyRMSContainerDAO(p.RMSContainer),
+                Comments = p.Comments
 
-            invoiceTarget.TaxCategories = new List<TaxesDAO>(invoiceSource.TaxCategories);
+            }).ToList();
+
+            invoiceTarget.TaxCategories = invoiceSource.TaxCategories.Select(t => new TaxesDAO
+            {
+                Id = t.Id,
+                InvoiceId = t.InvoiceId,
+                TaxCategory = t.TaxCategory,
+                Base = t.Base,
+                IVA = t.IVA,
+                Total = t.Total
+            }).ToList();
 
             invoiceTarget.Status = invoiceSource.Status;
 
@@ -332,6 +377,10 @@ namespace UpRestEye3.Services.BusinessLogic
             {
                 throw new Exception("Error in BuildInvoiceDAO", ex);
             }
+        }
+        public static List<T> CloneList<T>(List<T> listToClone) where T : ICloneable
+        {
+            return listToClone.Select(item => (T)item.Clone()).ToList();
         }
     }
 

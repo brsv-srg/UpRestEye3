@@ -77,14 +77,23 @@ namespace UpRestEye3.Services.DataLayer
                     .AsNoTracking()
                     .Include(p => p.Containers)
                     .FirstOrDefaultAsync(p => p.ConsumerId == newProductDao.ConsumerId && 
-                        
-                                            ((newProductDao.RMSProductExtGuid != null && 
+                                            
+                                            ((newProductDao.Id != null && p.Id == newProductDao.Id) ||
+
+                                            (newProductDao.Id == null && 
+                                                newProductDao.RMSProductExtGuid != null && 
                                                 newProductDao.RMSProductExtGuid != Guid.Empty && 
                                                 p.RMSProductExtGuid == newProductDao.RMSProductExtGuid) ||
 
-                                            (newProductDao.RMSProductExtGuid == null || 
-                                                newProductDao.RMSProductExtGuid == Guid.Empty) &&
-                                                p.Name == newProductDao.Name));
+                                            (newProductDao.Id == null &&
+                                                (newProductDao.RMSProductExtGuid == null || newProductDao.RMSProductExtGuid != Guid.Empty) &&
+                                                !string.IsNullOrEmpty(newProductDao.Num) &&
+                                                p.Num == newProductDao.Num) ||
+
+                                            (newProductDao.Id == null &&
+                                                (newProductDao.RMSProductExtGuid == null || newProductDao.RMSProductExtGuid != Guid.Empty) &&
+                                                string.IsNullOrEmpty(newProductDao.Num) &&
+                                                p.Name == newProductDao.Name)));
 
                 if (existingProduct == null)
                 {
@@ -109,12 +118,16 @@ namespace UpRestEye3.Services.DataLayer
                     {
                         var existingContainer = existingContainers
                             .FirstOrDefault(c => (newContainer.Id != null && c.Id == newContainer.Id) ||
+                                                    
                                                     (newContainer.Id == null && 
-                                                        newContainer.RMSContainerExtGuid != null && 
+                                                        newContainer.RMSContainerExtGuid != null && newContainer.RMSContainerExtGuid != Guid.Empty &&
+                                                        c.RMSContainerExtGuid != null && c.RMSContainerExtGuid != Guid.Empty &&
                                                         c.RMSContainerExtGuid == newContainer.RMSContainerExtGuid) ||
+
                                                     (newContainer.Id == null &&
-                                                        newContainer.RMSContainerExtGuid == null &&
-                                                        newContainer.Name != null &&
+                                                        (newContainer.RMSContainerExtGuid == null || newContainer.RMSContainerExtGuid != Guid.Empty ||
+                                                        c.RMSContainerExtGuid == null || c.RMSContainerExtGuid == Guid.Empty) &&
+                                                        !string.IsNullOrEmpty(newContainer.Name) && !string.IsNullOrEmpty(c.Name) &&
                                                         c.Name == newContainer.Name));
 
                         if (existingContainer == null)
@@ -133,17 +146,20 @@ namespace UpRestEye3.Services.DataLayer
                     foreach (var existingContainer in existingContainers)
                     {
                         if (!newContainers.Any(c => (c.Id != null && c.Id == existingContainer.Id) ||
+                                                    
                                                     (c.Id == null &&
-                                                        c.RMSContainerExtGuid != null &&
+                                                        c.RMSContainerExtGuid != null && c.RMSContainerExtGuid != Guid.Empty &&
+                                                        existingContainer.RMSContainerExtGuid != null && existingContainer.RMSContainerExtGuid != Guid.Empty &&
                                                         c.RMSContainerExtGuid == existingContainer.RMSContainerExtGuid) ||
+                                                    
                                                     (c.Id == null &&
-                                                        c.RMSContainerExtGuid == null &&
-                                                        c.Name != null &&
+                                                        (c.RMSContainerExtGuid == null || c.RMSContainerExtGuid != Guid.Empty ||
+                                                        existingContainer.RMSContainerExtGuid == null || existingContainer.RMSContainerExtGuid == Guid.Empty) &&
+                                                        !string.IsNullOrEmpty(c.Name) && !string.IsNullOrEmpty(existingContainer.Name) &&
                                                         c.Name == existingContainer.Name)))
                         {
                             _context.Remove(existingContainer);
                             _context.Entry(existingContainer).State = EntityState.Deleted;
-
                         }
                     }
 
@@ -153,7 +169,7 @@ namespace UpRestEye3.Services.DataLayer
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
-                    return existingProduct.Id;
+                    return newProductDao.Id;
                 }
             }
             catch (Exception)

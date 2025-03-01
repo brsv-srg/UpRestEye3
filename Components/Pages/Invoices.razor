@@ -102,25 +102,26 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="invoiceNumber" class="form-label">Invoice Number</label>
-                                        <InputText id="invoiceNumber" class="form-control" @bind-Value="selectedInvoice.InvoiceNumber" />
+                                        <InputText id="invoiceNumber" class="form-control" @bind-Value="editInvoice.InvoiceNumber" />
                                     </div>
-                                    <div class="mb-3">
+                                    <div class="mb-4">
                                         <label for="invoiceDate" class="form-label">Invoice Date</label>
-                                        <InputDate id="invoiceDate" class="form-control" @bind-Value="selectedInvoice.InvoiceDate" />
+                                        <InputDate id="invoiceDate" class="form-control" @bind-Value="editInvoice.InvoiceDate" />
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+
+                                <div class="col-md-6"> 
                                     <div class="mb-3">
                                         <label for="supplier" class="form-label">Supplier</label>
-                                        <InputText id="supplier" class="form-control" @bind-Value="selectedInvoice.Supplier.Name" />
+                                        <InputText id="supplier" class="form-control" @bind-Value="editInvoice.Supplier.Name" />
                                     </div>
-                                    <div class="mb-3">
+                                    <div class="mb-4">
                                         <label for="supplierTaxNumber" class="form-label">Supplier Tax Number</label>
-                                        <InputText id="supplierTaxNumber" class="form-control" @bind-Value="selectedInvoice.Supplier.TaxNumber" />
+                                        <InputText id="supplierTaxNumber" class="form-control" @bind-Value="editInvoice.Supplier.TaxNumber" />
                                     </div>
                                 </div>
                             </div>
-                            <div class="mb-3">
+                            <div class="mb-4">
                                 <div class="mb-3 d-flex justify-content-between align-items-center">
                                     <label for="products" class="form-label font-weight-bold fs-4">Products</label>
                                     <button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewProduct()">
@@ -143,10 +144,10 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach (var product in selectedInvoice.Products)
+                                            @foreach (var product in editInvoice.Products)
                                             {
                                                 <tr>
-                                                    @if (editProductId != null && editProductId == product.Id)
+                                                    @if (editProduct != null && editProduct == product)
                                                     {
                                                         <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductCode" /></td>
                                                         <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductName" /></td>
@@ -154,6 +155,7 @@
                                                         <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Price" /></td>
                                                         <td class="p-1">
                                                             <select class="form-control form-control-sm" @bind="product.TaxCategory">
+                                                                @* <option value="">@((TaxCategoryEnum?)null)</option> *@
                                                                 @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
                                                                 {
                                                                     <option value="@taxCategory">@taxCategory</option>
@@ -162,6 +164,7 @@
                                                         </td>
                                                         <td class="p-1">
                                                             <select class="form-control form-control-sm" @bind="product.RMSProduct">
+                                                                <option value="">@((RMSProductDTO?)null)</option>
                                                                 @foreach (var rmsProduct in rmsProducts)
                                                                 {
                                                                     <option value="@rmsProduct.Id">@rmsProduct.Name</option>
@@ -170,7 +173,8 @@
                                                         </td>
                                                         <td class="p-1">
                                                             <select class="form-control form-control-sm" @bind="product.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, product))">
-                                                                @foreach (var rmsContainer in product.RMSProduct.Containers)
+                                                                <option value="">@((RMSContainerDTO?)null)</option>
+                                                                @foreach (var rmsContainer in product.RMSProduct?.Containers)
                                                                 {
                                                                     <option value="@rmsContainer.Id">@rmsContainer.Name</option>
                                                                 }
@@ -181,7 +185,7 @@
                                                                 <button class="custom-btn" @onclick="async () => SaveProduct(product)">
                                                                     <i class="fa fa-save" aria-hidden="true"></i>
                                                                 </button>
-                                                                <button class="custom-btn" @onclick="async () => CancelEditProduct()">
+                                                                <button class="custom-btn" @onclick="async () => CancelEditProduct(product)">
                                                                     <i class="fa fa-undo" aria-hidden="true"></i>
                                                                 </button>
                                                                 <button class="custom-btn" @onclick="async () => DeleteProduct(product)">
@@ -201,7 +205,7 @@
                                                         <td class="p-1">@product.RMSProduct?.Name</td>
                                                         <td class="p-1">@product.RMSContainer?.Name</td>
                                                         <td class="p-1">
-                                                            <button class="custom-btn" @onclick="async () => EditProduct(product.Id)">
+                                                            <button class="custom-btn" @onclick="async () => EditProduct(product)">
                                                                 <i class="fa fa-pencil" aria-hidden="true"></i>
                                                             </button>
                                                         </td>
@@ -225,6 +229,7 @@
                                                     </td>
                                                     <td class="p-1">
                                                         <select class="form-control form-control-sm" @bind="newProduct.RMSProduct">
+                                                            <option value="">@((RMSProductDTO?)null)</option>
                                                             @foreach (var rmsProduct in rmsProducts)
                                                             {
                                                                 <option value="@rmsProduct.Id">@rmsProduct.Name</option>
@@ -235,7 +240,8 @@
                                                         <select class="form-control form-control-sm" @bind="newProduct.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, newProduct))">
                                                             @if (newProduct.RMSProduct != null)
                                                             {
-                                                                @foreach (var rmsContainer in newProduct.RMSProduct.Containers)
+                                                                <option value="">@((RMSContainerDTO?)null)</option>
+                                                                @foreach (var rmsContainer in newProduct.RMSProduct?.Containers)
                                                                 {
                                                                     <option value="@rmsContainer.Id">@rmsContainer.Name</option>
                                                                 }
@@ -278,10 +284,10 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                @foreach (var tax in selectedInvoice.TaxCategories)
+                                                @foreach (var tax in editInvoice.TaxCategories)
                                                 {
                                                     <tr>
-                                                        @if (editTaxCategoryId != null && editTaxCategoryId == tax.Id)
+                                                        @if (editTaxCategory != null && editTaxCategory == tax)
                                                         {
                                                             <td class="p-1">
                                                                 <select class="form-control form-control-sm" @bind="tax.TaxCategory">
@@ -299,7 +305,7 @@
                                                                     <button class="custom-btn" @onclick="async () => SaveTaxCategory(tax)">
                                                                         <i class="fa fa-save" aria-hidden="true"></i>
                                                                     </button>
-                                                                    <button class="custom-btn" @onclick="async () => CancelEditTaxCategory()">
+                                                                    <button class="custom-btn" @onclick="async () => CancelEditTaxCategory(tax)">
                                                                         <i class="fa fa-undo" aria-hidden="true"></i>
                                                                     </button>
                                                                     <button class="custom-btn" @onclick="async () => DeleteTaxCategory(tax)">
@@ -316,7 +322,7 @@
                                                             <td class="p-1">@tax.IVA</td>
                                                             <td class="p-1">@tax.Total</td>
                                                             <td class="p-1">
-                                                                <button class="custom-btn" @onclick="async () => EditTaxCategory(tax.Id)">
+                                                                <button class="custom-btn" @onclick="async () => EditTaxCategory(tax)">
                                                                     <i class="fa fa-pencil" aria-hidden="true"></i>
                                                                 </button>
                                                             </td>
@@ -355,11 +361,11 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="totalIVA" class="form-label font-weight-bold fs-4">Total IVA</label>
-                                        <InputNumber id="totalIVA" class="form-control" @bind-Value="selectedInvoice.TotalIVA" />
+                                        <InputNumber id="totalIVA" class="form-control" @bind-Value="editInvoice.TotalIVA" />
                                     </div>
                                     <div class="mb-3">
                                         <label for="totalAmount" class="form-label font-weight-bold fs-4">Total Amount</label>
-                                        <InputNumber id="totalAmount" class="form-control" @bind-Value="selectedInvoice.TotalAmount" />
+                                        <InputNumber id="totalAmount" class="form-control" @bind-Value="editInvoice.TotalAmount" />
                                     </div>
                                 </div>
                             </div>
@@ -400,25 +406,52 @@
 </script>
 
 @code {
-    private InvoiceDTO[]? invoices;
+    // Выбранный файл 
     private IBrowserFile? selectedFile;
+
+    // Список инвойсов
+    private InvoiceDTO[]? invoices;
+    // Редактируемый продукт (выбранный в списке)
+    private InvoiceDTO? selectedInvoice; 
+    // Временная модель для редактирования, чтобы не менять объект из списка напрямую
+    private InvoiceDTO editInvoice = new InvoiceDTO(); 
+
+
+
+    // Список продуктов
+    private RMSProductDTO[]? rmsProducts; 
+    // Редактируемый продукт
+    private InvoiceProductDTO? editProduct;
+    // Временная модель для бэкапа продукта
+    private InvoiceProductDTO? backupProduct;
+   
+
+
+    // Новый продукт
+    private InvoiceProductDTO newProduct = new InvoiceProductDTO(); 
+    // Флаг для добавления нового продукта
+    private bool isAddingNewProduct = false;
+
+
+
+    // Редактируемая категория
+    private TaxesDTO? editTaxCategory;
+    // Временная модель для бекапа категории
+    private TaxesDTO? backupTaxCategory;
+
+    // Новая категория
+    private TaxesDTO newTaxCategory = new TaxesDTO();
+    // Флаг для добавления новой категории
+    private bool isAddingNewTaxCategory = false; 
+
+    // Признак отображения модальной формы Invoice
+    private bool showInvoiceModal = false; 
+
+
     private string? uploadMessage;
     private string? uploadMessageClass;
-    private bool showInvoiceModal = false; // Изменено: Переименовано для отображения модальной формы Invoice
-    private InvoiceDTO? selectedInvoice; // Добавлено: Выбранный Invoice для редактирования
-    private int? editProductId; // Добавлено: ID редактируемого продукта
-    private int? editTaxCategoryId;
-    private bool isAddingNewProduct = false; // Добавлено: Флаг для добавления нового продукта
-    private InvoiceProductDTO newProduct = new InvoiceProductDTO(); // Добавлено: Новый продукт
-
-    private bool isAddingNewTaxCategory = false; // Добавлено: Флаг для добавления нового продукта
-    private TaxesDTO newTaxCategory = new TaxesDTO(); // Добавлено: Новый продукт
-
-
-
 
     private SupplierDTO[]? suppliers;   // Добавлено: Список поставщиков
-    private RMSProductDTO[]? rmsProducts; // Добавлено: Список продуктов
     private RMSContainerDTO[]? rmsContainers; // Добавлено: Список контейнеров
 
     // private List<InvoiceProductDTO>? selectedProducts;
@@ -477,14 +510,6 @@
         converterProduct.SetSourceList(rmsProducts);
 
 
-    }
-
-    private void HandleDropdownOpened(FocusEventArgs e, InvoiceProductDTO product)
-    {
-        // Получаем экземпляр конвертера
-        var converterProduct = TypeDescriptor.GetConverter(typeof(RMSContainerDTO)) as RMSContainerDTOConverter;
-        // Устанавливаем список
-        converterProduct.SetSourceList(product.RMSProduct.Containers);
     }
 
 
@@ -611,40 +636,103 @@
         }
     }
 
-    private async Task ShowInvoiceAsync(InvoiceDTO invoice) // Изменено: Метод для отображения модальной формы Invoice
+
+
+    // Метод для отображения модальной формы Invoice
+    private async Task ShowInvoiceAsync(InvoiceDTO invoice) 
     {
         selectedInvoice = invoice;
+        InvoiceHelper.CopyInvoice(editInvoice, selectedInvoice);
         showInvoiceModal = true;
     }
 
-    /////////////// Редактирование продукта  ////////////////////////
 
-    private void EditProduct(int? productId)
+    //////////////////////////////////////////////////////////////////////////////
+    // Редактирование продукта
+
+    private void CopyProduct(InvoiceProductDTO source, InvoiceProductDTO target)
     {
-        editProductId = productId;
+        if (source != null && target != null)
+        {
+            target.Id = source.Id;
+            target.ProductCode = source.ProductCode;
+            target.ProductName = source.ProductName;
+            target.Unit = source.Unit;
+            target.Quantity = source.Quantity;
+            target.Price = source.Price;
+            target.TaxCategory = source.TaxCategory;
+            target.RMSProduct = source.RMSProduct;
+            target.RMSContainer = source.RMSContainer;
+            target.Comments = source.Comments;
+        }
+    }
+
+    private void EditProduct(InvoiceProductDTO product)
+    {
+        if (product != null)
+        {
+
+            backupProduct = new InvoiceProductDTO();
+            CopyProduct(product, backupProduct);
+            editProduct = product;
+        }
     }
 
     private void SaveProduct(InvoiceProductDTO product)
     {
-        // Save product logic here
-        editProductId = null;
-    }
-
-    private void CancelEditProduct()
-    {
-        editProductId = null;
-    }
-    
-    private void DeleteProduct(InvoiceProductDTO product)
-    {
-        if (selectedInvoice != null)
+        if(editProduct == product)
         {
-            selectedInvoice.Products.Remove(product);
+            // Save product logic here
+            editProduct = null;
+            backupProduct = null;
         }
     }
 
+    private void CancelEditProduct(InvoiceProductDTO product)
+    {
+        if (backupProduct != null && editProduct != null &&
+            product != null && editProduct == product)
+        {
+
+            editProduct.ProductCode = backupProduct.ProductCode;
+            editProduct.ProductName = backupProduct.ProductName;
+            editProduct.Unit = backupProduct.Unit;
+            editProduct.Quantity = backupProduct.Quantity;
+            editProduct.Price = backupProduct.Price;
+            editProduct.TaxCategory = backupProduct.TaxCategory;
+            editProduct.RMSProduct = backupProduct.RMSProduct;
+            editProduct.RMSContainer = backupProduct.RMSContainer;
+            editProduct.Comments = backupProduct.Comments;
+
+            backupProduct = null;
+            editProduct = null;
+        }
+    }
+
+    private void DeleteProduct(InvoiceProductDTO product)
+    {
+        if (product != null)
+        {
+            editInvoice.Products.Remove(product);
+            editProduct = null;
+            backupProduct = null;
+        }
+    }
+
+    private void HandleDropdownOpened(FocusEventArgs e, InvoiceProductDTO product)
+    {
+            // Получаем экземпляр конвертера
+            var converterContainer = TypeDescriptor.GetConverter(typeof(RMSContainerDTO)) as RMSContainerDTOConverter;
+            // Устанавливаем список
+            converterContainer.SetSourceList(product.RMSProduct.Containers);
+    }
+
+
+    ////////////////////////////////////////////////////////////////////
+
+
     /////////////// Добавление нового продукта  ////////////////////////
-    
+
     private void AddNewProduct()
     {
         isAddingNewProduct = true;
@@ -653,12 +741,9 @@
 
     private void SaveNewProduct()
     {
-        if (selectedInvoice != null)
-        {
-            selectedInvoice.Products.Add(newProduct);
-            isAddingNewProduct = false;
-            newProduct = new InvoiceProductDTO();
-        }
+        editInvoice.Products.Add(newProduct);
+        isAddingNewProduct = false;
+        newProduct = new InvoiceProductDTO();
     }
 
     private void CancelNewProduct()
@@ -666,37 +751,67 @@
         isAddingNewProduct = false;
         newProduct = new InvoiceProductDTO();
     }
-   
+    ////////////////////////////////////////////////////////////////////
+
 
     /////////////// Редактирование категории /////////////////////
 
-    private void EditTaxCategory(int? taxCategoryId)
+    private void EditTaxCategory(TaxesDTO taxCategory)
     {
-        editTaxCategoryId = taxCategoryId;
+        if (taxCategory != null)
+        {
+            backupTaxCategory = new TaxesDTO
+                {
+					Id = taxCategory.Id,
+                    TaxCategory = taxCategory.TaxCategory,
+                    Base = taxCategory.Base,
+                    IVA = taxCategory.IVA,
+                    Total = taxCategory.Total,
+                };
+            editTaxCategory = taxCategory;
+        }
     }
 
-    private void SaveTaxCategory(TaxesDTO tax)
+    private void SaveTaxCategory(TaxesDTO taxCategory)
     {
-        // Save tax category logic here
-        editTaxCategoryId = null;
+        if (editTaxCategory == taxCategory)
+        {
+            // Save tax category logic here
+            editTaxCategory = null;
+            backupTaxCategory = null;
+        }
     }
 
-    private void CancelEditTaxCategory()
+    private void CancelEditTaxCategory(TaxesDTO taxCategory)
     {
-        editTaxCategoryId = null;
+        if (backupTaxCategory != null && editTaxCategory != null &&
+            taxCategory != null && editTaxCategory == taxCategory)
+        {
+            editTaxCategory.TaxCategory = backupTaxCategory.TaxCategory;
+            editTaxCategory.Base = backupTaxCategory.Base;
+            editTaxCategory.IVA = backupTaxCategory.IVA;
+            editTaxCategory.Total = backupTaxCategory.Total;
+
+            backupTaxCategory = null;
+            editTaxCategory = null;
+        }
+        editTaxCategory = null;
     }
 
     private void DeleteTaxCategory(TaxesDTO taxCategory)
     {
-        if (selectedInvoice != null)
+        if (taxCategory != null)
         {
-            selectedInvoice.TaxCategories.Remove(taxCategory);
+            editInvoice.TaxCategories.Remove(taxCategory);
+            editTaxCategory = null;
+            backupTaxCategory = null;
         }
     }
+    ////////////////////////////////////////////////////////////////////
 
 
     /////////////// Добавление новой категории /////////////////////////
-    
+
     private void AddNewTaxCategory()
     {
         isAddingNewTaxCategory = true;
@@ -705,60 +820,66 @@
 
     private void SaveNewTaxCategory()
     {
-        if (selectedInvoice != null)
-        {
-            selectedInvoice.TaxCategories.Add(newTaxCategory);
-            isAddingNewTaxCategory = false;
-            newTaxCategory = new TaxesDTO();
-        }
+        editInvoice.TaxCategories.Add(newTaxCategory);
+        isAddingNewTaxCategory = false;
+        newTaxCategory = new TaxesDTO();
     }
+
     private void CancelNewTaxCategory()
     {
         isAddingNewTaxCategory = false;
         newTaxCategory = new TaxesDTO();
     }
-
     ////////////////////////////////////////////////////////////////////
 
 
-    private async Task CloseInvoiceModalAsync() // Изменено: Метод для закрытия модальной формы Invoice
+    ////////////////////////////////////////////////////////////////////
+    // Метод для закрытия модальной формы Invoice
+
+    private async Task CloseInvoiceModalAsync() 
     {
+        CancelEditProduct(editProduct);
+        CancelNewProduct();
+        CancelEditTaxCategory(editTaxCategory);
+        CancelNewTaxCategory();
+
         showInvoiceModal = false;
         selectedInvoice = null;
+        editInvoice = new InvoiceDTO();
+
     }
 
-    private async Task SaveInvoiceAsync() // Добавлено: Метод для сохранения изменений Invoice
+
+    // Метод для сохранения изменений Invoice
+    private async Task SaveInvoiceAsync() 
     {
-        if (selectedInvoice != null)
+        var response = await Http.PostAsJsonAsync($"{baseUri}/api/invoices/save", editInvoice);
+
+
+        if (response.IsSuccessStatusCode)
         {
-
-            var response = await Http.PostAsJsonAsync($"{baseUri}/api/invoices/save", selectedInvoice);
-
-
-            if (response.IsSuccessStatusCode)
-            {
-                Console.WriteLine("Invoice updated successfully.");
-                uploadMessage = "Invoice updated successfully.";
-                uploadMessageClass = "alert-success";
-                selectedInvoice = await response.Content.ReadFromJsonAsync<InvoiceDTO>();
-
-                //await LoadInvoicesAsync();
-            }
-            else
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Invoice update failed. Status code: {response.StatusCode}, Error: {errorContent}");
-                uploadMessage = "Invoice update failed.";
-                uploadMessageClass = "alert-danger";
-            }
-
-            showInvoiceModal = false;
-            selectedInvoice = null;
-            StateHasChanged();
+            Console.WriteLine("Invoice updated successfully.");
+            uploadMessage = "Invoice updated successfully.";
+            uploadMessageClass = "alert-success";
+            InvoiceHelper.CopyInvoice(selectedInvoice, editInvoice);
         }
+        else
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Invoice update failed. Status code: {response.StatusCode}, Error: {errorContent}");
+            uploadMessage = "Invoice update failed.";
+            uploadMessageClass = "alert-danger";
+        }
+
+        showInvoiceModal = false;
+        selectedInvoice = null;
+        editInvoice = new InvoiceDTO();
+
+        StateHasChanged();
     }
 
-    private string GetStatusClass(InvoiceStatusEnum status) // Изменено: Метод для получения CSS-класса статуса
+    // Метод для получения CSS-класса статуса
+    private string GetStatusClass(InvoiceStatusEnum status) 
     {
         return status switch
         {
@@ -768,7 +889,8 @@
         };
     }
 
-    public async ValueTask DisposeAsync() // Добавлено: Метод для закрытия соединения SignalR
+    // Метод для закрытия соединения SignalR
+    public async ValueTask DisposeAsync() 
     {
         if (hubConnection is not null)
         {
