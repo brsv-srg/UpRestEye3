@@ -131,7 +131,7 @@ namespace UpRestEye3.Services.Recognition
                         schema = JsonDocument.Parse(GetInvoiceSchema()).RootElement
                     }
                 },
-                temperature = 0.1
+                temperature = 0.3
             };
 
             // Сериализация тела запроса

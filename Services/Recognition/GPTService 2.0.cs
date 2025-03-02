@@ -13,7 +13,7 @@ namespace UpRestEye3.Services.Recognition
 
     public interface IGPTService2
     {
-        Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts);
+        Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts, List<RMSMeasureUnitDTO> measUnits);
 
     }
 
@@ -29,12 +29,12 @@ namespace UpRestEye3.Services.Recognition
 
 
 
-        public async Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts)
+        public async Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts, List<RMSMeasureUnitDTO> measUnits)
         {
 
             try
             {
-                var jsonBody = _env.GetReceiptMappingRequestBody2(currentInvoice, supplierProducts);
+                var jsonBody = _env.GetReceiptMappingRequestBody2(currentInvoice, supplierProducts, measUnits);
 
 
                 // Сериализация тела запроса

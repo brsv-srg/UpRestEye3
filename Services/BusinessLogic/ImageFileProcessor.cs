@@ -7,6 +7,7 @@ using UpRestEye3.Services.Account;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using UpRestEye3.Controllers;
+using System.Collections.Generic;
 
 namespace UpRestEye3.Services.BusinessLogic
 {
@@ -38,6 +39,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 var imageProcessor = scope.ServiceProvider.GetRequiredService<IImageRecognitionService>();
                 var invoiceProcessor = scope.ServiceProvider.GetRequiredService<IProductMappingService>();
                 var rmsProductService = scope.ServiceProvider.GetRequiredService<IRMSProductService>();
+                var rmsMeasureUnitsService = scope.ServiceProvider.GetRequiredService<IRMSMeasureUnitService>();
                 var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<NotificationHub>>(); 
 
                 var workingInvoice = new InvoiceDTO();
@@ -149,16 +151,17 @@ namespace UpRestEye3.Services.BusinessLogic
 
                     // Получение продуктов из RMS
                     var rmsProducts = await rmsProductService.GetProductsByConsumerIdAsync((int)consumerId);
+                    // Получение единиц изменения
+                    var measUnits = await rmsMeasureUnitsService.GetUnitsByConsumerIdAsync((int)consumerId);
 
                     // Мапинг на продукты из RMS, подготовка к сохранению в RMS  
-                    var mappingResult = await invoiceProcessor.MappingToRMSProductsAsync(workingInvoice, rmsProducts);
+                    var mappingResult = await invoiceProcessor.MappingToRMSProductsAsync(workingInvoice, rmsProducts, measUnits);
                     var mappedInvoice = mappingResult.Item1;
                     var newRmsProducts = mappingResult.Item2;
 
                     // Если Invoice замеплен и есть новые продукты, то связываем их с Invoice Products
                     if (mappedInvoice != null)
                     {
-                        await hubContext.Clients.All.SendAsync("ReceiveMessage", "Product mapped successfully.");
 
 
                         foreach (var newRMSProduct in newRmsProducts)
@@ -181,6 +184,7 @@ namespace UpRestEye3.Services.BusinessLogic
                         if (invoiceId == null)
                             throw new Exception("Failed to save invoice.");
 
+                        await hubContext.Clients.All.SendAsync("ReceiveMessage", "Product mapped successfully.");
                     }
                     else
                         throw new Exception("Failed to map products.");

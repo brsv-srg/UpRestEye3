@@ -4,6 +4,7 @@ using UpRestEye3.Models.BLO;
 using UpRestEye3.Services.MLServices;
 using UpRestEye3.Services.Recognition;
 using Tensorflow;
+using System.Collections.Generic;
 
 
 
@@ -14,7 +15,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
     public interface IProductMappingService
     {
-        Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts);
+        Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, List<RMSMeasureUnitDTO> measUnits);
     }
 
     // Класс обработки изображения
@@ -27,7 +28,7 @@ namespace UpRestEye3.Services.BusinessLogic
             _gptParser = gptParser;
         }
 
-        public async Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts)
+        public async Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, List<RMSMeasureUnitDTO> measUnits)
         {
             try
             {
@@ -35,7 +36,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 var currentConsumerId = currentInvoice.Consumer.Id;
                 var currentConsumerTaxId = currentInvoice.Consumer.TaxNumber;
 
-                var mappingResult = await _gptParser.ReceiptMappingByLLM(currentInvoice, rmsProducts);
+                var mappingResult = await _gptParser.ReceiptMappingByLLM(currentInvoice, rmsProducts, measUnits);
 
                 // Если Invoice замеплен и есть новые продукты, то связываем их с Invoice Products
                 if (mappingResult != null)

@@ -1,6 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Net.Http.Headers;
 using UpRestEye3.Data;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Models.BLO;
@@ -121,6 +122,9 @@ namespace UpRestEye3.Services.BusinessLogic
         private async Task<List<GetProductDTO>> GetProductsAsync()
         {
             var productsUrl = $"{_apiUrl}api/v2/entities/products/list?includeDeleted=false&type=GOODS&key={_token}";
+            
+            _httpClient.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("en-GB"));
+
 
             var response = await _httpClient.GetAsync(productsUrl);
 

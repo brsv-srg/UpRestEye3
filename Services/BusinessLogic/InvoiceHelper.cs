@@ -86,7 +86,9 @@ namespace UpRestEye3.Services.BusinessLogic
         // TODO Перенести в сервис и запрашивать новые объекты через билдер/фабрику
         public static void CopyInvoice(InvoiceDTO invoiceTarget, InvoiceDTO invoiceSource)
         {
-            invoiceTarget.Id = invoiceSource.Id;
+            if (invoiceSource.Id != null)
+                invoiceTarget.Id = invoiceSource.Id;
+
             if (invoiceTarget.Supplier == null)
             {
                 invoiceTarget.Supplier = new SupplierDTO();

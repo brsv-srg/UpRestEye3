@@ -330,7 +330,8 @@
 
     private string GetMeasureUnitName(Guid measureUnitId) // Добавлено: Метод для получения имени единицы измерения
     {
-        return measureUnits.FirstOrDefault(u => u.MeasureUnitExtGuid == measureUnitId)?.Name ?? "";
+        var returnValue = measureUnits.FirstOrDefault(u => u.MeasureUnitExtGuid == measureUnitId)?.Name ?? "";
+        return returnValue;
     }
 
 

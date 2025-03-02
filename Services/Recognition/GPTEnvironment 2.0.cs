@@ -33,7 +33,7 @@ namespace UpRestEye3.Services.Recognition
 
 
 
-        public string GetReceiptMappingRequestBody2(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts)
+        public string GetReceiptMappingRequestBody2(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, List<RMSMeasureUnitDTO> _measUnits)
         {
             var options = JsonHelper.GetSerializerOptions();
 
@@ -83,7 +83,7 @@ namespace UpRestEye3.Services.Recognition
                     new
                     {
                         role = "user",
-                        content = JsonSerializer.Serialize(new { InvoiceProducts = _invoiceProducts, RMSProducts = _rmsProducts }, options)
+                        content = JsonSerializer.Serialize(new { InvoiceProducts = _invoiceProducts, RMSProducts = _rmsProducts, MeasureUnits = _measUnits }, options)
 
                     }
                 },
@@ -127,6 +127,7 @@ If a product is missing in the RMS system, create a new one following the struct
 - If a RMSProduct exists, **copy all fields** to the predefined JSON in the response_format section.
 - If a RMSProduct exists but packaging does not, create a new packaging option. Fill only the **Name and Count** (that means quantity, volume). Do not fill the **Id and Num fields**.
 - If no matching RMSProduct exists, create a new one with a clear name. Fill only the **Name, Description and Unit**. Do not fill the **Id and Num fields**.
+- When creating a new RMSProduct, also use the appropriate product measurement unit. Use MeasureUnits dictionary from the input data for this purpose. Be careful, for weight products use kilograms, for liquid products use litres, for piece products use pieces. Put the GUID of the selected unit of measure in the mainUnit RMSProduct field. 
 - **Minimize incorrect mappings** – when in doubt, prefer creating a new product.
 
 Example Matching:

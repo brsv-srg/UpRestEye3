@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Net.Http.Headers;
 using UpRestEye3.Data;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.DataLayer;
@@ -79,6 +80,9 @@ namespace UpRestEye3.Services.BusinessLogic
         private async Task<List<IntegrationUnitDTO>> GetMeasureUnitsAsync()
         {
             var measureUnitsUrl = $"{_apiUrl}api/v2/entities/list?rootType=MeasureUnit&key={_token}";
+
+            _httpClient.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("en-GB"));
+
 
             var response = await _httpClient.GetAsync(measureUnitsUrl);
 
