@@ -13,7 +13,7 @@ namespace UpRestEye3.Services.Recognition
 
     public interface IGPTService
     {
-        Task<InvoiceDTO?> ReceiptParsingByLLM(RecognizedDocument invoiceText, InvoiceDTO currentInvoice);
+        Task<InvoiceDTO?> ReceiptParsingByLLM(RecognizedDocument invoiceText, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> _measUnits);
         Task<InvoiceDTO?> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts);
 
     }
@@ -28,11 +28,11 @@ namespace UpRestEye3.Services.Recognition
             _env = new GPTEnvironment();
         }
 
-        public async Task<InvoiceDTO?> ReceiptParsingByLLM(RecognizedDocument invoiceText, InvoiceDTO currentInvoice)
+        public async Task<InvoiceDTO?> ReceiptParsingByLLM(RecognizedDocument invoiceText, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
 
             // Сериализация тела запроса
-            var jsonBody = _env.GetReceiptParsingRequestBody(invoiceText, currentInvoice);
+            var jsonBody = _env.GetReceiptParsingRequestBody(invoiceText, currentInvoice, measUnits);
 
 
             var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");

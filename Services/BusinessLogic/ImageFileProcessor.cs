@@ -124,9 +124,15 @@ namespace UpRestEye3.Services.BusinessLogic
                             await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognized successfully.");
                         }
                     }
-                    // todo передавать и идентификатор инвойса
+
+
+
+                    var measUnits = await rmsMeasureUnitsService.GetUnitsByConsumerIdAsync((int)consumerId);
+                    if (measUnits == null)
+                        throw new Exception("Failed to get measure units.");
+
                     // Распознование текста и формирование полной накладной  
-                    var recognisedInvoice = await imageProcessor.DeepTextRecognitionAsync(image, workingInvoice);
+                    var recognisedInvoice = await imageProcessor.DeepTextRecognitionAsync(image, workingInvoice, measUnits);
                     // Если текст распознан, то сохраняем полный документ
                     if (recognisedInvoice != null)
                     {
@@ -152,7 +158,6 @@ namespace UpRestEye3.Services.BusinessLogic
                     // Получение продуктов из RMS
                     var rmsProducts = await rmsProductService.GetProductsByConsumerIdAsync((int)consumerId);
                     // Получение единиц изменения
-                    var measUnits = await rmsMeasureUnitsService.GetUnitsByConsumerIdAsync((int)consumerId);
 
                     // Мапинг на продукты из RMS, подготовка к сохранению в RMS  
                     var mappingResult = await invoiceProcessor.MappingToRMSProductsAsync(workingInvoice, rmsProducts, measUnits);

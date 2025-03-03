@@ -110,7 +110,7 @@ namespace UpRestEye3.Services.Recognition
         
         public string GetApiKey() => _apiKey;
         
-        public string GetReceiptParsingRequestBody(RecognizedDocument invoiceText, InvoiceDTO currentInvoice)
+        public string GetReceiptParsingRequestBody(RecognizedDocument invoiceText, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
             var options = JsonHelper.GetSerializerOptions();
             // Формируем запрос
@@ -119,9 +119,9 @@ namespace UpRestEye3.Services.Recognition
                 model = "gpt-4o-mini", // "o1 -preview-2024-09-12",
                 messages = new object[]
                 {
-                        new { role = "system", content = GetSystemPrompt(currentInvoice) },
-                        new { role = "user", content = $@"Extract structured data from this Invoice: {JsonSerializer.Serialize(invoiceText,options)}"} // env.GetTestRequestPrompt()}" }
-            },
+                        new { role = "system", content = GetSystemPrompt(currentInvoice) }, 
+                        new { role = "user", content = $@"Extract structured data from this Invoice: {JsonSerializer.Serialize(invoiceText,options)}. And fot Unit use this dictionary MeasureUnits: {JsonSerializer.Serialize(measUnits,options)} "} // env.GetTestRequestPrompt()}" }
+                },
                 response_format = new
                 {
                     type = "json_schema",
@@ -131,7 +131,7 @@ namespace UpRestEye3.Services.Recognition
                         schema = JsonDocument.Parse(GetInvoiceSchema()).RootElement
                     }
                 },
-                temperature = 0.3
+                temperature = 0.2
             };
 
             // Сериализация тела запроса
@@ -165,7 +165,7 @@ Match each Product from the Product List from this Invoice: {JsonSerializer.Seri
                     }
                 },
 
-                temperature = 0.1
+                temperature = 0.2
             };
 
             // Сериализация тела запроса
@@ -202,7 +202,12 @@ Your task is to process the OCR recognized text of an Invoice and convert it int
 07. Define the Name and Tax-ID (or NIF) of the Supplier in the document, they are placed next to each other. {{1}} Also try to find the Supplier bank account - IBAN. It could be located next to the Supplier Name or at the end of the document, and it may not be in the document at all. Take the Supplier Tax-ID, Name and IBAN from the processed document and put them into the Supplier section of the JSON response. 
 08. Try to define the Consumer, sometimes it is only a Tax-ID (or NIF). {{0}} Sometimes there can also be a Name and you should try to identify it. It's located next to the Tax-ID. You need to take the Consumer Name from the processed document and the Consumer Tax-ID and put them into the Consumer section of the JSON response. Sometimes the document may not contain the consumer data, but if it does, it must fulfil the conditions specified in this paragraph, you need to check everything again. 
 09. Determine the invoice number and date. {{2}} Put the invoice number and date into the output JSON into appropriate fields InvoiceNumber and InvoiceDate .
-10. Define the list of Grocery Products. As a rule, the list in the invoice has a tabular form. The fields of this table may be named as Code (if present), Name, Unit, Quantity, Tax Category, Price, etc., or may be or abbreviated.  Determine this on the basis of the coordinates. Put the list in JSON in the Products section. 
+10. Define the list of Grocery Products. 
+    - As a rule, the list in the invoice has a tabular form. 
+    - The fields of this table may be named as Code (if present), Name, Unit, Quantity, Tax Category, Price, etc., or may be or abbreviated. 
+    - Compare the units from the Product with the **MeasureUnits** dictionary from the input data and select the most appropriate unit from the dictionary. For weight products - kilograms (kg), litres (l) for liquids and pieces (pcs) for units (or un.). 
+    - Determine this on the basis of the coordinates. 
+    - Put the list in JSON in the Products section. 
 11. Determine the Final Tax Amounts by category. They are usually placed after the list of products in a table with column headings. The headings usually contain words or abbreviations such as ‘IVA’ or ‘Tax’, ‘Base’, ‘Quantity’, ‘Amount’ and so on. Column titles do not need to be copied into the final document. Find directly the categories and the amount values by category and put the list of them in response JSON in the TaxCategories section.
 12. For Tax Categories in Invoice list of Grocery Products and in Final Tax Amount table it may be used the percentages: '23', '13', '6', or corresponding names:  'Normal', 'Intermedia', 'Redusido', or various abbreviations of names (such as 'Nor', 'Int', 'Red', etc.). Keep the same value which you could find, do not change anything.
 13. Determine the Total Amount with Tax and the Total Amount of Tax (or IVA). {{3}}  Put them into the output JSON into appropriate fields TotalAmount and TotalIVA. 

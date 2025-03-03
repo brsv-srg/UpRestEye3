@@ -67,7 +67,7 @@ namespace UpRestEye3.Services.Recognition
             var requestData = new
             {
                 model = "gpt-4o", //"gpt-4o-mini",
-                temperature = 0.5,
+                temperature = 0.3,
                 messages = new object[]
                 {
                     new
@@ -125,15 +125,16 @@ If a product is missing in the RMS system, create a new one following the struct
     - Identify the main properties of both products - red or white, salty or sweet, frozen or fresh, and so on. And based on these properties, make your decision. 
     - Do not match products with different properties, even if they belong to the same brand.
 - If a RMSProduct exists, **copy all fields** to the predefined JSON in the response_format section.
-- If a RMSProduct exists but packaging does not, create a new packaging option. Fill only the **Name and Count** (that means quantity, volume). Do not fill the **Id and Num fields**.
+- If a RMSProduct exists but packaging does not, create a new packaging option as RMSContainer. Fill only the **Name and Count** (that means quantity, volume). Do not fill the **Id and Num fields**.
 - If no matching RMSProduct exists, create a new one with a clear name. Fill only the **Name, Description and Unit**. Do not fill the **Id and Num fields**.
-- When creating a new RMSProduct, also use the appropriate product measurement unit. Use MeasureUnits dictionary from the input data for this purpose. Be careful, for weight products use kilograms, for liquid products use litres, for piece products use pieces. Put the GUID of the selected unit of measure in the mainUnit RMSProduct field. 
+- When creating a new RMSProduct, also find the most appropriate Measure Unit for the new product in the **MeasureUnits dictionary** from the input data. Be careful, for weight products use kilograms (kg), for liquid products use litres (l), for piece products use pieces (pcs). Put the GUID of the selected Measure Unit into the mainUnit field of the new RMSProduct. 
+- In the end, the measure units of the RMSProduct should logically match RMSContainers and the units of measure in InvoiceProduct. Check for compatibility again, if something does not match, then create a new RMSContainer or a new RMSProduct.
 - **Minimize incorrect mappings** – when in doubt, prefer creating a new product.
 
 Example Matching:
 - InvoiceProduct: ""MORGADO QUINTAO BRANCO 2023 75CL 12%"" 
 - RMSProduct: ""MORGADO QUINTAO BRANCO"" 
-- Packaging match: Yes → use existing.";
+- Packaging match: 75CL -> Btl 0,75cl (use existing).";
 
 
         private const string _instruction2 = $@"

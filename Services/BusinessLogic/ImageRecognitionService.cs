@@ -15,7 +15,7 @@ namespace UpRestEye3.Services.BusinessLogic
     {
         Task<(QRCodeData?, Bitmap?)> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath);
         Task<(QRCodeData?, Bitmap?)> DeepQRRecognitionAsync(Bitmap sourceImage, string imagePath);
-        Task<InvoiceDTO?> DeepTextRecognitionAsync(Bitmap sourceImage, InvoiceDTO currentInvoice);
+        Task<InvoiceDTO?> DeepTextRecognitionAsync(Bitmap sourceImage, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits);
 
     }
 
@@ -102,13 +102,13 @@ namespace UpRestEye3.Services.BusinessLogic
             return (null, null);
         }
 
-        public async Task<InvoiceDTO?> DeepTextRecognitionAsync(Bitmap sourceImage, InvoiceDTO currentInvoice)
+        public async Task<InvoiceDTO?> DeepTextRecognitionAsync(Bitmap sourceImage, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
             // Обращение к внешней модели
             var recognizedText = await _textRecognizer.TextRecognize(sourceImage);
             if (recognizedText != null)
             {
-                return await _gptParser.ReceiptParsingByLLM(recognizedText, currentInvoice);
+                return await _gptParser.ReceiptParsingByLLM(recognizedText, currentInvoice, measUnits);
             }
             return null;
         }
