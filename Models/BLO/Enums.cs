@@ -37,5 +37,13 @@
         RATE        // Тариф (дочерний элемента для услуги)
     }
 
+
+    public enum SupplierStatus
+    {
+        New,
+        Changed,
+        Synchronized
+    }
+
 }
 

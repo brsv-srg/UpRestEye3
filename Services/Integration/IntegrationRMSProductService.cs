@@ -3,11 +3,12 @@ using System.Text;
 using System.Text.Json;
 using System.Net.Http.Headers;
 using UpRestEye3.Data;
-using UpRestEye3.Models.DTO;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Services.DataLayer;
+using UpRestEye3.Services.BusinessLogic;
+using UpRestEye3.Models.RMSDTO;
 
-namespace UpRestEye3.Services.BusinessLogic
+namespace UpRestEye3.Services.Integration
 {
     public interface IIntegrationRMSProductsService
     {
@@ -122,7 +123,7 @@ namespace UpRestEye3.Services.BusinessLogic
         private async Task<List<GetProductDTO>> GetProductsAsync()
         {
             var productsUrl = $"{_apiUrl}api/v2/entities/products/list?includeDeleted=false&type=GOODS&key={_token}";
-            
+
             _httpClient.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("en-GB"));
 
 
@@ -150,7 +151,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
         private async Task<GetProductDTO?> PostProductAsync(SaveProductDTO product)
         {
-           
+
             var saveProductUrl = $"{_apiUrl}api/v2/entities/products/save?generateNomenclatureCode=true&generateFastCode=false&key={_token}";
 
             var productJson = JsonSerializer.Serialize(product);
@@ -168,9 +169,9 @@ namespace UpRestEye3.Services.BusinessLogic
 
             var responseJson = await response.Content.ReadAsStringAsync();
             var saveProductResponse = JsonSerializer.Deserialize<SaveProductResponse>(responseJson, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+            {
+                PropertyNameCaseInsensitive = true
+            });
 
             if (saveProductResponse.result == "SUCCESS")
             {

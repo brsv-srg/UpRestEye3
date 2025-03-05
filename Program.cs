@@ -14,6 +14,7 @@ using UpRestEye3.Services.MLServices;
 using UpRestEye3.Services.Recognition;
 using UpRestEye3.Services.Account;
 using UpRestEye3.Controllers;
+using UpRestEye3.Services.Integration;
 
 
 // TODO добавить логирование
@@ -88,6 +89,8 @@ builder.Services.AddScoped<IConnectionParameterService, ConnectionParameterServi
 builder.Services.AddScoped<IRMSProductService, RMSProductService>();
 builder.Services.AddScoped<IIntegrationRMSProductsService, IntegrationRMSProductsService>();
 builder.Services.AddScoped<IIntegrationRMSMeasureUnitsService, IntegrationRMSMeasureUnitsService>();
+builder.Services.AddScoped<IIntegrationSupplierService, IntegrationSupplierService>();
+
 builder.Services.AddScoped<IRMSMeasureUnitService, RMSMeasureUnitService>();
 
 

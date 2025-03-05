@@ -2,7 +2,7 @@
 using Newtonsoft.Json;
 using System.Text.Json.Serialization;
 
-namespace UpRestEye3.Models.DTO
+namespace UpRestEye3.Models.RMSDTO
 {
     public class GetProductDTO
     {
@@ -77,7 +77,7 @@ namespace UpRestEye3.Models.DTO
         public decimal minContainerWeight { get; set; } = 0;
         public decimal containerWeight { get; set; } = 0;
         public decimal fullContainerWeight { get; set; } = 0;
-        public bool? backwardRecalculation { get; set; } 
+        public bool? backwardRecalculation { get; set; }
         public bool? useInFront { get; set; }
     }
 

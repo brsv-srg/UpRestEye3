@@ -475,7 +475,7 @@
             if (response.IsSuccessStatusCode)
             {
                 Console.WriteLine("Product updated successfully.");
-                uploadMessage = "Invoice updated successfully.";
+                uploadMessage = "Product updated successfully.";
                 uploadMessageClass = "alert-success";
 
                 CopyToEditModel(editProduct, selectedProduct); // Копирование данных из временной модели в оригинальную
@@ -485,7 +485,7 @@
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"Product update failed. Status code: {response.StatusCode}, Error: {errorContent}");
-                uploadMessage = "Invoice update failed.";
+                uploadMessage = "Product update failed.";
                 uploadMessageClass = "alert-danger";
             }
 

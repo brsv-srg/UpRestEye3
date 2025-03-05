@@ -3,8 +3,9 @@ using System.Net.Http.Headers;
 using UpRestEye3.Data;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.DataLayer;
+using UpRestEye3.Models.RMSDTO;
 
-namespace UpRestEye3.Services.BusinessLogic
+namespace UpRestEye3.Services.Integration
 {
     public interface IIntegrationRMSMeasureUnitsService
     {

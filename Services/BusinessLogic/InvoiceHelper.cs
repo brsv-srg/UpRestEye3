@@ -6,6 +6,7 @@ using UpRestEye3.Models.DAO;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DTO;
 using System.Linq.Expressions;
+using UpRestEye3.Models.RMSDTO;
 
 
 
@@ -380,10 +381,72 @@ namespace UpRestEye3.Services.BusinessLogic
                 throw new Exception("Error in BuildInvoiceDAO", ex);
             }
         }
-        public static List<T> CloneList<T>(List<T> listToClone) where T : ICloneable
+
+        public static IncomingInvoiceDto MapToIncomingInvoiceDto(InvoiceDTO invoiceDTO)
         {
-            return listToClone.Select(item => (T)item.Clone()).ToList();
+            return new IncomingInvoiceDto
+            {
+                //Id = invoiceDTO.Id?.ToString(),
+                //Conception = invoiceDTO.Conception,
+                //ConceptionCode = invoiceDTO.ConceptionCode,
+                Comment = invoiceDTO.Comments,
+                //DocumentNumber = invoiceDTO.InvoiceNumber,
+                
+                DateIncoming = invoiceDTO.InvoiceDate.ToString("yyyy-MM-ddTHH:mm:ss"),
+                Invoice = invoiceDTO.InvoiceNumber,
+                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                // надо забирать склады и их подставлять в инвойс
+                //DefaultStore = invoiceDTO.DefaultStore,
+                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                // надо забирать поставщика и его подставлять в инвойс
+                Supplier = invoiceDTO.Supplier?.Name,
+                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                // брать из настроек поставщика и подставлять дату погашения.
+                // если это фактура-ресибо, то эта дата равна дате документа
+                DueDate = invoiceDTO.InvoiceDate.AddDays(30).ToString("yyyy-MM-ddTHH:mm:ss"),
+                // дата заведения документа
+                IncomingDate = DateTime.Now.ToString("yyyy-MM-dd"),
+                // false
+                UseDefaultDocumentTime = false,
+
+                Status = DocumentStatus.New,
+                // опять номер накладной?
+                IncomingDocumentNumber = invoiceDTO.InvoiceNumber,
+
+                //EmployeePassToAccount = invoiceDTO.EmployeePassToAccount,
+                //TransportInvoiceNumber = invoiceDTO.TransportInvoiceNumber,
+                //LinkedOutgoingInvoiceId = invoiceDTO.LinkedOutgoingInvoiceId,
+                DistributionAlgorithm = DistributionAlgorithmType.DistributionByAmount,
+
+                /*
+                Items = invoiceDTO.Products?.Select(item => new IncomingInvoiceItemDto
+                {
+                    IsAdditionalExpense = item.IsAdditionalExpense,
+                    Amount = item.Amount,
+                    SupplierProduct = item.SupplierProduct,
+                    SupplierProductArticle = item.SupplierProductArticle,
+                    Product = item.Product,
+                    ProductArticle = item.ProductArticle,
+                    Producer = item.Producer,
+                    Num = item.Num,
+                    ContainerId = item.ContainerId,
+                    AmountUnit = item.AmountUnit,
+                    ActualUnitWeight = item.ActualUnitWeight,
+                    Sum = item.Sum,
+                    DiscountSum = item.DiscountSum,
+                    VatPercent = item.VatPercent,
+                    VatSum = item.VatSum,
+                    PriceUnit = item.PriceUnit,
+                    Price = item.Price,
+                    PriceWithoutVat = item.PriceWithoutVat,
+                    Code = item.Code,
+                    Store = item.Store,
+                    CustomsDeclarationNumber = item.CustomsDeclarationNumber,
+                    ActualAmount = item.ActualAmount
+                }).ToArray()*/
+            };
         }
+
     }
 
 }
