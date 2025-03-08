@@ -34,11 +34,12 @@ namespace UpRestEye3.Services.DataLayer
                 Id = p.Id,
                 ConsumerId = p.ConsumerId,
                 ConsumerTaxId = p.Consumer.TaxNumber,
-                MeasureUnitExtGuid = p.MeasureUnitExtGuid,
+                EntityExtGuid = p.EntityExtGuid,
                 RootType = p.RootType,
-                Deleted = p.Deleted,
                 Code = p.Code,
-                Name = p.Name
+                Name = p.Name,
+                Description = p.Description,
+                Status = p.Status
             }).ToList();
         }
         public async Task<RMSMeasureUnitDTO> GetUnitByIdAsync(int unitId)
@@ -54,11 +55,12 @@ namespace UpRestEye3.Services.DataLayer
                 Id = measureUnit.Id,
                 ConsumerId = measureUnit.ConsumerId,
                 ConsumerTaxId = measureUnit.Consumer.TaxNumber,
-                MeasureUnitExtGuid = measureUnit.MeasureUnitExtGuid,
+                EntityExtGuid = measureUnit.EntityExtGuid,
                 RootType = measureUnit.RootType,
-                Deleted = measureUnit.Deleted,
                 Code = measureUnit.Code,
-                Name = measureUnit.Name
+                Name = measureUnit.Name,
+                Description = measureUnit.Description,
+                Status = measureUnit.Status
             };
         }
 
@@ -88,11 +90,12 @@ namespace UpRestEye3.Services.DataLayer
                     Id = measureUnitDTO.Id,
                     ConsumerId = consumer.Id,
                     Consumer = consumer,
-                    MeasureUnitExtGuid = measureUnitDTO.MeasureUnitExtGuid,
+                    EntityExtGuid = measureUnitDTO.EntityExtGuid,
                     RootType = measureUnitDTO.RootType,
-                    Deleted = measureUnitDTO.Deleted,
                     Code = measureUnitDTO.Code,
                     Name = measureUnitDTO.Name,
+                    Description = measureUnitDTO.Description,
+                    Status = measureUnitDTO.Status
                 };
                 _context.ChangeTracker.Clear();
 
@@ -100,12 +103,12 @@ namespace UpRestEye3.Services.DataLayer
                     .AsNoTracking()
                     .FirstOrDefaultAsync(p => p.ConsumerId == newUnit.ConsumerId &&
 
-                                            ((newUnit.MeasureUnitExtGuid != null &&
-                                                newUnit.MeasureUnitExtGuid != Guid.Empty &&
-                                                p.MeasureUnitExtGuid == newUnit.MeasureUnitExtGuid) ||
+                                            ((newUnit.EntityExtGuid != null &&
+                                                newUnit.EntityExtGuid != Guid.Empty &&
+                                                p.EntityExtGuid == newUnit.EntityExtGuid) ||
 
-                                            (newUnit.MeasureUnitExtGuid == null ||
-                                                newUnit.MeasureUnitExtGuid == Guid.Empty) &&
+                                            (newUnit.EntityExtGuid == null ||
+                                                newUnit.EntityExtGuid == Guid.Empty) &&
                                                 p.Name == newUnit.Name));
 
                 if (existingUnit == null)

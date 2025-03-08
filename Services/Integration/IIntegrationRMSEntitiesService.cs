@@ -2,19 +2,21 @@ using System.Text.Json;
 using System.Net.Http.Headers;
 using UpRestEye3.Data;
 using UpRestEye3.Models.DTO;
+using UpRestEye3.Models.BLO;
 using UpRestEye3.Services.DataLayer;
 using UpRestEye3.Models.RMSDTO;
 
 namespace UpRestEye3.Services.Integration
 {
-    public interface IIntegrationRMSMeasureUnitsService
+    public interface IIntegrationRMSEntitiesService
     {
         Task<bool> GetMeasureUnitsAsync(int consumerId);
+        Task<bool> GetAccountsAsync(int consumerId);
     }
 
-    public class IntegrationRMSMeasureUnitsService : IIntegrationRMSMeasureUnitsService
+    public class IntegrationRMSEntitiesService : IIntegrationRMSEntitiesService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IRMSAccountsService _accountService;
         private readonly IRMSMeasureUnitService _measureUnitService;
         private readonly IConnectionParameterService _connectionParameterService;
         private readonly HttpClient _httpClient;
@@ -23,13 +25,13 @@ namespace UpRestEye3.Services.Integration
         private string _password;
         private string _apiUrl;
 
-        public IntegrationRMSMeasureUnitsService(
-            ApplicationDbContext context,
+        public IntegrationRMSEntitiesService(
+            IRMSAccountsService accountService,
             IRMSMeasureUnitService measureUnitService,
             IConnectionParameterService connectionParameterService,
             HttpClient httpClient)
         {
-            _context = context;
+            _accountService = accountService;
             _measureUnitService = measureUnitService;
             _connectionParameterService = connectionParameterService;
             _httpClient = httpClient;
@@ -41,18 +43,18 @@ namespace UpRestEye3.Services.Integration
             {
                 await InitConnectionParams(consumerId);
                 await AuthenticateAsync();
-                var integrationUnits = await GetMeasureUnitsAsync();
+                var integrationUnits = await GetEntitiesAsync("MeasureUnit");
 
                 foreach (var integrationUnit in integrationUnits)
                 {
                     var measureUnitDTO = new RMSMeasureUnitDTO
                     {
-                        MeasureUnitExtGuid = integrationUnit.id,
+                        EntityExtGuid = integrationUnit.id,
                         ConsumerId = consumerId,
                         RootType = integrationUnit.rootType,
-                        Deleted = integrationUnit.deleted,
+                        Status = integrationUnit.deleted ? EntityStatus.Deleted : EntityStatus.Synchronized,
                         Code = integrationUnit.code,
-                        Name = integrationUnit.name,
+                        Name = integrationUnit.name
                     };
                     await _measureUnitService.SaveMeasureUnitAsync(measureUnitDTO);
                 }
@@ -61,6 +63,35 @@ namespace UpRestEye3.Services.Integration
             catch (Exception ex)
             {
                 Console.WriteLine($"Error getting products from RMS: {ex.Message}");
+                return false;
+            }
+        }
+        public async Task<bool> GetAccountsAsync(int consumerId)
+        {
+            try
+            {
+                await InitConnectionParams(consumerId);
+                await AuthenticateAsync();
+                var integrationUnits = (await GetEntitiesAsync("Account"))?.Where(s => s.type == "INVENTORY_ASSETS").ToList();
+
+                foreach (var integrationUnit in integrationUnits)
+                {
+                    var accountDTO = new RMSAccountDTO
+                    {
+                        EntityExtGuid = integrationUnit.id,
+                        ConsumerId = consumerId,
+                        RootType = integrationUnit.rootType,
+                        Status = integrationUnit.deleted ? EntityStatus.Deleted : EntityStatus.Synchronized,
+                        Code = integrationUnit.code,
+                        Name = integrationUnit.name
+                    };
+                    await _accountService.SaveAccountAsync(accountDTO);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting accounts from RMS: {ex.Message}");
                 return false;
             }
         }
@@ -78,14 +109,14 @@ namespace UpRestEye3.Services.Integration
             _token = response;
         }
 
-        private async Task<List<IntegrationUnitDTO>> GetMeasureUnitsAsync()
+        private async Task<List<IntegrationEntitiesDTO>> GetEntitiesAsync(string _entity)
         {
-            var measureUnitsUrl = $"{_apiUrl}api/v2/entities/list?rootType=MeasureUnit&key={_token}";
+            var url = $"{_apiUrl}api/v2/entities/list?rootType={_entity}&key={_token}";
 
             _httpClient.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("en-GB"));
 
 
-            var response = await _httpClient.GetAsync(measureUnitsUrl);
+            var response = await _httpClient.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -94,12 +125,12 @@ namespace UpRestEye3.Services.Integration
 
             var json = await response.Content.ReadAsStringAsync();
 
-            var measureUnits = JsonSerializer.Deserialize<List<IntegrationUnitDTO>>(json, new JsonSerializerOptions
+            var measureUnits = JsonSerializer.Deserialize<List<IntegrationEntitiesDTO>>(json, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
 
-            return measureUnits ?? new List<IntegrationUnitDTO>();
+            return measureUnits ?? new List<IntegrationEntitiesDTO>();
         }
 
         private async Task InitConnectionParams(int consumerId)

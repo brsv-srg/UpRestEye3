@@ -40,6 +40,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 var invoiceProcessor = scope.ServiceProvider.GetRequiredService<IProductMappingService>();
                 var rmsProductService = scope.ServiceProvider.GetRequiredService<IRMSProductService>();
                 var rmsMeasureUnitsService = scope.ServiceProvider.GetRequiredService<IRMSMeasureUnitService>();
+                var rmsAccountService = scope.ServiceProvider.GetRequiredService<IRMSAccountsService>();
                 var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<NotificationHub>>(); 
 
                 var workingInvoice = new InvoiceDTO();
@@ -157,10 +158,11 @@ namespace UpRestEye3.Services.BusinessLogic
 
                     // Получение продуктов из RMS
                     var rmsProducts = await rmsProductService.GetProductsByConsumerIdAsync((int)consumerId);
+                    var storages = await rmsAccountService.GetAccountsByConsumerIdAsync((int)consumerId);
                     // Получение единиц изменения
 
                     // Мапинг на продукты из RMS, подготовка к сохранению в RMS  
-                    var mappingResult = await invoiceProcessor.MappingToRMSProductsAsync(workingInvoice, rmsProducts, measUnits);
+                    var mappingResult = await invoiceProcessor.MappingToRMSProductsAsync(workingInvoice, rmsProducts, measUnits, storages);
                     var mappedInvoice = mappingResult.Item1;
                     var newRmsProducts = mappingResult.Item2;
 

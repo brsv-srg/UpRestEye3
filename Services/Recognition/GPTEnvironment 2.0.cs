@@ -33,7 +33,7 @@ namespace UpRestEye3.Services.Recognition
 
 
 
-        public string GetReceiptMappingRequestBody2(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, List<RMSMeasureUnitDTO> _measUnits)
+        public string GetReceiptMappingRequestBody2(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, List<RMSMeasureUnitDTO> _measUnits, List<RMSAccountDTO> storages)
         {
             var options = JsonHelper.GetSerializerOptions();
 
@@ -62,6 +62,8 @@ namespace UpRestEye3.Services.Recognition
             }));
 
 
+            var storageString = string.Format(_storagePrompt, string.Join("\", \"", storages.Select(s => s.Name + " - " + s.Description)));
+
             // Формируем запрос
 
             var requestData = new
@@ -73,7 +75,7 @@ namespace UpRestEye3.Services.Recognition
                     new
                     {
                         role = "system",
-                        content = _systemMessage
+                        content = string.Format(_systemMessage, storageString)
                     },
                     new
                     {
@@ -100,8 +102,8 @@ namespace UpRestEye3.Services.Recognition
             };
             return JsonSerializer.Serialize(requestData, options);
         }
-
-
+        
+        private const string _storagePrompt = $@" Also, for each product, choose a Storage to which it should go. Use the following Storages for this purpose: ""{{0}}"". Add the name of the selected Storage to the Storage field in the response_format section.";
 
 
 
@@ -118,7 +120,7 @@ If a product is missing in the RMS system, create a new one following the struct
 - Take each product from the `InvoiceProducts` list and **copy all fields** of Invoice Product to the predefined JSON in the response_format section.
 - Match the InvoiceProducts with the most appropriate RMSProducts and packaging from the restaurant system.
 - Return a JSON object that strictly follows the response_format section. Ensure all fields are correctly formatted and do not omit any required fields.
-- Product names may be abbreviated or translated (Portuguese ↔ English).
+- Product names may be abbreviated or translated (Portuguese - English).
 - Pay special attention to brand names, color, and product properties, especially for drinks such as wine:
     - For example, red (""tinto"" in Portuguese) and white (""branco"" in Portuguese) wines from the same winery may share most of the name **but differ by color/type**, so they are **different products**. 
     - This should be taken into account for any different brands of wine or types of wine (sparkling, orange, rosé, etc.), as well as for other types of drinks and goods, for example ""Coca-Cola"" and ""Coca-Cola Zero"".
@@ -130,6 +132,7 @@ If a product is missing in the RMS system, create a new one following the struct
 - When creating a new RMSProduct, also find the most appropriate Measure Unit for the new product in the **MeasureUnits dictionary** from the input data. Be careful, for weight products use kilograms (kg), for liquid products use litres (l), for piece products use pieces (pcs). Put the GUID of the selected Measure Unit into the mainUnit field of the new RMSProduct. 
 - In the end, the measure units of the RMSProduct should logically match RMSContainers and the units of measure in InvoiceProduct. Check for compatibility again, if something does not match, then create a new RMSContainer or a new RMSProduct.
 - **Minimize incorrect mappings** – when in doubt, prefer creating a new product.
+{{0}}
 
 Example Matching:
 - InvoiceProduct: ""MORGADO QUINTAO BRANCO 2023 75CL 12%"" 
@@ -137,6 +140,9 @@ Example Matching:
 - Packaging match: 75CL -> Btl 0,75cl (use existing).";
 
 
+
+
+/*
         private const string _instruction2 = $@"
 Be careful and use the following information:
 
@@ -179,7 +185,7 @@ Be careful and use the following information:
 
 03. Check everything again. Make sure you make the best choice in the selected or created RMSProducts and RMSContainers, each choice is made according to the rules in the items **01** and **02**.
 
-";
+";*/
 
     }
 }

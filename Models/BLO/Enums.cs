@@ -45,5 +45,13 @@
         Synchronized
     }
 
+
+    public enum EntityStatus
+    {
+        New,
+        Changed,
+        Synchronized,
+        Deleted
+    }
 }
 

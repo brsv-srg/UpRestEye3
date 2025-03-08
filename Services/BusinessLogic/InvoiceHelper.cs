@@ -132,6 +132,8 @@ namespace UpRestEye3.Services.BusinessLogic
                 TaxCategory = p.TaxCategory,
                 RMSProduct = RMSProductHelper.CopyRMSProductDTO(p.RMSProduct),
                 RMSContainer = RMSProductHelper.CopyRMSContainerDTO(p.RMSContainer),
+                RMSStorage = RMSProductHelper.CopyRMSStorageDTO(p.RMSStorage),
+
                 Comments = p.Comments
             }).ToList();
 
@@ -202,6 +204,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 TaxCategory = p.TaxCategory,
                 RMSProduct = RMSProductHelper.CopyRMSProductDAO(p.RMSProduct),
                 RMSContainer = RMSProductHelper.CopyRMSContainerDAO(p.RMSContainer),
+                RMSStorage = RMSProductHelper.CopyRMSStorageDAO(p.RMSStorage),
                 Comments = p.Comments
 
             }).ToList();
@@ -290,6 +293,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 TaxCategory = p.TaxCategory,
                 RMSProduct = RMSProductHelper.BuildRMSProductDTO(p.RMSProduct),
                 RMSContainer = RMSProductHelper.BuildRMSContainerDTO(p.RMSContainer),
+                RMSStorage = RMSProductHelper.CopyRMSStorageDTO(p.RMSStorage),
                 Comments = p.Comments
 
             }).ToList();
@@ -357,6 +361,10 @@ namespace UpRestEye3.Services.BusinessLogic
 
                     RMSContainerId = p.RMSContainer != null ? p.RMSContainer.Id : null,
                     RMSContainer = RMSProductHelper.BuildRMSContainerDAO(p.RMSContainer),
+
+                    RMSStorageId = p.RMSStorage?.Id,
+                    RMSStorage = RMSProductHelper.CopyRMSStorageDAO(p.RMSStorage),
+
                     Comments = p.Comments
                 }).ToList();
 

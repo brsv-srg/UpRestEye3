@@ -42,6 +42,7 @@ namespace UpRestEye3.Models.DTO
         public RMSContainerMappingDTO RMSContainer { get; set; }
         public bool NewRMSProduct { get; set; }
         public bool NewRMSContainer { get; set; }
+        public string Storage { get; set; }
         public string Comments { get; set; }
     }
 

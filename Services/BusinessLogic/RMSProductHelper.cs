@@ -187,7 +187,81 @@ namespace UpRestEye3.Services.BusinessLogic
             return _rmsContainerDTO;
         }
 
+        public static RMSAccountDTO? CopyRMSStorageDTO(RMSAccountDTO? rmsStorageDTO)
+        {
+            if (rmsStorageDTO == null)
+                return null;
 
+            var _rmsContainerDTO = new RMSAccountDTO
+            {
+                Id = rmsStorageDTO.Id,
+                ConsumerId = rmsStorageDTO.ConsumerId,
+                ConsumerTaxId = rmsStorageDTO.ConsumerTaxId,
+                RootType = rmsStorageDTO.RootType,
+                Code = rmsStorageDTO.Code,
+                Name = rmsStorageDTO.Name,
+                EntityExtGuid = rmsStorageDTO.EntityExtGuid,
+                Description = rmsStorageDTO.Description,
+                Status = rmsStorageDTO.Status
+            };
+            return _rmsContainerDTO;
+        }
+        public static RMSAccountDTO? CopyRMSStorageDTO(RMSAccountDAO? rmsStorageDAO)
+        {
+            if (rmsStorageDAO == null)
+                return null;
+
+            var _rmsContainerDTO = new RMSAccountDTO
+            {
+                Id = rmsStorageDAO.Id,
+                ConsumerId = rmsStorageDAO.ConsumerId,
+                ConsumerTaxId = rmsStorageDAO.Consumer?.TaxNumber,
+                RootType = rmsStorageDAO.RootType,
+                Code = rmsStorageDAO.Code,
+                Name = rmsStorageDAO.Name,
+                EntityExtGuid = rmsStorageDAO.EntityExtGuid,
+                Description = rmsStorageDAO.Description,
+                Status = rmsStorageDAO.Status
+            };
+            return _rmsContainerDTO;
+        }
+        public static RMSAccountDAO? CopyRMSStorageDAO(RMSAccountDTO? rmsStorageDTO)
+        {
+            if (rmsStorageDTO == null)
+                return null;
+
+            var _rmsContainerDAO = new RMSAccountDAO
+            {
+                Id = rmsStorageDTO.Id,
+                ConsumerId = rmsStorageDTO.ConsumerId,
+                RootType = rmsStorageDTO.RootType,
+                Code = rmsStorageDTO.Code,
+                Name = rmsStorageDTO.Name,
+                EntityExtGuid = rmsStorageDTO.EntityExtGuid,
+                Description = rmsStorageDTO.Description,
+                Status = rmsStorageDTO.Status
+            };
+            return _rmsContainerDAO;
+        }
+
+        public static RMSAccountDAO? CopyRMSStorageDAO(RMSAccountDAO? rmsStorageDAO)
+        {
+            if (rmsStorageDAO == null)
+                return null;
+
+            var _rmsContainerDAO = new RMSAccountDAO
+            {
+                Id = rmsStorageDAO.Id,
+                ConsumerId = rmsStorageDAO.ConsumerId,
+                RootType = rmsStorageDAO.RootType,
+                Code = rmsStorageDAO.Code,
+                Name = rmsStorageDAO.Name,
+                EntityExtGuid = rmsStorageDAO.EntityExtGuid,
+                Description = rmsStorageDAO.Description,
+                Status = rmsStorageDAO.Status
+            };
+            return _rmsContainerDAO;
+        }
 
         public static RMSContainerDTO? BuildRMSContainerDTO(RMSContainerDAO? rmsContainerDAO)
         {

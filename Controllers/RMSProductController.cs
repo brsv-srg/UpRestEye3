@@ -12,9 +12,9 @@ namespace UpRestEye3.Controllers
         private readonly IRMSProductService _productService;
         private readonly IRMSMeasureUnitService _unitService;
         private readonly IIntegrationRMSProductsService _loadProductsService;
-        private readonly IIntegrationRMSMeasureUnitsService _loadRMSMeasureUnits;
+        private readonly IIntegrationRMSEntitiesService _loadRMSMeasureUnits;
 
-        public RMSProductsController(IRMSProductService productService, IRMSMeasureUnitService unitService, IIntegrationRMSProductsService loadProductsService, IIntegrationRMSMeasureUnitsService loadRMSMeasureUnits)
+        public RMSProductsController(IRMSProductService productService, IRMSMeasureUnitService unitService, IIntegrationRMSProductsService loadProductsService, IIntegrationRMSEntitiesService loadRMSMeasureUnits)
         {
             _productService = productService;
             _loadProductsService = loadProductsService;

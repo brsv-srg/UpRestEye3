@@ -1,4 +1,4 @@
-﻿@page "/suppliers"
+﻿@page "/storages"
 @using System.Text
 @rendermode InteractiveServer
 @* TODO разобраться с рендерингом *@
@@ -17,20 +17,20 @@
 
 <AuthorizeView>
     <Authorized>
-        <PageTitle>Suppliers</PageTitle>
+        <PageTitle>Accounts</PageTitle>
 
         <div class="d-flex justify-content-between align-items-center">
-            <h1 class="flex-grow-1 text-nowrap">Suppliers</h1>
-            <button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await ReadSuppliers()" title="Read Suppliers from DB">
+            <h1 class="flex-grow-1 text-nowrap">Accounts</h1>
+            <button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await ReadAccounts()" title="Read Accounts from DB">
                 <i class="fa fa-arrows-rotate"></i>
             </button>
-            <button class="btn btn-outline-primary ml-auto" style="width: auto; margin-left: auto;" @onclick="async () => await SynchronizeRMSData()" title="Synchronize Suppliers from RMS">
+            <button class="btn btn-outline-primary ml-auto" style="width: auto; margin-left: auto;" @onclick="async () => await SynchronizeRMSData()" title="Synchronize Accounts from RMS">
                 <i class="fa fa-download"></i>
             </button>
         </div>
 
 
-        @if (suppliers == null)
+        @if (accounts == null)
         {
             <p><em>Loading...</em></p>
         }
@@ -45,27 +45,30 @@
                     <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
                         <tr>
                             <th>Name</th>
-                            <th>Tax ID</th>
-                            <th>Bank Account</th>
+                            <th>Code</th>
+                            <th>RMS Id</th>
+                            <th>Description</th>
                             <th>Status</th>
+
                             <th style="text-align: center;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var supplier in suppliers)
+                        @foreach (var account in accounts)
                         {
                             <tr>
-                                <td>@supplier.Name</td>
-                                <td>@supplier.TaxNumber</td>
-                                <td>@supplier.BankAccount</td>
+                                <td>@account.Name</td>
+                                <td>@account.Code</td>
+                                <td>@account.EntityExtGuid</td>
+								<td>@account.Description</td>
                                 <td>
-                                    <span class="@GetStatusClass(supplier.Status)">
-                                        @supplier.Status.ToString()
+                                    <span class="@GetStatusClass(account.Status)">
+                                        @account.Status.ToString()
                                     </span>
                                 </td>
 
                                 <td>
-                                    <button class="custom-btn" @onclick="async () => await ShowProductDetailsAsync(supplier)">
+                                    <button class="custom-btn" @onclick="async () => await ShowAccountDetailsAsync(account)">
                                         <i class="fa fa-pencil" aria-hidden="true"></i>
                                     </button>
                                 </td>
@@ -82,43 +85,43 @@
                 </div>
             }
 
-            @if (showSupplierModal)
+            @if (showAccountModal)
             {
                 <div class="modal-backdrop"></div>
                 <div class="modal show d-block" tabindex="-1" role="dialog">
                     <div class="modal-dialog modal-xl" role="document">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h2 class="modal-title">Supplier Details</h2>
+                                <h2 class="modal-title">Account Details</h2>
                             </div>
                             <div class="modal-body">
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="supplierName" class="form-label">Name</label>
-                                            <InputText id="supplierName" class="form-control" @bind-Value="editSupplier.Name" />
+                                            <label for="accountName" class="form-label">Name</label>
+                                            <InputText id="accountName" class="form-control" @bind-Value="editAccount.Name" />
                                         </div>
                                         <div class="mb-3">
-                                            <label for="supplierTaxId" class="form-label">Tax ID</label>
-                                            <InputText id="supplierTaxId" class="form-control" @bind-Value="editSupplier.TaxNumber" />
+                                            <label for="accountCode" class="form-label">Code</label>
+                                            <InputText id="accountCode" class="form-control" @bind-Value="editAccount.Code" />
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="supplierBankAccount" class="form-label">Bank Account</label>
-                                            <InputText id="supplierBankAccount" class="form-control" @bind-Value="editSupplier.BankAccount" />
+                                            <label for="accountDescription" class="form-label">Description</label>
+                                            <InputText id="accountDescription" class="form-control" @bind-Value="editAccount.Description" />
                                         </div>
                                         <div class="mb-3">
-                                            <label for="supplierRMSSupplierId" class="form-label">RMS Id</label>
-                                            <InputText id="supplierRMSSupplierId" class="form-control" @bind-Value="editSupplierRMSSupplierId" @oninput="HandleInput" />
+                                            <label for="accountId" class="form-label">RMS Id</label>
+                                            <InputText id="accountId" class="form-control" @bind-Value="editAccountEntityExtGuid" @oninput="HandleInput" />
 
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" @onclick="async () => await CloseSupplierModalAsync()">Close</button>
-                                <button type="button" class="btn btn-primary" @onclick="async () => await SaveSupplierAsync()">Save changes</button>
+                                <button type="button" class="btn btn-secondary" @onclick="async () => await CloseAccountModalAsync()">Close</button>
+                                <button type="button" class="btn btn-primary" @onclick="async () => await SaveAccountAsync()">Save changes</button>
                             </div>
                         </div>
                     </div>
@@ -134,39 +137,39 @@
 
 @code {
     // Cписок продуктов
-    private SupplierDTO[]? suppliers;
+    private RMSAccountDTO[]? accounts;
     // Редактируемый продукт (выбранный в списке)
-    private SupplierDTO? selectedSupplier;
+    private RMSAccountDTO? selectedAccount;
     // Временная модель для редактирования, чтобы не менять объект из списка напрямую
-    private SupplierDTO editSupplier = new SupplierDTO();
+    private RMSAccountDTO editAccount = new RMSAccountDTO();
 
     
     // Признак отображения модального окна
-    private bool showSupplierModal = false;
+    private bool showAccountModal = false;
 
     private AppUser appUser;
     private string? uploadMessage;
     private string? uploadMessageClass;
 
-    private string editSupplierRMSSupplierId
+    private string editAccountEntityExtGuid
     {
-        get => editSupplier.RMSSupplierId.ToString();
+        get => editAccount.EntityExtGuid.ToString();
         set
         {
             if (Guid.TryParse(value, out var guidValue))
             {
-                editSupplier.RMSSupplierId = guidValue;
+                editAccount.EntityExtGuid = guidValue;
             }
             else
             {
-                editSupplier.RMSSupplierId = null;
+                editAccount.EntityExtGuid = Guid.Empty;
             }
         }
     }
 
     private void HandleInput(ChangeEventArgs e)
     {
-        editSupplierRMSSupplierId = e.Value.ToString();
+        editAccountEntityExtGuid = e.Value.ToString();
     }
 
     protected override async Task OnInitializedAsync()
@@ -177,7 +180,7 @@
 
         if (user.Identity.IsAuthenticated && appUser?.ConsumerId != null)
         {
-            await ReadSuppliers();
+            await ReadAccounts();
         }
         else
         {
@@ -188,7 +191,7 @@
     }
 
 
-    protected async Task ReadSuppliers()
+    protected async Task ReadAccounts()
     {
         if (appUser == null || appUser?.ConsumerId == null)
         {
@@ -204,12 +207,12 @@
 
         try
         {
-            suppliers = await Http.GetFromJsonAsync<SupplierDTO[]>($"{baseUri}/api/suppliers/{appUser.ConsumerId}");
+            accounts = await Http.GetFromJsonAsync<RMSAccountDTO[]>($"{baseUri}/api/storages/{appUser.ConsumerId}");
 
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            Console.WriteLine("Suppliers not found.");
+            Console.WriteLine("Accounts not found.");
 
         }
         catch (Exception ex)
@@ -219,38 +222,38 @@
     }
 
 
-    private void CopyToEditModel(SupplierDTO source, SupplierDTO target)
+    private void CopyToEditModel(RMSAccountDTO source, RMSAccountDTO target)
     {
         target.Id = source.Id;
         target.ConsumerId = source.ConsumerId;
 		target.ConsumerTaxId = source.ConsumerTaxId;
         target.Name = source.Name;
-        target.RMSSupplierId = source.RMSSupplierId;
-        target.BankAccount = source.BankAccount;
-        target.TaxNumber = source.TaxNumber;
+        target.EntityExtGuid = source.EntityExtGuid;
+        target.Code = source.Code;
+		target.Description = source.Description;
 		target.Status = source.Status;
     }
 
 
-    private async Task ShowProductDetailsAsync(SupplierDTO supplier)
+    private async Task ShowAccountDetailsAsync(RMSAccountDTO _account)
     {
-        selectedSupplier = supplier;
-        CopyToEditModel(selectedSupplier, editSupplier); // Копирование данных в временную модель
-        showSupplierModal = true;
+        selectedAccount = _account;
+        CopyToEditModel(selectedAccount, editAccount); // Копирование данных в временную модель
+        showAccountModal = true;
     }
 
 
 
-    private async Task CloseSupplierModalAsync()
+    private async Task CloseAccountModalAsync()
     {
-        showSupplierModal = false;
-        selectedSupplier = null;
-        editSupplier = new SupplierDTO();
+        showAccountModal = false;
+        selectedAccount = null;
+        editAccount = new RMSAccountDTO();
     }
 
-    private async Task SaveSupplierAsync()
+    private async Task SaveAccountAsync()
     {
-        if (editSupplier != null)
+        if (editAccount != null)
         {
             var baseUri = Navigation.BaseUri;
             if (baseUri.EndsWith('/'))
@@ -258,28 +261,28 @@
                 baseUri = baseUri.Substring(0, baseUri.Length - 1);
             }
 
-            var response = await Http.PostAsJsonAsync($"{baseUri}/api/suppliers/save", editSupplier);
+            var response = await Http.PostAsJsonAsync($"{baseUri}/api/storages/save", editAccount);
                                                                       
             if (response.IsSuccessStatusCode)
             {
-                Console.WriteLine("Supplier updated successfully.");
-                uploadMessage = "Supplier updated successfully.";
+                Console.WriteLine("Account updated successfully.");
+                uploadMessage = "Account updated successfully.";
                 uploadMessageClass = "alert-success";
 
-                CopyToEditModel(editSupplier, selectedSupplier); // Копирование данных из временной модели в оригинальную
+                CopyToEditModel(editAccount, selectedAccount); // Копирование данных из временной модели в оригинальную
 
             }
             else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Supplier update failed. Status code: {response.StatusCode}, Error: {errorContent}");
-                uploadMessage = "Supplier update failed.";
+                Console.WriteLine($"Account update failed. Status code: {response.StatusCode}, Error: {errorContent}");
+                uploadMessage = "Account update failed.";
                 uploadMessageClass = "alert-danger";
             }
 
-            showSupplierModal = false;
-            selectedSupplier = null;
-            editSupplier = new SupplierDTO();
+            showAccountModal = false;
+            selectedAccount = null;
+            editAccount = new RMSAccountDTO();
             StateHasChanged();
         }
     }
@@ -303,21 +306,21 @@
         try
         {
 
-            var response = await Http.PostAsync($"{baseUri}/api/suppliers/synchronize?consumerId={appUser.ConsumerId}", null);
+            var response = await Http.PostAsync($"{baseUri}/api/storages/synchronize?consumerId={appUser.ConsumerId}", null);
 
             if (response.IsSuccessStatusCode)
             {
-                Console.WriteLine("Suppliers synchronized successfully.");
-                await ReadSuppliers();
-                uploadMessage = "Suppliers synchronized successfully.";
+                Console.WriteLine("Accounts synchronized successfully.");
+                await ReadAccounts();
+                uploadMessage = "Accounts synchronized successfully.";
                 uploadMessageClass = "alert-success";
             }
             else
             {
-                Console.WriteLine($"Suppliers synchronize failed. Status code: {response.StatusCode}");
+                Console.WriteLine($"Accounts synchronize failed. Status code: {response.StatusCode}");
                 var errorContent = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"Error content: {errorContent}");
-                uploadMessage = "Suppliers synchronize failed.";
+                uploadMessage = "Accounts synchronize failed.";
                 uploadMessageClass = "alert-danger";
             }
         }
@@ -332,13 +335,14 @@
     }
 
 
-    private string GetStatusClass(SupplierStatus status) // Изменено: Метод для получения CSS-класса статуса
+    private string GetStatusClass(EntityStatus status) // Изменено: Метод для получения CSS-класса статуса
     {
         return status switch
         {
-            SupplierStatus.Changed => "text-info",
-            SupplierStatus.New => "text-info",
-            SupplierStatus.Synchronized => "text-success",
+            EntityStatus.Changed => "text-info",
+            EntityStatus.New => "text-info",
+            EntityStatus.Synchronized => "text-success",
+            EntityStatus.Deleted => "text-secondary",
             _ => "text-secondary",
         };
     }

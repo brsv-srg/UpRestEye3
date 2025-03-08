@@ -17,7 +17,8 @@ namespace UpRestEye3.Data
         public DbSet<ConnectionParameterDAO> ConnectionParameters { get; set; }
         public DbSet<RMSProductDAO> RMSProducts { get; set; }
         public DbSet<RMSContainerDAO> Containers { get; set; }
-        public DbSet<RMSMeasureUnitDAO> MeasureUnits { get; set; } // Add this line
+        public DbSet<RMSMeasureUnitDAO> MeasureUnits { get; set; }
+        public DbSet<RMSAccountDAO> Accounts { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -264,6 +265,26 @@ namespace UpRestEye3.Data
 
             // Configure MeasureUnit vs Consumer
             modelBuilder.Entity<RMSMeasureUnitDAO>()
+                .HasOne(c => c.Consumer)
+                .WithMany()
+                .HasForeignKey(t => t.ConsumerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+            ////////////////////////////////////////////////////////////////
+            /// Accounts
+            ////////////////////////////////////////////////////////////////
+
+            // Configure Accounts table
+            modelBuilder.Entity<RMSAccountDAO>()
+                .HasKey(t => t.Id);
+
+            modelBuilder.Entity<RMSAccountDAO>()
+                .Property(t => t.Id)
+                .ValueGeneratedOnAdd();
+
+            // Configure Accounts vs Consumer
+            modelBuilder.Entity<RMSAccountDAO>()
                 .HasOne(c => c.Consumer)
                 .WithMany()
                 .HasForeignKey(t => t.ConsumerId)

@@ -15,7 +15,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
     public interface IProductMappingService
     {
-        Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, List<RMSMeasureUnitDTO> measUnits);
+        Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages);
     }
 
     // Класс обработки изображения
@@ -28,7 +28,7 @@ namespace UpRestEye3.Services.BusinessLogic
             _gptParser = gptParser;
         }
 
-        public async Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, List<RMSMeasureUnitDTO> measUnits)
+        public async Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages)
         {
             try
             {
@@ -36,7 +36,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 var currentConsumerId = currentInvoice.Consumer.Id;
                 var currentConsumerTaxId = currentInvoice.Consumer.TaxNumber;
 
-                var mappingResult = await _gptParser.ReceiptMappingByLLM(currentInvoice, rmsProducts, measUnits);
+                var mappingResult = await _gptParser.ReceiptMappingByLLM(currentInvoice, rmsProducts, measUnits, storages);
 
                 // Если Invoice замеплен и есть новые продукты, то связываем их с Invoice Products
                 if (mappingResult != null)
@@ -96,6 +96,12 @@ namespace UpRestEye3.Services.BusinessLogic
                         //invoiceProduct.RMSProduct = RMSProductHelper.CopyRMSProductDTO(mappedRmsProduct);
                         invoiceProduct.RMSProduct = mappedRmsProduct;
                         invoiceProduct.RMSContainer = mappedRMSContainer;
+
+
+                        var storage = storages.Where(s => s.Name == mappedProducts.Storage).FirstOrDefault();
+                        invoiceProduct.RMSStorage = storage;
+
+
                     }
                 }
                 return (currentInvoice, newRmsProducts);

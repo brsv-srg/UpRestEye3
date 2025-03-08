@@ -604,9 +604,11 @@ namespace UpRestEye3.Services.BusinessLogic
                             }},
                             ""NewRMSProduct"": {{ ""type"": ""boolean"", ""description"": ""Whether a new product has been created"" }},
                             ""NewRMSContainer"": {{ ""type"": ""boolean"", ""description"": ""Whether a new container has been created"" }},
+                            ""Storage"": {{ ""type"": ""string"", ""description"": ""The warehouse where the product should go"" }},
+
                             ""Comments"": {{ ""type"": ""string"", ""description"": ""Comments about the mapping"" }}
                         }},
-                        ""required"": [""InvoiceProduct"", ""RMSProduct"", ""RMSContainer"", ""NewRMSProduct"", ""NewRMSContainer"", ""Comments""],
+                        ""required"": [""InvoiceProduct"", ""RMSProduct"", ""RMSContainer"", ""NewRMSProduct"", ""NewRMSContainer"", ""Storage"", ""Comments""],
                         ""additionalProperties"": false
                     }}
                 }}

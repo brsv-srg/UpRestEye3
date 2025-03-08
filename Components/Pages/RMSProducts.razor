@@ -120,7 +120,7 @@
                                                 @* @onchange="HandleMeasureUnitChange" *@
                                                 @foreach (var unit in measureUnits)
                                                 {
-                                                    <option value="@unit.MeasureUnitExtGuid">@unit.Name</option>
+                                                    <option value="@unit.EntityExtGuid">@unit.Name</option>
                                                 }
                                             </select>
                                         </div>
@@ -254,7 +254,7 @@
     private string? uploadMessageClass;
 
     // Список MeasureUnitDTO
-    private RMSMeasureUnitDTO[] measureUnits = []; 
+    private RMSMeasureUnitDTO[] measureUnits = [];
 
 
 
@@ -330,7 +330,7 @@
 
     private string GetMeasureUnitName(Guid measureUnitId) // Добавлено: Метод для получения имени единицы измерения
     {
-        var returnValue = measureUnits.FirstOrDefault(u => u.MeasureUnitExtGuid == measureUnitId)?.Name ?? "";
+        var returnValue = measureUnits.FirstOrDefault(u => u.EntityExtGuid == measureUnitId)?.Name ?? "";
         return returnValue;
     }
 

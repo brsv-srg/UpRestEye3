@@ -11,14 +11,14 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250127001027_RMSProd01")]
-    partial class RMSProd01
+    [Migration("20250307225238_next03")]
+    partial class next03
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
+            modelBuilder.HasAnnotation("ProductVersion", "8.0.12");
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
@@ -250,7 +250,7 @@ namespace UpRestEye3.Migrations
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.ConsumerDAO", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int?>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
@@ -272,7 +272,7 @@ namespace UpRestEye3.Migrations
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.InvoiceDAO", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int?>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
@@ -318,22 +318,171 @@ namespace UpRestEye3.Migrations
                     b.ToTable("Invoices");
                 });
 
-            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSProductDAO", b =>
+            modelBuilder.Entity("UpRestEye3.Models.DAO.InvoiceProductDAO", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int?>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<Guid>("AccountingCategory")
+                    b.Property<string>("Comments")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("Category")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("ConsumerId")
+                    b.Property<int?>("InvoiceId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("Deleted")
+                    b.Property<decimal>("Price")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProductCode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<float>("Quantity")
+                        .HasColumnType("REAL");
+
+                    b.Property<int?>("RMSContainerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("RMSProductId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TaxCategory")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.HasIndex("RMSContainerId");
+
+                    b.HasIndex("RMSProductId");
+
+                    b.ToTable("InvoiceProducts");
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSAccountDAO", b =>
+                {
+                    b.Property<int?>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ConsumerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EntityExtGuid")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RootType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsumerId");
+
+                    b.ToTable("Accounts");
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSContainerDAO", b =>
+                {
+                    b.Property<int?>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("ContainerWeight")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Count")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("FullContainerWeight")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Num")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RMSContainerExtGuid")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RMSProductId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RMSProductId");
+
+                    b.ToTable("Containers");
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSMeasureUnitDAO", b =>
+                {
+                    b.Property<int?>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ConsumerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EntityExtGuid")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RootType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsumerId");
+
+                    b.ToTable("MeasureUnits");
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSProductDAO", b =>
+                {
+                    b.Property<int?>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ConsumerId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Description")
@@ -347,34 +496,21 @@ namespace UpRestEye3.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("NotInStoreMovement")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Num")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("Parent")
+                    b.Property<Guid?>("RMSProductExtGuid")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("RMSProductId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("TaxCategory")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Type")
                         .HasColumnType("INTEGER");
 
-                    b.Property<decimal>("UnitCapacity")
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal>("UnitWeight")
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("ConsumerId", "RMSProductId")
+                    b.HasIndex("ConsumerId", "RMSProductExtGuid")
                         .IsUnique();
 
                     b.ToTable("RMSProducts");
@@ -382,12 +518,11 @@ namespace UpRestEye3.Migrations
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.SupplierDAO", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int?>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("BankAccount")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<int>("ConsumerId")
@@ -396,6 +531,12 @@ namespace UpRestEye3.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RMSSupplierId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("TaxNumber")
                         .IsRequired()
@@ -407,6 +548,34 @@ namespace UpRestEye3.Migrations
                         .IsUnique();
 
                     b.ToTable("Suppliers");
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.DAO.TaxesDAO", b =>
+                {
+                    b.Property<int?>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Base")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("IVA")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("InvoiceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TaxCategory")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Total")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.ToTable("TaxCategories");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -481,81 +650,62 @@ namespace UpRestEye3.Migrations
                         .HasForeignKey("SupplierId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.OwnsMany("UpRestEye3.Models.DAO.ProductDAO", "Products", b1 =>
-                        {
-                            b1.Property<int>("Id")
-                                .ValueGeneratedOnAdd()
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<int>("InvoiceId")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<decimal>("Price")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("ProductCode")
-                                .IsRequired()
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("ProductName")
-                                .IsRequired()
-                                .HasColumnType("TEXT");
-
-                            b1.Property<float>("Quantity")
-                                .HasColumnType("REAL");
-
-                            b1.Property<string>("Unit")
-                                .IsRequired()
-                                .HasColumnType("TEXT");
-
-                            b1.HasKey("Id");
-
-                            b1.HasIndex("InvoiceId");
-
-                            b1.ToTable("Products", (string)null);
-
-                            b1.WithOwner()
-                                .HasForeignKey("InvoiceId");
-                        });
-
-                    b.OwnsMany("UpRestEye3.Models.DAO.TaxesDAO", "TaxCategories", b1 =>
-                        {
-                            b1.Property<int>("Id")
-                                .ValueGeneratedOnAdd()
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<decimal>("Base")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<int>("Category")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<decimal>("IVA")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<int>("InvoiceId")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<decimal>("Total")
-                                .HasColumnType("TEXT");
-
-                            b1.HasKey("Id");
-
-                            b1.HasIndex("InvoiceId");
-
-                            b1.ToTable("TaxCategories", (string)null);
-
-                            b1.WithOwner()
-                                .HasForeignKey("InvoiceId");
-                        });
-
                     b.Navigation("Consumer");
 
-                    b.Navigation("Products");
-
                     b.Navigation("Supplier");
+                });
 
-                    b.Navigation("TaxCategories");
+            modelBuilder.Entity("UpRestEye3.Models.DAO.InvoiceProductDAO", b =>
+                {
+                    b.HasOne("UpRestEye3.Models.DAO.InvoiceDAO", "Invoice")
+                        .WithMany("Products")
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("UpRestEye3.Models.DAO.RMSContainerDAO", "RMSContainer")
+                        .WithMany()
+                        .HasForeignKey("RMSContainerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("UpRestEye3.Models.DAO.RMSProductDAO", "RMSProduct")
+                        .WithMany()
+                        .HasForeignKey("RMSProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Invoice");
+
+                    b.Navigation("RMSContainer");
+
+                    b.Navigation("RMSProduct");
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSAccountDAO", b =>
+                {
+                    b.HasOne("UpRestEye3.Models.DAO.ConsumerDAO", "Consumer")
+                        .WithMany()
+                        .HasForeignKey("ConsumerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Consumer");
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSContainerDAO", b =>
+                {
+                    b.HasOne("UpRestEye3.Models.DAO.RMSProductDAO", null)
+                        .WithMany("Containers")
+                        .HasForeignKey("RMSProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSMeasureUnitDAO", b =>
+                {
+                    b.HasOne("UpRestEye3.Models.DAO.ConsumerDAO", "Consumer")
+                        .WithMany()
+                        .HasForeignKey("ConsumerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Consumer");
                 });
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.RMSProductDAO", b =>
@@ -566,63 +716,7 @@ namespace UpRestEye3.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.OwnsMany("UpRestEye3.Models.DAO.ContainerDAO", "Containers", b1 =>
-                        {
-                            b1.Property<int>("Id")
-                                .ValueGeneratedOnAdd()
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<bool>("BackwardRecalculation")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<decimal>("ContainerWeight")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<decimal>("Count")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<bool>("Deleted")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<decimal>("FullContainerWeight")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<decimal>("MaxContainerWeight")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<decimal>("MinContainerWeight")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("Name")
-                                .IsRequired()
-                                .HasColumnType("TEXT");
-
-                            b1.Property<string>("Num")
-                                .IsRequired()
-                                .HasColumnType("TEXT");
-
-                            b1.Property<int>("ProductId")
-                                .HasColumnType("INTEGER");
-
-                            b1.Property<Guid>("RMSContainerId")
-                                .HasColumnType("TEXT");
-
-                            b1.Property<bool>("UseInFront")
-                                .HasColumnType("INTEGER");
-
-                            b1.HasKey("Id");
-
-                            b1.HasIndex("ProductId");
-
-                            b1.ToTable("Containers", (string)null);
-
-                            b1.WithOwner()
-                                .HasForeignKey("ProductId");
-                        });
-
                     b.Navigation("Consumer");
-
-                    b.Navigation("Containers");
                 });
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.SupplierDAO", b =>
@@ -636,6 +730,16 @@ namespace UpRestEye3.Migrations
                     b.Navigation("Consumer");
                 });
 
+            modelBuilder.Entity("UpRestEye3.Models.DAO.TaxesDAO", b =>
+                {
+                    b.HasOne("UpRestEye3.Models.DAO.InvoiceDAO", "Invoice")
+                        .WithMany("TaxCategories")
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Invoice");
+                });
+
             modelBuilder.Entity("UpRestEye3.Models.DAO.ConsumerDAO", b =>
                 {
                     b.Navigation("ConnectionParameter");
@@ -645,6 +749,18 @@ namespace UpRestEye3.Migrations
                     b.Navigation("RMSProducts");
 
                     b.Navigation("Suppliers");
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.DAO.InvoiceDAO", b =>
+                {
+                    b.Navigation("Products");
+
+                    b.Navigation("TaxCategories");
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSProductDAO", b =>
+                {
+                    b.Navigation("Containers");
                 });
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.SupplierDAO", b =>

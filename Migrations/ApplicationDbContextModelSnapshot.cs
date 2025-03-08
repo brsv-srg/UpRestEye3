@@ -366,6 +366,42 @@ namespace UpRestEye3.Migrations
                     b.ToTable("InvoiceProducts");
                 });
 
+            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSAccountDAO", b =>
+                {
+                    b.Property<int?>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ConsumerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EntityExtGuid")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RootType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsumerId");
+
+                    b.ToTable("Accounts");
+                });
+
             modelBuilder.Entity("UpRestEye3.Models.DAO.RMSContainerDAO", b =>
                 {
                     b.Property<int?>("Id")
@@ -413,10 +449,10 @@ namespace UpRestEye3.Migrations
                     b.Property<int?>("ConsumerId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("Deleted")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
 
-                    b.Property<Guid>("MeasureUnitExtGuid")
+                    b.Property<Guid>("EntityExtGuid")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
@@ -426,6 +462,9 @@ namespace UpRestEye3.Migrations
                     b.Property<string>("RootType")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -635,6 +674,16 @@ namespace UpRestEye3.Migrations
                     b.Navigation("RMSContainer");
 
                     b.Navigation("RMSProduct");
+                });
+
+            modelBuilder.Entity("UpRestEye3.Models.DAO.RMSAccountDAO", b =>
+                {
+                    b.HasOne("UpRestEye3.Models.DAO.ConsumerDAO", "Consumer")
+                        .WithMany()
+                        .HasForeignKey("ConsumerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Consumer");
                 });
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.RMSContainerDAO", b =>
