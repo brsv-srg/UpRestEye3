@@ -62,7 +62,7 @@ namespace UpRestEye3.Services.Recognition
             }));
 
 
-            var storageString = string.Format(_storagePrompt, string.Join("\", \"", storages.Select(s => s.Name + " - " + s.Description)));
+            var storageString = string.Format(_storagePrompt, string.Join(", ", storages.Select(s => "`" + s.Name + "` - " + s.Description)));
 
             // Формируем запрос
 
@@ -103,7 +103,7 @@ namespace UpRestEye3.Services.Recognition
             return JsonSerializer.Serialize(requestData, options);
         }
         
-        private const string _storagePrompt = $@" Also, for each product, choose a Storage to which it should go. Use the following Storages for this purpose: ""{{0}}"". Add the name of the selected Storage to the Storage field in the response_format section.";
+        private const string _storagePrompt = $@"- Also, for each product, choose a Storage to which it should go. Use the following Storages for this purpose: ""{{0}}"". Add the name of the selected Storage to the Product Storage field in the response_format section.";
 
 
 

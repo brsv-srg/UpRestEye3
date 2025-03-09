@@ -51,6 +51,9 @@ namespace UpRestEye3.Services.DataLayer
                 .Include(i => i.Products)
                     .ThenInclude(p => p.RMSContainer) // Include RMSContainers through Products
 
+                .Include(i => i.Products)
+                    .ThenInclude(p => p.RMSStorage) // Include RMSStorage through Products
+
                 .Include(i => i.Supplier)
                 .Include(i => i.Consumer)
                 .FirstOrDefaultAsync(i => i.Id == id);
@@ -76,6 +79,9 @@ namespace UpRestEye3.Services.DataLayer
 
                 .Include(i => i.Products)
                     .ThenInclude(p => p.RMSContainer) // Include RMSContainers through Products
+
+                .Include(i => i.Products)
+                    .ThenInclude(p => p.RMSStorage) // Include RMSStorage through Products
 
                 .Include(i => i.Supplier)
                 .Include(i => i.Consumer)
@@ -231,12 +237,9 @@ namespace UpRestEye3.Services.DataLayer
                         }
                     }
 
-                   
-
                     // Update invoice
                     _context.Entry(existingInvoice).State = EntityState.Detached;
                     _context.Entry(invoice).State = EntityState.Modified;
-
                     
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();

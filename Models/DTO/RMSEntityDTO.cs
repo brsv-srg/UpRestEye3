@@ -1,6 +1,9 @@
+using System.ComponentModel;
 using UpRestEye3.Models.BLO;
+using UpRestEye3.Services.BusinessLogic;
 namespace UpRestEye3.Models.DTO
 {
+    [TypeConverter(typeof(RMSAccountDTOConverter))]
     public class RMSEntityDTO
     {
         public int? Id { get; set; }

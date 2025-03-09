@@ -140,6 +140,8 @@
                                                 <th class="p-1">TAX Category</th>
                                                 <th class="p-1">RMS Product</th>
                                                 <th class="p-1">RMS Container</th>
+                                                <th class="p-1">RMS Storage</th>
+
                                                 <th style="text-align: center;">Actions</th>
                                             </tr>
                                         </thead>
@@ -155,7 +157,6 @@
                                                         <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Price" /></td>
                                                         <td class="p-1">
                                                             <select class="form-control form-control-sm" @bind="product.TaxCategory">
-                                                                @* <option value="">@((TaxCategoryEnum?)null)</option> *@
                                                                 @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
                                                                 {
                                                                     <option value="@taxCategory">@taxCategory</option>
@@ -180,6 +181,18 @@
                                                                 }
                                                             </select>
                                                         </td>
+                                                      
+                                                        <td class="p-1">
+                                                            <select class="form-control form-control-sm" @bind="product.RMSStorage">
+                                                                <option value="">@((RMSAccountDTO?)null)</option>
+                                                                @foreach (var rmsStorage in rmsStorages)
+                                                                {
+                                                                    <option value="@rmsStorage.Id">@rmsStorage.Name</option>
+                                                                }
+                                                            </select>
+                                                        </td>
+                                                      
+
                                                         <td class="p-1 align-middle">
                                                             <div class="d-flex justify-content-around align-items-center">
                                                                 <button class="custom-btn" @onclick="async () => SaveProduct(product)">
@@ -204,6 +217,7 @@
                                                         <td class="p-1">@product.TaxCategory</td>
                                                         <td class="p-1">@product.RMSProduct?.Name</td>
                                                         <td class="p-1">@product.RMSContainer?.Name</td>
+														<td class="p-1">@product.RMSStorage?.Name</td>
                                                         <td class="p-1">
                                                             <button class="custom-btn" @onclick="async () => EditProduct(product)">
                                                                 <i class="fa fa-pencil" aria-hidden="true"></i>
@@ -212,6 +226,7 @@
                                                     }
                                                 </tr>
                                             }
+
                                             @if (isAddingNewProduct)
                                             {
                                                 <tr>
@@ -248,6 +263,17 @@
                                                             }
                                                         </select>
                                                     </td>
+
+                                                    <td class="p-1">
+                                                        <select class="form-control form-control-sm" @bind="newProduct.RMSStorage">
+                                                            <option value="">@((RMSAccountDTO?)null)</option>
+                                                            @foreach (var rmsStorage in rmsStorages)
+                                                            {
+                                                                <option value="@rmsStorage.Id">@rmsStorage.Name</option>
+                                                            }
+                                                        </select>
+                                                    </td>
+
                                                     <td class="p-1 align-middle">
                                                         <div class="d-flex justify-content-around align-items-center">
                                                             <button class="custom-btn" @onclick="async () => SaveNewProduct()">
@@ -424,14 +450,13 @@
     private InvoiceProductDTO? editProduct;
     // Временная модель для бэкапа продукта
     private InvoiceProductDTO? backupProduct;
-   
+
 
 
     // Новый продукт
     private InvoiceProductDTO newProduct = new InvoiceProductDTO(); 
     // Флаг для добавления нового продукта
     private bool isAddingNewProduct = false;
-
 
 
     // Редактируемая категория
@@ -447,12 +472,19 @@
     // Признак отображения модальной формы Invoice
     private bool showInvoiceModal = false; 
 
+    private SupplierDTOConverter? converterSupplier;
+    private RMSProductDTOConverter? converterProduct;
+    private RMSAccountDTOConverter? converterStorages;
+    private RMSContainerDTOConverter? converterContainer;
 
     private string? uploadMessage;
     private string? uploadMessageClass;
 
     private SupplierDTO[]? suppliers;   // Добавлено: Список поставщиков
     private RMSContainerDTO[]? rmsContainers; // Добавлено: Список контейнеров
+
+    // Storages
+    private RMSAccountDTO[]? rmsStorages;
 
     // private List<InvoiceProductDTO>? selectedProducts;
     private AppUser appUser;
@@ -461,6 +493,9 @@
     private HubConnection? hubConnection; // Добавлено: HubConnection для SignalR
     private string baseUri;
 
+
+
+
     protected override async Task OnInitializedAsync()
     {
         baseUri = Navigation.BaseUri;
@@ -468,6 +503,7 @@
         {
             baseUri = baseUri.Substring(0, baseUri.Length - 1);
         }
+
         if (!isInitialized)
         {
             isInitialized = true;
@@ -486,6 +522,7 @@
         {
             await LoadInvoicesAsync();
             await LoadSuppliersAsync(); // Добавлено: Загрузка списка поставщиков
+            await LoadStoragesAsync();
             await LoadRMSProductsAsync(); // Добавлено: Загрузка списка продуктов
             await SetTypeConverters(); // Добавлено: Установка конвертеров для SupplierDTO
 
@@ -499,16 +536,17 @@
 
     private async Task SetTypeConverters()
     {
-        // Получаем экземпляр конвертера
-        var converterSupplier = TypeDescriptor.GetConverter(typeof(SupplierDTO)) as SupplierDTOConverter;
-        // Устанавливаем список
+        if (converterSupplier == null)
+            converterSupplier = TypeDescriptor.GetConverter(typeof(SupplierDTO)) as SupplierDTOConverter;
         converterSupplier.SetSourceList(suppliers);
 
-        // Получаем экземпляр конвертера
-        var converterProduct = TypeDescriptor.GetConverter(typeof(RMSProductDTO)) as RMSProductDTOConverter;
-        // Устанавливаем список
+        if (converterProduct == null)
+            converterProduct = TypeDescriptor.GetConverter(typeof(RMSProductDTO)) as RMSProductDTOConverter;
         converterProduct.SetSourceList(rmsProducts);
 
+        if(converterStorages == null)
+            converterStorages = TypeDescriptor.GetConverter(typeof(RMSAccountDTO)) as RMSAccountDTOConverter;
+        converterStorages.SetSourceList(rmsStorages);
 
     }
 
@@ -546,6 +584,22 @@
         }
     }
 
+    private async Task LoadStoragesAsync() // Добавлено: Метод для загрузки списка cкладов
+    {
+        try
+        {
+            rmsStorages = await Http.GetFromJsonAsync<RMSAccountDTO[]>($"{baseUri}/api/storages/{appUser.ConsumerId}");
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            Console.WriteLine("Suppliers not found.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+
     private async Task LoadRMSProductsAsync() // Добавлено: Метод для загрузки списка продуктов
     {
         try
@@ -572,7 +626,7 @@
         {
             uploadMessage = message;
             uploadMessageClass = "alert-info";
-            await LoadInvoicesAsync(); // Обновление списка инвойсов при получении сообщения
+            await InitializeDataAsync();
             InvokeAsync(StateHasChanged);
         });
 
@@ -601,19 +655,6 @@
                 var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/upload", content);
 
 
-                // if (response.IsSuccessStatusCode)
-                // {
-                //     Console.WriteLine("File uploaded successfully.");
-                //     uploadMessage = "File uploaded successfully.";
-                //     uploadMessageClass = "alert-success";
-                //     await LoadInvoicesAsync(); 
-                // }
-                // else
-                // {
-                //     Console.WriteLine("File upload failed.");
-                //     uploadMessage = "File upload failed.";
-                //     uploadMessageClass = "alert-danger";
-                // }
             }
             else
             {
@@ -721,9 +762,10 @@
 
     private void HandleDropdownOpened(FocusEventArgs e, InvoiceProductDTO product)
     {
-            // Получаем экземпляр конвертера
-            var converterContainer = TypeDescriptor.GetConverter(typeof(RMSContainerDTO)) as RMSContainerDTOConverter;
-            // Устанавливаем список
+        if (converterContainer == null)
+            converterContainer = TypeDescriptor.GetConverter(typeof(RMSContainerDTO)) as RMSContainerDTOConverter;
+		
+        if (product.RMSProduct != null)
             converterContainer.SetSourceList(product.RMSProduct.Containers);
     }
 

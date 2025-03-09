@@ -250,6 +250,25 @@ namespace UpRestEye3.Services.BusinessLogic
             }
         }
 
+        public static decimal GetTaxCategoryPercent(TaxCategoryEnum taxCategory)
+        {
+            switch (taxCategory)
+            {
+                case TaxCategoryEnum.Normal:
+                    return 23m;
+                case TaxCategoryEnum.Intermediate:
+                    return 13m;
+                case TaxCategoryEnum.Reduced:
+                    return 6m;
+                case TaxCategoryEnum.Zero:
+                    return 0m;
+                default:
+                    throw new ArgumentException("Invalid category string");
+            }
+        }
+
+
+
 
         public static InvoiceDTO? BuildInvoiceDTO(InvoiceDAO? invoiceDAO)
         {
@@ -404,10 +423,10 @@ namespace UpRestEye3.Services.BusinessLogic
                 Invoice = invoiceDTO.InvoiceNumber,
                 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 // надо забирать склады и их подставлять в инвойс
-                //DefaultStore = invoiceDTO.DefaultStore,
+                // DefaultStore = invoiceDTO.DefaultStore,
                 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 // надо забирать поставщика и его подставлять в инвойс
-                Supplier = invoiceDTO.Supplier?.Name,
+                Supplier = invoiceDTO.Supplier?.RMSSupplierId.ToString(),
                 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 // брать из настроек поставщика и подставлять дату погашения.
                 // если это фактура-ресибо, то эта дата равна дате документа
@@ -426,32 +445,32 @@ namespace UpRestEye3.Services.BusinessLogic
                 //LinkedOutgoingInvoiceId = invoiceDTO.LinkedOutgoingInvoiceId,
                 DistributionAlgorithm = DistributionAlgorithmType.DistributionByAmount,
 
-                /*
-                Items = invoiceDTO.Products?.Select(item => new IncomingInvoiceItemDto
+                
+                Items = invoiceDTO.Products?.Select((item, index) => new IncomingInvoiceItemDto
                 {
-                    IsAdditionalExpense = item.IsAdditionalExpense,
-                    Amount = item.Amount,
-                    SupplierProduct = item.SupplierProduct,
-                    SupplierProductArticle = item.SupplierProductArticle,
-                    Product = item.Product,
-                    ProductArticle = item.ProductArticle,
-                    Producer = item.Producer,
-                    Num = item.Num,
-                    ContainerId = item.ContainerId,
-                    AmountUnit = item.AmountUnit,
-                    ActualUnitWeight = item.ActualUnitWeight,
-                    Sum = item.Sum,
-                    DiscountSum = item.DiscountSum,
-                    VatPercent = item.VatPercent,
-                    VatSum = item.VatSum,
-                    PriceUnit = item.PriceUnit,
+                    //IsAdditionalExpense = item.IsAdditionalExpense,
+                    Amount = (decimal)item.Quantity,
+                    // SupplierProduct = item.SupplierProduct,
+                    // SupplierProductArticle = item.SupplierProductArticle,
+                    Product = item.RMSProduct.RMSProductExtGuid.ToString(),
+                    ProductArticle = item.RMSProduct.Num,
+                    //Producer = item.Producer,
+                    Num = index,
+                    ContainerId = item.RMSContainer.RMSContainerExtGuid.ToString(),
+                    AmountUnit = item.RMSProduct.MainUnit.ToString(),
+                    //ActualUnitWeight = item.ActualUnitWeight,
+                    Sum = item.Price * (decimal)item.Quantity,
+                    //DiscountSum = item.DiscountSum,
+                    VatPercent = GetTaxCategoryPercent(item.TaxCategory),
+                    //VatSum = item.v,
+                    //PriceUnit = item.PriceUnit,
                     Price = item.Price,
-                    PriceWithoutVat = item.PriceWithoutVat,
-                    Code = item.Code,
-                    Store = item.Store,
-                    CustomsDeclarationNumber = item.CustomsDeclarationNumber,
-                    ActualAmount = item.ActualAmount
-                }).ToArray()*/
+                    //PriceWithoutVat = item.PriceWithoutVat,
+                    //Code = item.RMSProduct.Num,
+                    Store = item.RMSStorage.EntityExtGuid.ToString(),
+                    //CustomsDeclarationNumber = item.CustomsDeclarationNumber,
+                    //ActualAmount = item.ActualAmount
+                }).ToArray()
             };
         }
 
