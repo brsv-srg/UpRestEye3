@@ -10,7 +10,8 @@
         ProductsMapped,
         AttentionRequired,
         SavedToSystem,
-        Error
+        RecognitionError,
+        UploadError
     }
 
     public enum TaxCategoryEnum

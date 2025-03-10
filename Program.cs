@@ -93,6 +93,7 @@ builder.Services.AddScoped<IRMSProductService, RMSProductService>();
 builder.Services.AddScoped<IIntegrationRMSProductsService, IntegrationRMSProductsService>();
 builder.Services.AddScoped<IIntegrationRMSEntitiesService, IntegrationRMSEntitiesService>();
 builder.Services.AddScoped<IIntegrationSupplierService, IntegrationSupplierService>();
+builder.Services.AddScoped<IIntegrationInvoiceService, IntegrationInvoiceService>();
 
 builder.Services.AddScoped<IRMSMeasureUnitService, RMSMeasureUnitService>();
 builder.Services.AddScoped<IRMSAccountsService, RMSAccountsService>();

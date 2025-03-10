@@ -213,7 +213,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     var s when s.Contains("TextProcessed") => InvoiceStatusEnum.TextProcessed,
                     var s when s.Contains("ProductsMapped") => InvoiceStatusEnum.ProductsMapped,
                     var s when s.Contains("SavedToSystem") => InvoiceStatusEnum.SavedToSystem,
-                    var s when s.Contains("Error") => InvoiceStatusEnum.Error,
+                    var s when s.Contains("Error") => InvoiceStatusEnum.RecognitionError,
                     _ => throw new JsonException("Invalid token type for TaxCategory.")
                 };
             }

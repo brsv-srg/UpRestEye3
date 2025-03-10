@@ -69,7 +69,7 @@ namespace UpRestEye3.Services.Recognition
             }
             catch (Exception ex)
             {
-                currentInvoice.Status = InvoiceStatusEnum.Error;
+                currentInvoice.Status = InvoiceStatusEnum.RecognitionError;
 
                 throw new Exception("Error mapping invoice products to RMS products", ex);
             }

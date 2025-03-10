@@ -203,7 +203,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 catch (Exception ex)
                 {
                     workingInvoice.Comments = ex.Message;
-                    workingInvoice.Status = InvoiceStatusEnum.Error;
+                    workingInvoice.Status = InvoiceStatusEnum.RecognitionError;
                     await invoiceService.SaveInvoiceAsync(workingInvoice);
 
                     await hubContext.Clients.All.SendAsync("ReceiveMessage", "Failed to recognize invoice image.");

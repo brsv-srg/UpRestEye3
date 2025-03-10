@@ -8,12 +8,14 @@ using UpRestEye3.Models.BLO;
 using UpRestEye3.Services.DataLayer;
 using System.Xml.Serialization;
 using UpRestEye3.Models.RMSDTO;
+using UpRestEye3.Services.BusinessLogic;
+using System.Xml;
 
 namespace UpRestEye3.Services.Integration
 {
     public interface IIntegrationInvoiceService
     {
-        Task<bool> PostInvoiceAsync(InvoiceDTO invoiceDTO);
+        Task<InvoiceDTO> PostInvoiceAsync(InvoiceDTO invoiceDTO);
     }
 
     public class IntegrationInvoiceService : IIntegrationInvoiceService
@@ -38,24 +40,43 @@ namespace UpRestEye3.Services.Integration
         }
 
 
-        public async Task<bool> PostInvoiceAsync(InvoiceDTO invoiceDTO)
+        public async Task<InvoiceDTO> PostInvoiceAsync(InvoiceDTO invoiceDTO)
         {
             try
             {
                 await InitConnectionParams((int)invoiceDTO.Consumer.Id);
                 await AuthenticateAsync();
 
+                var integrationInvoiceDTO = InvoiceHelper.MapToIncomingInvoiceDto(invoiceDTO);
                 var serializer = new XmlSerializer(typeof(IncomingInvoiceDto));
                 var stringBuilder = new StringBuilder();
-                using (var writer = new StringWriter(stringBuilder))
+
+                var settings = new XmlWriterSettings
                 {
-                    serializer.Serialize(writer, invoiceDTO);
+                    OmitXmlDeclaration = true,
+                    Indent = true
+                };
+                var ns = new XmlSerializerNamespaces();
+                ns.Add("", ""); // Убираем пространства имен
+
+                using (var writer = XmlWriter.Create(stringBuilder, settings))
+                {
+                    serializer.Serialize(writer, integrationInvoiceDTO, ns);
                 }
 
                 var content = new StringContent(stringBuilder.ToString(), Encoding.UTF8, "application/xml");
-                var response = await _httpClient.PostAsync("/documents/import/incomingInvoice", content);
+                var url = $"{_apiUrl}api/documents/import/incomingInvoice?key={_token}";
+                
+                _httpClient.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("en-GB"));
 
-                response.EnsureSuccessStatusCode();
+                var response = await _httpClient.PostAsync(url, content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Error response: {errorContent}");
+                    response.EnsureSuccessStatusCode();
+                }
 
                 var responseContent = await response.Content.ReadAsStringAsync();
                 var deserializer = new XmlSerializer(typeof(DocumentValidationResult));
@@ -64,19 +85,22 @@ namespace UpRestEye3.Services.Integration
                     var responseValue = (DocumentValidationResult)deserializer.Deserialize(reader);
                     if (responseValue != null)
                     {
-                        return true;
+                        invoiceDTO.Status = InvoiceStatusEnum.SavedToSystem;
+                        return invoiceDTO;
                     }
                     else
                     {
-                        return false;
+                        throw new Exception("Error uploading invoice to RMS");
                     }
                 }
 
             }
             catch (Exception ex)
             {
+                invoiceDTO.Status = InvoiceStatusEnum.UploadError;
+                invoiceDTO.Comments = ex.Message;
                 Console.WriteLine($"Error writing Invoice to RMS: {ex.Message}");
-                return false;
+                return invoiceDTO;
             }
         }
 

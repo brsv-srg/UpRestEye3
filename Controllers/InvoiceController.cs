@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UpRestEye3.Models.DTO;
+using UpRestEye3.Models.BLO;
 using UpRestEye3.Services.DataLayer;
+using UpRestEye3.Services.Integration;
 
 namespace UpRestEye3.Controllers
 {
@@ -11,10 +13,12 @@ namespace UpRestEye3.Controllers
     public class InvoicesController : ControllerBase
     {
         private readonly IInvoiceService _invoiceService;
+        private readonly IIntegrationInvoiceService _integrationService;
 
-        public InvoicesController(IInvoiceService invoiceService)
+        public InvoicesController(IInvoiceService invoiceService, IIntegrationInvoiceService integrationService)
         {
             _invoiceService = invoiceService;
+            _integrationService = integrationService;
         }
 
         // TODO сделать по ID of Consumer
@@ -36,6 +40,32 @@ namespace UpRestEye3.Controllers
             var invoiceId = await _invoiceService.SaveInvoiceAsync(invoice);
             var updatedInvoice = await _invoiceService.GetInvoiceDTOByIdAsync((int)invoiceId);
             return Ok(updatedInvoice);
+        }
+
+
+        [HttpPost("upload")]
+        public async Task<ActionResult<InvoiceDTO>> UploadInvoice(InvoiceDTO invoiceToUpload)
+        {
+            try
+            {
+                var result = await _integrationService.PostInvoiceAsync(invoiceToUpload);
+                if (result != null && result.Status != InvoiceStatusEnum.UploadError )
+                {
+                    await _invoiceService.SaveInvoiceAsync(invoiceToUpload);
+                    return Ok(invoiceToUpload);
+                }
+                else
+                    throw new Exception("Error uploading invoice to RMS");
+            }
+            catch (Exception e)
+            {
+                invoiceToUpload.Status = InvoiceStatusEnum.UploadError;
+                invoiceToUpload.Comments += "; " + e.Message;
+                await _invoiceService.SaveInvoiceAsync(invoiceToUpload);
+                Console.WriteLine(e);
+                return BadRequest(invoiceToUpload);
+            }
+            
         }
     }
 }

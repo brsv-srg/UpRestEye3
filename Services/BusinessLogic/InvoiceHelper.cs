@@ -7,6 +7,8 @@ using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DTO;
 using System.Linq.Expressions;
 using UpRestEye3.Models.RMSDTO;
+using OpenCvSharp.ML;
+using System.ComponentModel;
 
 
 
@@ -79,7 +81,7 @@ namespace UpRestEye3.Services.BusinessLogic
             }
             else
             {
-                invoice.Status = InvoiceStatusEnum.Error;
+                invoice.Status = InvoiceStatusEnum.RecognitionError;
                 throw new ArgumentException("Both QRCodeData and filePath are null");
             }
         }
@@ -99,6 +101,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 invoiceTarget.Supplier.Name = invoiceSource.Supplier.Name;
                 invoiceTarget.Supplier.TaxNumber = invoiceSource.Supplier.TaxNumber;
                 invoiceTarget.Supplier.BankAccount = invoiceSource.Supplier.BankAccount;
+                invoiceTarget.Supplier.RMSSupplierId = invoiceSource.Supplier.RMSSupplierId;
             }
 
             if (invoiceTarget.Consumer == null)
@@ -170,6 +173,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 invoiceTarget.Supplier.Name = invoiceSource.Supplier.Name;
                 invoiceTarget.Supplier.TaxNumber = invoiceSource.Supplier.TaxNumber;
                 invoiceTarget.Supplier.BankAccount = invoiceSource.Supplier.BankAccount;
+                invoiceTarget.Supplier.RMSSupplierId = invoiceSource.Supplier.RMSSupplierId;
             }
             invoiceTarget.SupplierId = invoiceSource.SupplierId;
 
@@ -297,7 +301,8 @@ namespace UpRestEye3.Services.BusinessLogic
                 {
                     Name = invoiceDAO.Supplier.Name,
                     TaxNumber = invoiceDAO.Supplier.TaxNumber,
-                    BankAccount = invoiceDAO.Supplier.BankAccount
+                    BankAccount = invoiceDAO.Supplier.BankAccount,
+                    RMSSupplierId = invoiceDAO.Supplier.RMSSupplierId
                 };
             };
             // DTO = DAO
@@ -360,7 +365,8 @@ namespace UpRestEye3.Services.BusinessLogic
                     {
                         Name = invoiceDTO.Supplier.Name,
                         TaxNumber = invoiceDTO.Supplier.TaxNumber,
-                        BankAccount = invoiceDTO.Supplier.BankAccount
+                        BankAccount = invoiceDTO.Supplier.BankAccount,
+                        RMSSupplierId = invoiceDTO.Supplier.RMSSupplierId
                     };
                 };
 
@@ -446,30 +452,38 @@ namespace UpRestEye3.Services.BusinessLogic
                 DistributionAlgorithm = DistributionAlgorithmType.DistributionByAmount,
 
                 
-                Items = invoiceDTO.Products?.Select((item, index) => new IncomingInvoiceItemDto
+                Items = invoiceDTO.Products?.Select(static (item, index) => new IncomingInvoiceItemDto
                 {
-                    //IsAdditionalExpense = item.IsAdditionalExpense,
-                    Amount = (decimal)item.Quantity,
+                    IsAdditionalExpense = false,
+                    Amount = (decimal)item.Quantity * item.RMSContainer.Count,
+                    ActualAmount = (decimal)item.Quantity * item.RMSContainer.Count,
+
+
                     // SupplierProduct = item.SupplierProduct,
                     // SupplierProductArticle = item.SupplierProductArticle,
                     Product = item.RMSProduct.RMSProductExtGuid.ToString(),
                     ProductArticle = item.RMSProduct.Num,
                     //Producer = item.Producer,
-                    Num = index,
+                    Num = index+1,
                     ContainerId = item.RMSContainer.RMSContainerExtGuid.ToString(),
                     AmountUnit = item.RMSProduct.MainUnit.ToString(),
                     //ActualUnitWeight = item.ActualUnitWeight,
-                    Sum = item.Price * (decimal)item.Quantity,
+
+                    
+
+                    Sum =    item.Price + item.Price/100*GetTaxCategoryPercent(item.TaxCategory), 
+                    VatSum = item.Price / 100 * GetTaxCategoryPercent(item.TaxCategory),
+
+                    Price = (item.Price + item.Price/100*GetTaxCategoryPercent(item.TaxCategory))/ (decimal)item.Quantity,
+                    PriceWithoutVat = item.Price/ (decimal)item.Quantity,
+
+
                     //DiscountSum = item.DiscountSum,
                     VatPercent = GetTaxCategoryPercent(item.TaxCategory),
-                    //VatSum = item.v,
                     //PriceUnit = item.PriceUnit,
-                    Price = item.Price,
-                    //PriceWithoutVat = item.PriceWithoutVat,
                     //Code = item.RMSProduct.Num,
                     Store = item.RMSStorage.EntityExtGuid.ToString(),
                     //CustomsDeclarationNumber = item.CustomsDeclarationNumber,
-                    //ActualAmount = item.ActualAmount
                 }).ToArray()
             };
         }

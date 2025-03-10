@@ -24,6 +24,8 @@ namespace UpRestEye3.Models.DTO
 
         public InvoiceStatusEnum Status { get; set; } = InvoiceStatusEnum.New;
 
+        public bool IsSelected { get; set; } = false;
+
         // Default constructor
         public InvoiceDTO()
         {
