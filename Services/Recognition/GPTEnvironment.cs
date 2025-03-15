@@ -116,7 +116,9 @@ namespace UpRestEye3.Services.Recognition
             // Формируем запрос
             var requestBody = new
             {
-                model = "gpt-4o-mini", // "o1 -preview-2024-09-12",
+                model = "gpt-4o", //"gpt-4o-mini",
+                temperature = 0.3,
+
                 messages = new object[]
                 {
                         new { role = "system", content = GetSystemPrompt(currentInvoice) }, 
@@ -130,8 +132,7 @@ namespace UpRestEye3.Services.Recognition
                         name = "Invoice",
                         schema = JsonDocument.Parse(GetInvoiceSchema()).RootElement
                     }
-                },
-                temperature = 0.2
+                }
             };
 
             // Сериализация тела запроса

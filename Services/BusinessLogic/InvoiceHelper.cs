@@ -81,7 +81,7 @@ namespace UpRestEye3.Services.BusinessLogic
             }
             else
             {
-                invoice.Status = InvoiceStatusEnum.RecognitionError;
+                invoice.Status = InvoiceStatusEnum.QRError;
                 throw new ArgumentException("Both QRCodeData and filePath are null");
             }
         }

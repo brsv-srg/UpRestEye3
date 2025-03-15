@@ -85,7 +85,7 @@
             <div class="upload-button-container"> 
                 <label class="upload-button"> 
                     <span class="plus-icon">+</span>
-                    <InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.png" />
+                    <InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.png,.heic,.pdf" />
                 </label> 
             </div>
 
@@ -188,7 +188,7 @@
                                                         <td class="p-1">
                                                             <select class="form-control form-control-sm" @bind="product.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, product))">
                                                                 <option value="">@((RMSContainerDTO?)null)</option>
-                                                                @foreach (var rmsContainer in product.RMSProduct?.Containers)
+                                                            @foreach (var rmsContainer in product.RMSProduct?.Containers ?? Enumerable.Empty<RMSContainerDTO>())
                                                                 {
                                                                     <option value="@rmsContainer.Id">@rmsContainer.Name</option>
                                                                 }
@@ -1002,10 +1002,13 @@
     // Метод для получения CSS-класса статуса
     private string GetStatusClass(InvoiceStatusEnum status) 
     {
+        
         return status switch
         {
-            InvoiceStatusEnum.RecognitionError => "text-danger",
+            InvoiceStatusEnum.TextRecognitionError => "text-danger",
             InvoiceStatusEnum.UploadError => "text-danger",
+            InvoiceStatusEnum.QRError => "text-danger",
+            InvoiceStatusEnum.MappingError => "text-danger",
 
             InvoiceStatusEnum.SavedToSystem => "text-success",
             _ => "text-info",

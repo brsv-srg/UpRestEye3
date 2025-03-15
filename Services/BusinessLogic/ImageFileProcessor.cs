@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using UpRestEye3.Controllers;
 using System.Collections.Generic;
+using UpRestEye3.Components.Pages;
 
 namespace UpRestEye3.Services.BusinessLogic
 {
@@ -73,12 +74,12 @@ namespace UpRestEye3.Services.BusinessLogic
                     workingInvoice.Id = invoiceId;
                     await hubContext.Clients.All.SendAsync("ReceiveMessage", "File saved successfully.");
 
+                    // Проверка, конвертация и загрузка изображения
+                    var imageLoader = new ImageLoader();
+                    var image = imageLoader.LoadImage(filePath);
 
-                    // Загрузка изображения
-                    var image = new Bitmap(filePath);
                     if (image == null)
                         throw new Exception("Failed to load image.");
-
 
                     // Распознование QR-кода "в лоб" и с помощью предсказания
                     var (basicQRCode, basicProcessedImage) = await imageProcessor.BasicQRRecognitionAsync(image, filePath);
@@ -92,9 +93,18 @@ namespace UpRestEye3.Services.BusinessLogic
                         if (basicQRCode.CustomerTaxNumber != consumer.TaxNumber)
                             throw new Exception("ConsumerId not match");
 
-                        // Внесение изменений в существующую накладную и схранение изменений в базу данных
+                        // Внесение изменений в существующую накладную
                         InvoiceHelper.UpdateInvoiceByQR(workingInvoice, basicQRCode, filePath);
-                        await invoiceService.SaveInvoiceAsync(workingInvoice);
+
+                        // Валидация накладной после QR
+                        var validatorQR = InvoiceValidatorBase.CreateValidator(InvoiceStatusEnum.QRCodeProcessed);
+                        validatorQR.Validate(workingInvoice, consumer.TaxNumber);
+
+                        // Сохранение изменений в базу данных
+                        invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
+
+                        if (invoiceId == null || workingInvoice.Status != InvoiceStatusEnum.QRCodeProcessed)
+                            throw new Exception("Failed to recognize QR-code.");
 
                         // Если есть улучшенное изображение берем его
                         if (basicProcessedImage != null)
@@ -113,10 +123,19 @@ namespace UpRestEye3.Services.BusinessLogic
                             if (deepQRCode.CustomerTaxNumber != consumer.TaxNumber)
                                 throw new Exception("ConsumerId not match");
 
-                            // Внесение изменений в существующую накладную и сохранение изменений в базу данных
+                            // Внесение изменений в существующую накладную
                             InvoiceHelper.UpdateInvoiceByQR(workingInvoice, deepQRCode, filePath);
+                            
+                            // Валидация накладной после QR
+                            var validatorQR = InvoiceValidatorBase.CreateValidator(InvoiceStatusEnum.QRCodeProcessed);
+                            validatorQR.Validate(workingInvoice, consumer.TaxNumber);
 
-                            await invoiceService.SaveInvoiceAsync(workingInvoice);
+                            // Сохранение изменений в базу данных
+                            invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
+
+                            if (invoiceId == null || workingInvoice.Status != InvoiceStatusEnum.QRCodeProcessed)
+                                throw new Exception("Failed to recognize QR-code.");
+
 
                             // Если есть улучшенное изображение берем его
                             if (deepProcessedImage != null)
@@ -137,14 +156,20 @@ namespace UpRestEye3.Services.BusinessLogic
                     // Если текст распознан, то сохраняем полный документ
                     if (recognisedInvoice != null)
                     {
-                        // Внесение изменений в существующую накладную и сохранение изменений в базу данных
+                        // Внесение изменений в существующую накладную 
                         InvoiceHelper.CopyInvoice(workingInvoice, recognisedInvoice);
+
+                        // Валидация накладной после распознавания
+                        var validatorText = InvoiceValidatorBase.CreateValidator(InvoiceStatusEnum.TextProcessed);
+                        validatorText.Validate(workingInvoice, consumer.TaxNumber);
+
+                        // Cохранение изменений в базу данных
                         invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
 
-                        await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognized successfully.");
+                        if (invoiceId == null || workingInvoice.Status != InvoiceStatusEnum.TextProcessed)
+                            throw new Exception("Failed to text recognize.");
 
-                        if (invoiceId == null)
-                            throw new Exception("Failed to save invoice.");
+                        await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognized successfully.");
 
                         workingInvoice = await invoiceService.GetInvoiceDTOByIdAsync((int)invoiceId);
 
@@ -185,11 +210,18 @@ namespace UpRestEye3.Services.BusinessLogic
 
                         }
 
-                        // Внесение изменений в существующую накладную и сохранение изменений в базу данных
+                        // Внесение изменений в существующую накладную 
                         InvoiceHelper.CopyInvoice(workingInvoice, mappedInvoice);
+
+                        // Валидация накладной после распознавания
+                        var validatorMapp = InvoiceValidatorBase.CreateValidator(InvoiceStatusEnum.ProductsMapped);
+                        validatorMapp.Validate(workingInvoice, consumer.TaxNumber);
+
+                        // Cохранение изменений в базу данных
                         invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
-                        if (invoiceId == null)
-                            throw new Exception("Failed to save invoice.");
+
+                        if (invoiceId == null || workingInvoice.Status != InvoiceStatusEnum.ProductsMapped)
+                            throw new Exception("Failed of product mapping.");
 
                         await hubContext.Clients.All.SendAsync("ReceiveMessage", "Product mapped successfully.");
                     }
@@ -202,8 +234,12 @@ namespace UpRestEye3.Services.BusinessLogic
                 }
                 catch (Exception ex)
                 {
-                    workingInvoice.Comments = ex.Message;
-                    workingInvoice.Status = InvoiceStatusEnum.RecognitionError;
+                    workingInvoice.Comments += "; " + ex.Message;
+                    if (workingInvoice.Status != InvoiceStatusEnum.QRError && 
+                            workingInvoice.Status != InvoiceStatusEnum.TextRecognitionError && 
+                            workingInvoice.Status != InvoiceStatusEnum.MappingError)
+                        workingInvoice.Status = InvoiceStatusEnum.ProcessError;
+
                     await invoiceService.SaveInvoiceAsync(workingInvoice);
 
                     await hubContext.Clients.All.SendAsync("ReceiveMessage", "Failed to recognize invoice image.");

@@ -26,6 +26,8 @@ namespace UpRestEye3.Models.DTO
 
         public bool IsSelected { get; set; } = false;
 
+        public bool ProductsTaxIncluded { get; set; } = false;
+
         // Default constructor
         public InvoiceDTO()
         {
