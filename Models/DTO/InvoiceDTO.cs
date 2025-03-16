@@ -1,4 +1,5 @@
 ﻿using UpRestEye3.Models.BLO;
+using UpRestEye3.Services.BusinessLogic;
 
 namespace UpRestEye3.Models.DTO
 {
@@ -42,6 +43,14 @@ namespace UpRestEye3.Models.DTO
         public decimal Base { get; set; } = 0.0m;
         public decimal IVA { get; set; } = 0.0m;
         public decimal Total { get; set; } = 0.0m;
+
+        public decimal Percentage
+        {
+            get
+            {
+                return InvoiceHelper.GetTaxCategoryPercent(TaxCategory);
+            }
+        }
     }
   
     public class InvoiceProductDTO
@@ -50,8 +59,10 @@ namespace UpRestEye3.Models.DTO
         public string ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
-        public float Quantity { get; set; } = 0.0f;
-        public decimal Price { get; set; } = 0.0m;
+        public string Container { get; set; } = string.Empty;
+        public decimal UnitsCountInContainer { get; set; } = 0.0m;
+        public decimal QuantityOfContainers { get; set; } = 0.0m;
+        public decimal ProductTotalValue { get; set; } = 0.0m;
         public TaxCategoryEnum TaxCategory { get; set; } = TaxCategoryEnum.Intermediate;
         public RMSProductDTO? RMSProduct { get; set; }
         public RMSContainerDTO? RMSContainer { get; set; }

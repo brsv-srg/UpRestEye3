@@ -325,11 +325,12 @@ namespace UpRestEye3.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Container")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("InvoiceId")
                         .HasColumnType("INTEGER");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("ProductCode")
                         .IsRequired()
@@ -339,8 +340,11 @@ namespace UpRestEye3.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<float>("Quantity")
-                        .HasColumnType("REAL");
+                    b.Property<decimal>("ProductTotalValue")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("QuantityOfContainers")
+                        .HasColumnType("TEXT");
 
                     b.Property<int?>("RMSContainerId")
                         .HasColumnType("INTEGER");
@@ -356,6 +360,9 @@ namespace UpRestEye3.Migrations
 
                     b.Property<string>("Unit")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("UnitsCountInContainer")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

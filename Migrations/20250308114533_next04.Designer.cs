@@ -331,7 +331,7 @@ namespace UpRestEye3.Migrations
                     b.Property<int?>("InvoiceId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<decimal>("Price")
+                    b.Property<decimal>("ProductTotalValue")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ProductCode")

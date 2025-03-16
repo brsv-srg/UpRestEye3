@@ -65,8 +65,10 @@ namespace UpRestEye3.Data
                                         ProductCode = "EXT-001",
                                         ProductName = "External Product 1",
                                         Unit = "pcs",
-                                        Quantity = 10,
-                                        Price = 100.00m
+                                        Container = "Container 1",
+                                        UnitsCountInContainer = 1.00m,
+                                        QuantityOfContainers = 10,
+                                        ProductTotalValue = 100.00m
                                     }
                                 }
                             },
@@ -98,16 +100,20 @@ namespace UpRestEye3.Data
                                         ProductCode = "EXT-002",
                                         ProductName = "External Product 2",
                                         Unit = "pcs",
-                                        Quantity = 10,
-                                        Price = 100.00m
+                                        Container = "Container 1",
+                                        UnitsCountInContainer = 1.00m,
+                                        QuantityOfContainers = 10,
+                                        ProductTotalValue = 100.00m
                                     },
                                     new InvoiceProductDTO
                                     {
                                         ProductCode = "EXT-003",
                                         ProductName = "External Product 3",
                                         Unit = "pcs",
-                                        Quantity = 14,
-                                        Price = 104.00m
+                                        Container = "Container 1",
+                                        UnitsCountInContainer = 1.00m,
+                                        QuantityOfContainers = 10,
+                                        ProductTotalValue = 104.00m
                                     },
                                 }
                             }

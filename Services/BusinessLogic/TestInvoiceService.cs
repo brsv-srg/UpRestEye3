@@ -65,8 +65,10 @@ namespace UpRestEye3.Services.BusinessLogic
                             ProductCode = "EXT-002",
                             ProductName = "External Product 1",
                             Unit = "pcs",
-                            Quantity = 10,
-                            Price = 100.00m
+                            Container = "box",
+                            UnitsCountInContainer = 1.00m,
+                            QuantityOfContainers = 2.00m,
+                            ProductTotalValue = 100.00m
                         }
                     }
                 };

@@ -149,7 +149,7 @@
                                                 <th class ="p-1">Code</th>
                                                 <th class="p-1">Name</th>
                                                 <th class="p-1">Quantity</th>
-                                                <th class="p-1">Price</th>
+                                                <th class="p-1">Total Price</th>
                                                 <th class="p-1">TAX Category</th>
                                                 <th class="p-1">RMS Product</th>
                                                 <th class="p-1">RMS Container</th>
@@ -166,8 +166,8 @@
                                                     {
                                                         <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductCode" /></td>
                                                         <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductName" /></td>
-                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Quantity" /></td>
-                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Price" /></td>
+                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.QuantityOfContainers" /></td>
+                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.ProductTotalValue" /></td>
                                                         <td class="p-1">
                                                             <select class="form-control form-control-sm" @bind="product.TaxCategory">
                                                                 @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
@@ -225,8 +225,8 @@
                                                     {
                                                         <td class="p-1">@product.ProductCode</td>
                                                         <td class="p-1">@product.ProductName</td>
-                                                        <td class="p-1">@product.Quantity</td>
-                                                        <td class="p-1">@product.Price</td>
+                                                        <td class="p-1">@product.QuantityOfContainers</td>
+                                                        <td class="p-1">@product.ProductTotalValue</td>
                                                         <td class="p-1">@product.TaxCategory</td>
                                                         <td class="p-1">@product.RMSProduct?.Name</td>
                                                         <td class="p-1">@product.RMSContainer?.Name</td>
@@ -245,8 +245,8 @@
                                                 <tr>
                                                     <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductCode" /></td>
                                                     <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductName" /></td>
-                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Quantity" /></td>
-                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Price" /></td>
+                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.QuantityOfContainers" /></td>
+                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.ProductTotalValue" /></td>
                                                     <td class="p-1">
                                                         <select class="form-control form-control-sm" @bind="newProduct.TaxCategory">
                                                             @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
@@ -722,8 +722,10 @@
             target.ProductCode = source.ProductCode;
             target.ProductName = source.ProductName;
             target.Unit = source.Unit;
-            target.Quantity = source.Quantity;
-            target.Price = source.Price;
+            target.Container = source.Container;
+			target.UnitsCountInContainer = source.UnitsCountInContainer;
+			target.QuantityOfContainers = source.QuantityOfContainers;
+            target.ProductTotalValue = source.ProductTotalValue;
             target.TaxCategory = source.TaxCategory;
             target.RMSProduct = source.RMSProduct;
             target.RMSContainer = source.RMSContainer;
@@ -761,8 +763,10 @@
             editProduct.ProductCode = backupProduct.ProductCode;
             editProduct.ProductName = backupProduct.ProductName;
             editProduct.Unit = backupProduct.Unit;
-            editProduct.Quantity = backupProduct.Quantity;
-            editProduct.Price = backupProduct.Price;
+            editProduct.Container = backupProduct.Container;
+            editProduct.UnitsCountInContainer = backupProduct.UnitsCountInContainer;
+			editProduct.QuantityOfContainers = backupProduct.QuantityOfContainers;
+            editProduct.ProductTotalValue = backupProduct.ProductTotalValue;
             editProduct.TaxCategory = backupProduct.TaxCategory;
             editProduct.RMSProduct = backupProduct.RMSProduct;
             editProduct.RMSContainer = backupProduct.RMSContainer;
@@ -1009,6 +1013,7 @@
             InvoiceStatusEnum.UploadError => "text-danger",
             InvoiceStatusEnum.QRError => "text-danger",
             InvoiceStatusEnum.MappingError => "text-danger",
+            InvoiceStatusEnum.ProcessError => "text-danger",
 
             InvoiceStatusEnum.SavedToSystem => "text-success",
             _ => "text-info",

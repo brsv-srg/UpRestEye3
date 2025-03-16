@@ -89,6 +89,9 @@ namespace UpRestEye3.Services.BusinessLogic
         // TODO Перенести в сервис и запрашивать новые объекты через билдер/фабрику
         public static void CopyInvoice(InvoiceDTO invoiceTarget, InvoiceDTO invoiceSource)
         {
+            if (ReferenceEquals(invoiceTarget, invoiceSource))
+                return;
+
             if (invoiceSource.Id != null)
                 invoiceTarget.Id = invoiceSource.Id;
 
@@ -130,8 +133,10 @@ namespace UpRestEye3.Services.BusinessLogic
                 ProductCode = p.ProductCode,
                 ProductName = p.ProductName,
                 Unit = p.Unit,
-                Quantity = p.Quantity,
-                Price = p.Price,
+                Container = p.Container,
+                UnitsCountInContainer = p.UnitsCountInContainer,
+                QuantityOfContainers = p.QuantityOfContainers,
+                ProductTotalValue = p.ProductTotalValue,
                 TaxCategory = p.TaxCategory,
                 RMSProduct = RMSProductHelper.CopyRMSProductDTO(p.RMSProduct),
                 RMSContainer = RMSProductHelper.CopyRMSContainerDTO(p.RMSContainer),
@@ -203,15 +208,16 @@ namespace UpRestEye3.Services.BusinessLogic
                 ProductCode = p.ProductCode,
                 ProductName = p.ProductName,
                 Unit = p.Unit,
-                Quantity = p.Quantity,
-                Price = p.Price,
+                Container = p.Container,
+                UnitsCountInContainer = p.UnitsCountInContainer,
+                QuantityOfContainers = p.QuantityOfContainers,
+                ProductTotalValue = p.ProductTotalValue,
                 TaxCategory = p.TaxCategory,
                 RMSProduct = RMSProductHelper.CopyRMSProductDAO(p.RMSProduct),
                 RMSContainer = RMSProductHelper.CopyRMSContainerDAO(p.RMSContainer),
                 RMSStorage = RMSProductHelper.CopyRMSStorageDAO(p.RMSStorage),
                 Comments = p.Comments
-
-            }).ToList();
+    }).ToList();
 
             invoiceTarget.TaxCategories = invoiceSource.TaxCategories.Select(t => new TaxesDAO
             {
@@ -312,8 +318,12 @@ namespace UpRestEye3.Services.BusinessLogic
                 ProductCode = p.ProductCode,
                 ProductName = p.ProductName,
                 Unit = p.Unit,
-                Quantity = p.Quantity,
-                Price = p.Price,
+
+                Container = p.Container,
+                UnitsCountInContainer = p.UnitsCountInContainer,
+                QuantityOfContainers = p.QuantityOfContainers,
+                ProductTotalValue = p.ProductTotalValue,
+
                 TaxCategory = p.TaxCategory,
                 RMSProduct = RMSProductHelper.BuildRMSProductDTO(p.RMSProduct),
                 RMSContainer = RMSProductHelper.BuildRMSContainerDTO(p.RMSContainer),
@@ -377,9 +387,11 @@ namespace UpRestEye3.Services.BusinessLogic
                     ProductCode = p.ProductCode,
                     ProductName = p.ProductName,
                     Unit = p.Unit,
-                    Quantity = p.Quantity,
-                    Price = p.Price,
-                    TaxCategory = p.TaxCategory,
+                    
+                    Container = p.Container,
+                    UnitsCountInContainer = p.UnitsCountInContainer,
+                    QuantityOfContainers = p.QuantityOfContainers,
+                    ProductTotalValue = p.ProductTotalValue,
 
                     RMSProductId = p.RMSProduct != null ? p.RMSProduct.Id : null,
                     RMSProduct = RMSProductHelper.BuildRMSProductDAO(p.RMSProduct),
@@ -455,8 +467,8 @@ namespace UpRestEye3.Services.BusinessLogic
                 Items = invoiceDTO.Products?.Select(static (item, index) => new IncomingInvoiceItemDto
                 {
                     IsAdditionalExpense = false,
-                    Amount = (decimal)item.Quantity * item.RMSContainer.Count,
-                    ActualAmount = (decimal)item.Quantity * item.RMSContainer.Count,
+                    Amount = (decimal)item.QuantityOfContainers * item.RMSContainer.Count,
+                    ActualAmount = (decimal)item.QuantityOfContainers * item.RMSContainer.Count,
 
 
                     // SupplierProduct = item.SupplierProduct,
@@ -471,11 +483,11 @@ namespace UpRestEye3.Services.BusinessLogic
 
                     
 
-                    Sum =    item.Price + item.Price/100*GetTaxCategoryPercent(item.TaxCategory), 
-                    VatSum = item.Price / 100 * GetTaxCategoryPercent(item.TaxCategory),
+                    Sum =    item.ProductTotalValue + item.ProductTotalValue/100*GetTaxCategoryPercent(item.TaxCategory), 
+                    VatSum = item.ProductTotalValue / 100 * GetTaxCategoryPercent(item.TaxCategory),
 
-                    Price = (item.Price + item.Price/100*GetTaxCategoryPercent(item.TaxCategory))/ (decimal)item.Quantity,
-                    PriceWithoutVat = item.Price/ (decimal)item.Quantity,
+                    Price = (item.ProductTotalValue + item.ProductTotalValue/100*GetTaxCategoryPercent(item.TaxCategory))/ (decimal)item.QuantityOfContainers,
+                    PriceWithoutVat = item.ProductTotalValue/ (decimal)item.QuantityOfContainers,
 
 
                     //DiscountSum = item.DiscountSum,

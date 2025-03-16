@@ -394,57 +394,55 @@ namespace UpRestEye3.Services.BusinessLogic
                 ""$schema"": ""http://json-schema.org/draft-07/schema#"",
                 ""type"": ""object"",
                 ""properties"": {{
-                    ""Id"": {{ ""type"": [""integer"", ""null""] }},
-                    ""InvoiceNumber"": {{ ""type"": ""string"" }},
-                    ""InvoiceDate"": {{ ""type"": ""string"", ""format"": ""date-time"" }},
-                    ""TotalIVA"": {{ ""type"": ""number"" }},
-                    ""TotalAmount"": {{ ""type"": ""number"" }},
-                    ""Consumer"": {{
-                        ""type"": ""object"",
-                        ""properties"": {{
-                            ""Name"": {{ ""type"": ""string"" }},
-                            ""TaxNumber"": {{ ""type"": ""string"" }}
-                        }}
-                    }},
-                    ""Supplier"": {{
-                        ""type"": ""object"",
-                        ""properties"": {{
-                            ""Name"": {{ ""type"": ""string"" }},
-                            ""TaxNumber"": {{ ""type"": ""string"" }},
-                            ""BankAccount"": {{ ""type"": ""string"" }}
-                        }}
-                    }},
                     ""Products"": {{
                         ""type"": ""array"",
                         ""items"": {{
                             ""type"": ""object"",
                             ""properties"": {{
-                                ""Id"": {{ ""type"": [""integer"", ""null""] }},
-                                ""ProductCode"": {{ ""type"": ""string"" }},
-                                ""ProductName"": {{ ""type"": ""string"" }},
-                                ""Unit"": {{ ""type"": ""string"" }},
-                                ""Quantity"": {{ ""type"": ""number"" }},
-                                ""Price"": {{ ""type"": ""number"" }},
-                                ""TaxCategory"": {{ ""type"": ""string"", ""enum"": [""Normal"", ""Intermediate"", ""Reduced"", ""Zero""] }}
+                                ""Id"": {{ 
+                                    ""type"": [""integer"", ""null""],
+                                    ""description"": ""ID of the product""
+                                }},
+                                ""ProductCode"": {{ 
+                                    ""type"": ""string"",
+                                    ""description"": ""Code of the product from the recognised invoice (if specified)""
+                                }},
+                                ""ProductName"": {{ 
+                                    ""type"": ""string"",
+                                    ""description"": ""Name of the product from the recognised invoice""
+                                }},
+                                ""Unit"": {{ 
+                                    ""type"": ""string"",
+                                    ""description"": ""Main unit of measurement of product (kilo, liter, piece, etc.)""
+                                }},
+                                ""Container"": {{ 
+                                    ""type"": ""string"",
+                                    ""description"": ""Packaging type, container (package, bottle, box, bag, sack, piece, etc.)""
+                                }},
+                                ""UnitsCountInContainer"": {{ 
+                                    ""type"": ""number"",
+                                    ""description"": ""Number of main units in the container""
+                                }},
+                                ""QuantityOfContainers"": {{ 
+                                    ""type"": ""number"",
+                                    ""description"": ""Quantity of containers""
+                                }},
+                                ""ProductTotalValue"": {{ 
+                                    ""type"": ""number"",
+                                    ""description"": ""Total cost of the product""
+                                }},
+                                ""TaxCategory"": {{ 
+                                    ""type"": ""string"",
+                                    ""enum"": [""Normal"", ""Intermediate"", ""Reduced"", ""Zero""],
+                                    ""description"": ""Tax category of the product""
+                                }}
                             }}
                         }}
                     }},
-                    ""TaxCategories"": {{
-                        ""type"": ""array"",
-                        ""items"": {{
-                            ""type"": ""object"",
-                            ""properties"": {{
-                                ""TaxCategory"": {{ ""type"": ""string"", ""enum"": [""Normal"", ""Intermediate"", ""Reduced"", ""Zero""] }},
-                                ""Base"": {{ ""type"": ""number"" }},
-                                ""IVA"": {{ ""type"": ""number"" }},
-                                ""Total"": {{ ""type"": ""number"" }}
-                            }}
-                        }}
-                    }},
-                    ""FilePath"": {{ ""type"": ""string"" }},
-                    ""UploadTime"": {{ ""type"": ""string"", ""format"": ""date-time"" }},
-                    ""Comments"": {{ ""type"": ""string"" }},
-                    ""Status"": {{ ""type"": ""string"", ""enum"": [""New"", ""RawFile"", ""QRCodeProcessed"", ""TextProcessed"", ""ProductsMapped"", ""AttentionRequired"", ""SavedToSystem"", ""Error""] }}
+                    ""Comments"": {{ 
+                        ""type"": ""string"",
+                        ""description"": ""Additional comments""
+                    }}
                 }}
             }}";
         
@@ -453,26 +451,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 ""$schema"": ""http://json-schema.org/draft-07/schema#"",
                 ""type"": ""object"",
                 ""properties"": {{
-                    ""Id"": {{ ""type"": [""integer"", ""null""] }},
-                    ""InvoiceNumber"": {{ ""type"": ""string"" }},
-                    ""InvoiceDate"": {{ ""type"": ""string"", ""format"": ""date-time"" }},
-                    ""TotalIVA"": {{ ""type"": ""number"" }},
-                    ""TotalAmount"": {{ ""type"": ""number"" }},
-                    ""Consumer"": {{
-                        ""type"": ""object"",
-                        ""properties"": {{
-                            ""Name"": {{ ""type"": ""string"" }},
-                            ""TaxNumber"": {{ ""type"": ""string"" }}
-                        }}
-                    }},
-                    ""Supplier"": {{
-                        ""type"": ""object"",
-                        ""properties"": {{
-                            ""Name"": {{ ""type"": ""string"" }},
-                            ""TaxNumber"": {{ ""type"": ""string"" }},
-                            ""BankAccount"": {{ ""type"": ""string"" }}
-                        }}
-                    }},
+                    
                     ""Products"": {{
                         ""type"": ""array"",
                         ""items"": {{
@@ -483,7 +462,7 @@ namespace UpRestEye3.Services.BusinessLogic
                                 ""ProductName"": {{ ""type"": ""string"" }},
                                 ""Unit"": {{ ""type"": ""string"" }},
                                 ""Quantity"": {{ ""type"": ""number"" }},
-                                ""Price"": {{ ""type"": ""number"" }},
+                                ""ProductTotalValue"": {{ ""type"": ""number"" }},
                                 ""TaxCategory"": {{ ""type"": ""string"", ""enum"": [""Normal"", ""Intermediate"", ""Reduced"", ""Zero""] }},
                                 ""RMSProduct"": {{
                                     ""type"": ""object"",
@@ -530,22 +509,7 @@ namespace UpRestEye3.Services.BusinessLogic
                             }}
                         }}
                     }},
-                    ""TaxCategories"": {{
-                        ""type"": ""array"",
-                        ""items"": {{
-                            ""type"": ""object"",
-                            ""properties"": {{
-                                ""TaxCategory"": {{ ""type"": ""string"", ""enum"": [""Normal"", ""Intermediate"", ""Reduced"", ""Zero""] }},
-                                ""Base"": {{ ""type"": ""number"" }},
-                                ""IVA"": {{ ""type"": ""number"" }},
-                                ""Total"": {{ ""type"": ""number"" }}
-                            }}
-                        }}
-                    }},
-                    ""FilePath"": {{ ""type"": ""string"" }},
-                    ""UploadTime"": {{ ""type"": ""string"", ""format"": ""date-time"" }},
-                    ""Comments"": {{ ""type"": ""string"" }},
-                    ""Status"": {{ ""type"": ""string"", ""enum"": [""New"", ""RawFile"", ""QRCodeProcessed"", ""TextProcessed"", ""ProductsMapped"", ""AttentionRequired"", ""SavedToSystem"", ""Error""] }}
+                    ""Comments"": {{ ""type"": ""string"" }}
                 }}
             }}";
 

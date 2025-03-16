@@ -11,8 +11,8 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250307225238_next03")]
-    partial class next03
+    [Migration("20250316131834_next06")]
+    partial class next06
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -328,11 +328,12 @@ namespace UpRestEye3.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Container")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("InvoiceId")
                         .HasColumnType("INTEGER");
-
-                    b.Property<decimal>("ProductTotalValue")
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("ProductCode")
                         .IsRequired()
@@ -342,13 +343,19 @@ namespace UpRestEye3.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<float>("Quantity")
-                        .HasColumnType("REAL");
+                    b.Property<decimal>("ProductTotalValue")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("QuantityOfContainers")
+                        .HasColumnType("TEXT");
 
                     b.Property<int?>("RMSContainerId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int?>("RMSProductId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("RMSStorageId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("TaxCategory")
@@ -358,6 +365,9 @@ namespace UpRestEye3.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal>("UnitsCountInContainer")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("InvoiceId");
@@ -365,6 +375,8 @@ namespace UpRestEye3.Migrations
                     b.HasIndex("RMSContainerId");
 
                     b.HasIndex("RMSProductId");
+
+                    b.HasIndex("RMSStorageId");
 
                     b.ToTable("InvoiceProducts");
                 });
@@ -672,11 +684,17 @@ namespace UpRestEye3.Migrations
                         .HasForeignKey("RMSProductId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("UpRestEye3.Models.DAO.RMSAccountDAO", "RMSStorage")
+                        .WithMany()
+                        .HasForeignKey("RMSStorageId");
+
                     b.Navigation("Invoice");
 
                     b.Navigation("RMSContainer");
 
                     b.Navigation("RMSProduct");
+
+                    b.Navigation("RMSStorage");
                 });
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.RMSAccountDAO", b =>

@@ -58,10 +58,27 @@ public class ImageLoader
                                 {
                                     using (MemoryStream ms = new MemoryStream(bytes))
                                     {
-                                        Bitmap img = new Bitmap(ms);
-                                        // Return the first image found
-                                        return img;
+                                        // Save the MemoryStream content to a file
+                                        string outputFilePath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(filePath), System.IO.Path.GetFileNameWithoutExtension(filePath) + ".png");
+
+                                        // Check if the file already exists and delete it
+                                        if (File.Exists(outputFilePath))
+                                        {
+                                            File.Delete(outputFilePath);
+                                        }
+
+                                        using (FileStream fileStream = new FileStream(outputFilePath, FileMode.Create, FileAccess.Write))
+                                        {
+                                            ms.WriteTo(fileStream);
+                                        }
+
+                                        // Set the file attributes to read-only
+                                        //File.SetAttributes(outputFilePath, FileAttributes.ReadOnly);
+
+                                        // Create Bitmap from the saved file
+                                        return new Bitmap(outputFilePath);
                                     }
+
                                 }
                             }
                         }

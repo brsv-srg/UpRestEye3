@@ -62,17 +62,17 @@ namespace UpRestEye3.Services.BusinessLogic
         public override void Validate(InvoiceDTO invoice, string customerTaxId)
         {
             if (invoice.Products.Any(p => string.IsNullOrEmpty(p.ProductName) ||
-                                           p.Price <= 0 ||
+                                           p.ProductTotalValue <= 0 ||
                                            p.TaxCategory == null ||
                                            string.IsNullOrEmpty(p.Unit) ||
-                                           p.Quantity <= 0))
+                                           p.QuantityOfContainers <= 0))
             {
                 invoice.Status = InvoiceStatusEnum.TextRecognitionError;
                 invoice.Comments = "Missing or invalid product data.";
                 throw new Exception("Invoice text processing error: Missing or invalid product data.");
             }
 
-            var totalProductPrice = invoice.Products.Sum(p => p.Price); // * (decimal)p.Quantity);
+            var totalProductPrice = invoice.Products.Sum(p => p.ProductTotalValue); // * (decimal)p.Quantity);
             if (totalProductPrice == invoice.TotalAmount)
             {
                 invoice.ProductsTaxIncluded = true;

@@ -11,8 +11,8 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250307225238_next03")]
-    partial class next03
+    [Migration("20250316112456_next05")]
+    partial class next05
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -331,7 +331,7 @@ namespace UpRestEye3.Migrations
                     b.Property<int?>("InvoiceId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<decimal>("ProductTotalValue")
+                    b.Property<decimal>("Price")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ProductCode")
@@ -351,6 +351,9 @@ namespace UpRestEye3.Migrations
                     b.Property<int?>("RMSProductId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("RMSStorageId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("TaxCategory")
                         .HasColumnType("INTEGER");
 
@@ -365,6 +368,8 @@ namespace UpRestEye3.Migrations
                     b.HasIndex("RMSContainerId");
 
                     b.HasIndex("RMSProductId");
+
+                    b.HasIndex("RMSStorageId");
 
                     b.ToTable("InvoiceProducts");
                 });
@@ -672,11 +677,17 @@ namespace UpRestEye3.Migrations
                         .HasForeignKey("RMSProductId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("UpRestEye3.Models.DAO.RMSAccountDAO", "RMSStorage")
+                        .WithMany()
+                        .HasForeignKey("RMSStorageId");
+
                     b.Navigation("Invoice");
 
                     b.Navigation("RMSContainer");
 
                     b.Navigation("RMSProduct");
+
+                    b.Navigation("RMSStorage");
                 });
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.RMSAccountDAO", b =>
