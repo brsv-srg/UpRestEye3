@@ -419,9 +419,17 @@ namespace UpRestEye3.Services.BusinessLogic
                                     ""type"": ""string"",
                                     ""description"": ""Packaging type, container (package, bottle, box, bag, sack, piece, etc.)""
                                 }},
+                                ""PricePerUnitKG"": {{ 
+                                    ""type"": ""number"",
+                                    ""description"": ""Price of one measure unit""
+                                }},
                                 ""UnitsCountInContainer"": {{ 
                                     ""type"": ""number"",
                                     ""description"": ""Number of main units in the container""
+                                }},
+                                ""PricePerContainer"": {{ 
+                                    ""type"": ""number"",
+                                    ""description"": ""Price of one container ""
                                 }},
                                 ""QuantityOfContainers"": {{ 
                                     ""type"": ""number"",

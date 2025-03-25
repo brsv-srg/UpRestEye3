@@ -9,7 +9,7 @@ using UpRestEye3.Services.BusinessLogic;
 
 namespace UpRestEye3.Services.Recognition
 {
-    public class GPTEnvironment2
+    public class GPTMappingEnvironment
     {
         private readonly string _invoiceAndRmsProductsSchema2;
         // TODO Убрать URL в параметры 
@@ -18,7 +18,7 @@ namespace UpRestEye3.Services.Recognition
         private static readonly string _apiKey = "sk-svcacct-NcF9TOe3CkWN0BHA0BDKjap-EDHI0abjP4Az40fjpw5QpqhQtStDuJWojvu9mOoKH6OT3BlbkFJHCJrfsShSxh4n365KhkW6fypNHJzq-qOrA8ulaFqjgM3qXUAFsbARJ0vWvF6JmnFSAA";
 
 
-        public GPTEnvironment2()
+        public GPTMappingEnvironment()
         {
             _invoiceAndRmsProductsSchema2 = JsonHelper.GetMappedProductSchema();
         }

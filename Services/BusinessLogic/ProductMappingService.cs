@@ -21,9 +21,9 @@ namespace UpRestEye3.Services.BusinessLogic
     // Класс обработки изображения
     public class ProductMappingService : IProductMappingService
     {
-        private readonly IGPTService2 _gptParser;
+        private readonly IGPTMappingService _gptParser;
 
-        public ProductMappingService(IGPTService2 gptParser)
+        public ProductMappingService(IGPTMappingService gptParser)
         {
             _gptParser = gptParser;
         }

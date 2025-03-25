@@ -11,27 +11,26 @@ using static Google.Apis.Requests.BatchRequest;
 namespace UpRestEye3.Services.Recognition
 {
 
-    public interface IGPTService
+    public interface IGPTLayoutService
     {
-        Task<InvoiceDTO?> ReceiptParsingByLLM(RecognizedDocument invoiceText, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> _measUnits);
+        Task<string> LayoutParsingByLLM(string invoiceText, InvoiceDTO currentInvoice);
 
     }
 
-    public class GPTService : IGPTService
+    public class GPTLayoutService : IGPTLayoutService
     {
 
-        private readonly GPTEnvironment _env;
+        private readonly GPTLayoutEnvironment _env;
 
-        public GPTService()
+        public GPTLayoutService()
         {
-            _env = new GPTEnvironment();
+            _env = new GPTLayoutEnvironment();
         }
-
-        public async Task<InvoiceDTO?> ReceiptParsingByLLM(RecognizedDocument invoiceText, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
+        public async Task<string> LayoutParsingByLLM(string invoiceText, InvoiceDTO currentInvoice)
         {
 
             // Сериализация тела запроса
-            var jsonBody = _env.GetReceiptParsingRequestBody(invoiceText, currentInvoice, measUnits);
+            var jsonBody = _env.GetLayoutRequestBody(invoiceText, currentInvoice);
 
 
             var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");
@@ -55,20 +54,15 @@ namespace UpRestEye3.Services.Recognition
             // Чтение и возврат результата
             var responseContent = await response.Content.ReadAsStringAsync();
 
-            var invoice = ResponseInvoiceParsing(responseContent);
+            var productTable = ResponseInvoiceParsing(responseContent);
 
-            if (invoice != null && invoice.Products != null)
-            {
-                currentInvoice.Status = InvoiceStatusEnum.TextProcessed;
-                currentInvoice.Products = invoice.Products;
-                
-            }
-            return currentInvoice;
+            
+            return productTable;
         }
 
 
         //todo поправить с датой загрузки 
-        private InvoiceDTO? ResponseInvoiceParsing(string responseContent)
+        private string ResponseInvoiceParsing(string responseContent)
         {
             try
             {
@@ -82,24 +76,10 @@ namespace UpRestEye3.Services.Recognition
                     messageElement.TryGetProperty("content", out JsonElement contentElement) &&
                     contentElement.ValueKind == JsonValueKind.String)
                 {
-                    using var contentDocument = JsonDocument.Parse(contentElement.GetString());
-                    var rootContent = contentDocument.RootElement;
+                    
 
-                    if (rootContent.TryGetProperty("Products", out contentElement))
-                    {
-                        var options = JsonHelper.GetSerializerOptions();
-
-                        Console.WriteLine($"Received response from OpenAI API: {rootContent.GetRawText()}");
-
-                        using var invoiceDocument = JsonDocument.Parse(rootContent.GetRawText());
-                        InvoiceDTO invoice = invoiceDocument.Deserialize<InvoiceDTO>(options);
-
-                        return invoice;
-                    }
-                    else
-                    {
-                        throw new Exception("Invoice element not found in JSON response");
-                    }
+                        return contentElement.GetRawText();
+                    
                 }
                 else
                 {

@@ -9,6 +9,9 @@ using Microsoft.AspNetCore.SignalR;
 using UpRestEye3.Controllers;
 using System.Collections.Generic;
 using UpRestEye3.Components.Pages;
+using UpRestEye3.Services.Integration;
+using UpRestEye3.Services.MLServices;
+using UpRestEye3.Services.Recognition;
 
 namespace UpRestEye3.Services.BusinessLogic
 {
@@ -42,7 +45,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 var rmsProductService = scope.ServiceProvider.GetRequiredService<IRMSProductService>();
                 var rmsMeasureUnitsService = scope.ServiceProvider.GetRequiredService<IRMSMeasureUnitService>();
                 var rmsAccountService = scope.ServiceProvider.GetRequiredService<IRMSAccountsService>();
-                var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<NotificationHub>>(); 
+                var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<NotificationHub>>();
 
                 var workingInvoice = new InvoiceDTO();
 
@@ -227,6 +230,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     }
                     else
                         throw new Exception("Failed to map products.");
+
 
 
 

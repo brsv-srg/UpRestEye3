@@ -81,8 +81,11 @@ builder.Services.AddScoped<IQRProcessing, QRProcessingOpenCV>();
 builder.Services.AddScoped<IQRRecognition, QRRecognitionOpenCV>();
 builder.Services.AddScoped<IQRRecognition, QRRecognitionZXing>();
 builder.Services.AddScoped<ITextRecognition, TextRecognitionGoogleVision>();
-builder.Services.AddScoped<IGPTService, GPTService>();
-builder.Services.AddScoped<IGPTService2, GPTService2>();
+
+builder.Services.AddScoped<IGPTLayoutService, GPTLayoutService>();
+builder.Services.AddScoped<IGPTSemanticService, GPTSemanticService>();
+builder.Services.AddScoped<IGPTMappingService, GPTMappingService>();
+
 builder.Services.AddScoped<IImagePipelineHelper, ImagePipelineHelper>();
 builder.Services.AddScoped<IProductMappingService, ProductMappingService>();
 builder.Services.AddScoped<IConnectionParameterService, ConnectionParameterService>();

@@ -27,7 +27,7 @@ using UpRestEye3.Models.DAO;
 
 namespace UpRestEye3.Services.Recognition
 {
-    public class GPTEnvironment
+    public class GPTSemanticEnvironment
     {
         private readonly string _invoiceSchema;
             // TODO Убрать URL в параметры 
@@ -36,7 +36,7 @@ namespace UpRestEye3.Services.Recognition
         private static readonly string _apiKey = "sk-svcacct-NcF9TOe3CkWN0BHA0BDKjap-EDHI0abjP4Az40fjpw5QpqhQtStDuJWojvu9mOoKH6OT3BlbkFJHCJrfsShSxh4n365KhkW6fypNHJzq-qOrA8ulaFqjgM3qXUAFsbARJ0vWvF6JmnFSAA";
 
 
-        public GPTEnvironment()
+        public GPTSemanticEnvironment()
         {
             _invoiceSchema = JsonHelper.GetInvoiceSchema();
         }
@@ -78,6 +78,34 @@ Use the following **known invoice details** for validation:
             return _invoiceInformationPrompt;
         }
 
+        public string GetInvoiceForUserPrompt2(string invoiceText, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
+        {
+            var options = JsonHelper.GetSerializerOptions();
+            // Проекция для выбора только нужных полей
+            var selectedMeasureUnits = measUnits.Select(mu => new
+            {
+                mu.Id,
+                mu.Name,
+                mu.Description
+            }).ToList();
+
+            var _invoiceInformationPrompt = $@"\n
+Extract structured data from this Invoice: {invoiceText}. 
+
+Use the following **known invoice details** for validation:
+    - **InvoiceNumber**: {currentInvoice.InvoiceNumber},
+    - **InvoiceDate**: {currentInvoice.InvoiceDate},
+    - **SupplierTaxID**: {currentInvoice.Supplier.TaxNumber},
+    - **ConsumerTaxID**: {currentInvoice.Consumer.TaxNumber},
+    - **TotalAmount**: {currentInvoice.TotalAmount},
+    - **TotalIVA**: {currentInvoice.TotalIVA},
+    - **Tax Categories**: {JsonSerializer.Serialize(currentInvoice.TaxCategories, JsonHelper.GetSerializerOptions())}.
+    And fot Unit use this dictionary MeasureUnits: {JsonSerializer.Serialize(selectedMeasureUnits, options)}\n
+    ";
+
+            return _invoiceInformationPrompt;
+        }
+
 
         public string GetInvoiceSchema() => _invoiceSchema;
        
@@ -91,13 +119,49 @@ Use the following **known invoice details** for validation:
             // Формируем запрос
             var requestBody = new
             {
-                model = "gpt-4o", //"gpt-4o-mini",
-                temperature = 0.3,
-
+                //model = "gpt-4o", 
+                model = "gpt-4o-mini",
+                temperature = 0.2,
+                top_p = 0.3,
+                max_tokens = 2048,
+                n = 1,
                 messages = new object[]
                 {
                         new { role = "system", content = GetSystemPrompt(currentInvoice) }, 
                         new { role = "user", content = GetInvoiceForUserPrompt(invoiceText, currentInvoice, measUnits)}  
+                },
+                response_format = new
+                {
+                    type = "json_schema",
+                    json_schema = new
+                    {
+                        name = "Invoice",
+                        schema = JsonDocument.Parse(GetInvoiceSchema()).RootElement
+                    }
+                }
+            };
+
+            // Сериализация тела запроса
+            return JsonSerializer.Serialize(requestBody, options);
+        }
+
+
+        public string GetReceiptParsingRequestBody2(string invoiceText, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
+        {
+            var options = JsonHelper.GetSerializerOptions();
+            // Формируем запрос
+            var requestBody = new
+            {
+                model = "gpt-4o-mini",
+                //model = "gpt-4o", 
+                temperature = 0.3,
+                top_p = 0.3,
+                //max_tokens = 2048,
+                n = 1,
+                messages = new object[]
+                {
+                        new { role = "system", content = GetSystemPrompt(currentInvoice) },
+                        new { role = "user", content = GetInvoiceForUserPrompt2(invoiceText, currentInvoice, measUnits)}
                 },
                 response_format = new
                 {
@@ -161,44 +225,33 @@ Your task is to extract only the list of Grocery Products from the provided OCR 
 
 2. **Invoice Information**
     - The given OCR recognized data consist blocks and paragraphs of text accompanied by the coordinates of its location on the receipt.
-    - The invoice can be on A4 size paper and then it contains detailed data. Or it can be a narrow cashier's cheque from a cash register printer, in which case it contains abbreviated data.
+    - The invoice is on the A4 size paper and contains detailed data.
     - Use the provided invoice structure to determine positions and relationships between the fields.
-       
-3. **Product List Extraction**
-    - As a rule, the list in the invoice has a tabular form. 
-    - Define the following fields in this tabular form and put to the following fields of the Invoice Product: 
-        -- **Código Artigo** => ProductCode, 
-        -- **Descrição Artigo** => ProductName, 
-        -- **PACK** => Container (also match the appropriate Measure Units by the value of this field in accordance with the provided dictionary **MeasureUnits**), 
-        -- **Unit/KG** => UnitsCountInContainer, 
-        -- **Quant** => QuantityOfContainers, 
-        -- **Valor Total** => ProductTotalValue, 
-        -- **IvaDD** => Tax Category designation to be matched to the Tax Categories List according to the information below. 
-    - Don't use any other fields, just the ones above.
-    - Define the **Tax Category** for each product:
-        -- Tax categories  in the product tabular form are designated by numbers, and these designations are used and deciphered in the Tax Category summary list. 
-        -- For Invoice Product List match and use direct names of Tax Categories accordantly their designations.
-    - Verify that the total sum of ProductTotalValue of extracted products matches the provided **TotalAmount** (if ProductTotalValue include taxes) or **TotalAmount minus TotalIVA** (if ProductTotalValue doesn't include taxes).
-
 
 3. **Product List Extraction**  
    - The invoice contains a tabular product list.  
-   - Extract and correctly map **each field** from the table to the corresponding JSON field **exactly as specified below**:  
+   - Extract and correctly map **each field** from the tabular product list to the corresponding JSON field **exactly as specified below**. Extract them in **exactly this sequence**:  
 
-     | **Invoice Table Column** | **Mapped JSON Field**   | **Description** |
-     |--------------------------|-------------------------|-----------------|
-     | `Codigo Artigo`          | `ProductCode`           | Code of the product from the recognised invoice (if specified) |
-     | `Descricao Artigo`       | `ProductName`           | Name of the product from the recognised invoice |
-     | `PACK`                   | `Container`             | Packaging type, container (package, bottle, box, bag, sack, piece, etc.) (also match the appropriate Measure Units by the value of this field in accordance with the provided dictionary **MeasureUnits**)|
-     | `PR Unit/KG`             |                         | Do not use      |
-     | `Unit/KG`                | `UnitsCountInContainer` | Number of units inside the container |
-     | `Preco U.V.`             |                         | Do not use      |
-     | `Quant`                  | `QuantityOfContainers`  | Number of container units purchased |
-     | `Valor Total`            | `ProductTotalValue`     | Total cost of this product (with or without tax, based on invoice type) |
-     | `IvaDD`                  | `TaxCategory`           | Tax category of the product (match using tax summary list) |
+
+    | # | **Invoice Table Column** |   **Column Type**        | **Mapped JSON Field**   | **Description** |
+    |---|--------------------------|--------------------------|-------------------------|-----------------|
+    | 1 | `Codigo Artigo`          | Number and letter string | `ProductCode`           | Code of the product from the recognised invoice (if specified) |
+    | 2 | `Descricao Artigo`       | Text                     | `ProductName`           | Name of the product from the recognised invoice |
+    | 3 | `PACK`                   | 2-3 Symbols              | `Container`             | Packaging type, container (package, bottle, box, bag, sack, piece, kg, etc.) (also match the appropriate Measure Units by the value of this field in accordance with the provided dictionary **MeasureUnits**)|
+    | 4 | `PR Unit/KG`             | Decimal number           | `PricePerUnitKG`        | Price of one measure unit |
+    | 5 | `Unit/KG`                | Decimal number           | `UnitsCountInContainer` | Number of units inside the container |
+    | 6 | `Preco U.V.`             | Decimal number           | `PricePerContainer`     | Price of one container |
+    | 7 | `Quant`                  | Integer number           | `QuantityOfContainers`  | Number of container units purchased |
+    | 8 | `Valor Total`            | Decimal number           | `ProductTotalValue`     | Total cost of this product (with or without tax, based on invoice type) |
+    | 9 | `IvaDD`                  | Integer number           | `TaxCategory`           | Designation of the Tax category of the product (match using tax summary list) |
 
    - **DO NOT swap columns.** Maintain this exact mapping structure.  
-   - Ignore all columns that are listed as unused as well as additional columns in the invoice table that are not listed above.  
+   - The product table **must contain exactly 9 columns** as specified above.  
+   - If the extracted table has more or fewer columns, check for OCR misalignment or errors.  
+   - If a column is missing or has incorrect data, add a warning in `Comments`.
+   - If needed, reconstruct the table **by splitting columns based on spacing and alignment**.
+   - If column separation is unclear, **log an error instead of making assumptions**.
+
 
 4. **Tax Category Mapping**  
    - In the table, tax categories (`IvaDD`) are designated by numbers.  
@@ -209,13 +262,41 @@ Your task is to extract only the list of Grocery Products from the provided OCR 
    - Verify that the sum of all `ProductTotalValue` in the extracted product list:  
      - Matches **TotalAmount** (if `ProductTotalValue` includes tax)  
      - Matches **TotalAmount - TotalIVA** (if `ProductTotalValue` does not include tax).  
-   - If there is any discrepancy, **log a warning** in the `Comments` field.
+   - **Describe all your actions** in the `Comments` field. If there are any inconsistencies, also add in this field.
    - Output the extracted products in JSON format** strictly following the response schema.
+
+### **Example of Expected JSON Output**  
+   json
+   {{
+     ""Products"": [
+       {{
+         ""ProductCode"": ""2880805018206"",
+         ""ProductName"": ""MC 1OMAIE RAMA 1 67/82 V2"",
+         ""Unit"": ""kg"",
+         ""Container"": ""KG"",
+         ""PricePerUnitKG"": 2.180,
+         ""UnitsCountInContainer"": 1.820,
+         ""PricePerContainer"": 3.97,
+         ""QuantityOfContainers"": 1,
+         ""ProductTotalValue"": 3.97,
+         ""TaxCategory"": ""Reduced""
+       }},
+       {{
+         ""ProductCode"": ""004321"",
+         ""ProductName"": ""CERV. SUPER BOCK 24X33CL TP"",
+         ""Unit"": ""btl"",
+         ""Container"": ""Box"",
+         ""PricePerUnitKG"": 0.560,
+         ""UnitsCountInContainer"": 24,
+         ""PricePerContainer"": 13.44,
+         ""QuantityOfContainers"": 1,
+         ""ProductTotalValue"": 13.44,
+         ""TaxCategory"": ""Normal""
+       }}
+     ]
+   }}
 
 ";
 
-
-
     }
-
 }

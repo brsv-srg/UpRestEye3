@@ -11,20 +11,20 @@ using static Google.Apis.Requests.BatchRequest;
 namespace UpRestEye3.Services.Recognition
 {
 
-    public interface IGPTService2
+    public interface IGPTMappingService
     {
         Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages);
 
     }
 
-    public class GPTService2 : IGPTService2
+    public class GPTMappingService : IGPTMappingService
     {
 
-        private readonly GPTEnvironment2 _env;
+        private readonly GPTMappingEnvironment _env;
 
-        public GPTService2()
+        public GPTMappingService()
         {
-            _env = new GPTEnvironment2();
+            _env = new GPTMappingEnvironment();
         }
 
 

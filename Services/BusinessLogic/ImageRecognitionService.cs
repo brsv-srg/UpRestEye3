@@ -23,19 +23,21 @@ namespace UpRestEye3.Services.BusinessLogic
     public class ImageRecognitionService : IImageRecognitionService
     {
         private readonly ILocalMLService _predictor;
-        private readonly IGPTService _gptParser;
+        private readonly IGPTSemanticService _gptParser;
+        private readonly IGPTLayoutService _gptLayout;
         private readonly IQRProcessing _qrProcessor;
         private readonly IEnumerable<IQRRecognition> _qrRecognizers;
         private readonly ITextRecognition _textRecognizer;
         private readonly IImagePipelineHelper _pipelineHelper;
 
-        public ImageRecognitionService(IQRProcessing qrProcessor, ILocalMLService predictor, IGPTService gptParser, IEnumerable<IQRRecognition> qrRecognizers, ITextRecognition textRecognizer, IImagePipelineHelper pipelineHelper)
+        public ImageRecognitionService(IQRProcessing qrProcessor, ILocalMLService predictor, IGPTSemanticService gptParser, IGPTLayoutService gptLayout, IEnumerable<IQRRecognition> qrRecognizers, ITextRecognition textRecognizer, IImagePipelineHelper pipelineHelper)
         {
             _predictor = predictor;
             _qrProcessor = qrProcessor;
             _qrRecognizers = qrRecognizers;
             _textRecognizer = textRecognizer;
             _gptParser = gptParser;
+            _gptLayout = gptLayout;
             _pipelineHelper = pipelineHelper;
         }
 
@@ -105,10 +107,24 @@ namespace UpRestEye3.Services.BusinessLogic
         public async Task<InvoiceDTO?> DeepTextRecognitionAsync(Bitmap sourceImage, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
             // Обращение к внешней модели
-            var recognizedText = await _textRecognizer.TextRecognize(sourceImage);
+            var recognizedText = await _textRecognizer.TextRecognize4(sourceImage);
             if (recognizedText != null)
             {
-                return await _gptParser.ReceiptParsingByLLM(recognizedText, currentInvoice, measUnits);
+                MakroInvoiceParser makroInvoiceParser = new MakroInvoiceParser();
+                var invoice = makroInvoiceParser.ParseInvoice(recognizedText);
+
+                if (invoice != null)
+                {
+                    return invoice;
+                }
+
+                /*
+                var productTable = await _gptLayout.LayoutParsingByLLM(recognizedText, currentInvoice);
+                if (productTable != null)
+                {
+
+                    return await _gptParser.ReceiptParsingByLLM2(recognizedText, currentInvoice, measUnits);
+                }*/
             }
             return null;
         }
