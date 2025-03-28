@@ -106,27 +106,29 @@ namespace UpRestEye3.Services.BusinessLogic
 
         public async Task<InvoiceDTO?> DeepTextRecognitionAsync(Bitmap sourceImage, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
-            // Обращение к внешней модели
-            var recognizedText = await _textRecognizer.TextRecognize4(sourceImage);
-            if (recognizedText != null)
-            {
-                MakroInvoiceParser makroInvoiceParser = new MakroInvoiceParser();
-                var invoice = makroInvoiceParser.ParseInvoice(recognizedText);
+            InvoiceDTO invoice = null;
 
-                if (invoice != null)
-                {
-                    return invoice;
-                }
+            // Обращение к внешней OCR
+            var recognizedText = await _textRecognizer.TextRecognize(sourceImage);
+            
+            if (recognizedText == null)
+                return invoice;
 
-                /*
-                var productTable = await _gptLayout.LayoutParsingByLLM(recognizedText, currentInvoice);
-                if (productTable != null)
-                {
+            // Сортировка строк
+            RecognizedTextProcessor textProcessor = new RecognizedTextProcessor();
+            var textByLines = textProcessor.ProcessSimplifiedDocument(recognizedText);
 
-                    return await _gptParser.ReceiptParsingByLLM2(recognizedText, currentInvoice, measUnits);
-                }*/
-            }
-            return null;
+            if (textByLines == null)
+                return invoice;
+
+            // Определение таблицы продуктов    
+            var productTable = await _gptLayout.LayoutParsingByLLM(textByLines, currentInvoice);
+            if (productTable == null)
+                return invoice;
+
+            // Парсинг таблицы продуктов
+            return await _gptParser.ReceiptParsingByLLM2(productTable, currentInvoice, measUnits);
+            
         }
 
         private bool TryDecodeQRCode(Bitmap sourceImage, out QRCodeData? qrCodeData)

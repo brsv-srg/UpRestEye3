@@ -13,7 +13,7 @@ namespace UpRestEye3.Services.Recognition
 
     public interface IGPTLayoutService
     {
-        Task<string> LayoutParsingByLLM(string invoiceText, InvoiceDTO currentInvoice);
+        Task<string> LayoutParsingByLLM(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice);
 
     }
 
@@ -26,7 +26,7 @@ namespace UpRestEye3.Services.Recognition
         {
             _env = new GPTLayoutEnvironment();
         }
-        public async Task<string> LayoutParsingByLLM(string invoiceText, InvoiceDTO currentInvoice)
+        public async Task<string> LayoutParsingByLLM(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice)
         {
 
             // Сериализация тела запроса

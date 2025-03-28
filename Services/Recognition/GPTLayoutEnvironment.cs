@@ -65,7 +65,7 @@ Use the following **known invoice details** for validation:
     - **ConsumerTaxID**: {currentInvoice.Consumer.TaxNumber},
     - **TotalAmount**: {currentInvoice.TotalAmount},
     - **TotalIVA**: {currentInvoice.TotalIVA},
-    - **Tax Categories**: {JsonSerializer.Serialize(currentInvoice.TaxCategories, JsonHelper.GetSerializerOptions())}
+    - **Tax Categories**: {JsonSerializer.Serialize(currentInvoice.TaxCategories, options)}
     ";
 
             return _invoiceInformationPrompt;
@@ -77,7 +77,7 @@ Use the following **known invoice details** for validation:
         
         public string GetApiKey() => _apiKey;
         
-        public string GetLayoutRequestBody(string invoiceText, InvoiceDTO currentInvoice)
+        public string GetLayoutRequestBody(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice)
         {
             var options = JsonHelper.GetSerializerOptions();
             // Формируем запрос
@@ -92,7 +92,7 @@ Use the following **known invoice details** for validation:
                 messages = new object[]
                 {
                         new { role = "system", content = GetSystemPrompt(currentInvoice) }, 
-                        new { role = "user", content = GetUserPrompt(invoiceText, currentInvoice)}  
+                        new { role = "user", content = GetUserPrompt(JsonSerializer.Serialize(invoiceText, options), currentInvoice)}  
                 },
                 response_format = new
                 {
@@ -116,23 +116,31 @@ You are an AI assistant specialized in extracting structured product data from O
 Your task is to identify and extract the table of products/services and list of TAXes from the provided OCR invoice text and return a well-structured JSON according to the response_format schema.
 
 ### **Input Format:**
-    The OCR-recognized text is provided in a hierarchical structure: blocks, paragraphs, words.
-    Elements are grouped by coordinates of location in the invoice.
-    Each element has the format coordinates: (Top Left X, Top Left Y) - (Top Right X, Top Right Y) - (Bottom Right X, Bottom Right Y) - (Bottom Left X, Bottom Left Y).
+   - The OCR-recognized text is provided in a hierarchical structure: blocks, rows, words.
+   - Words are grouped into rows according to the coordinates of their location in the texture.
+   - Each element has the format coordinates: (TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY).
+   - In the rows the words that are maximally similar to each other on the Y coordinate are already stacked, taking into account the error. 
 
 ### **Task Requirements:**
 
 1. **Identify the product table and tax list:**
    - Use coordinates to logically group data.
-   - Locate blocks containing tabular data.
-   - Note that in the same table rows may have slightly different Y coordinates, and columns may have slightly different X coordinates due to OCR misalignment or distortion of the original image.
+   - Locate rows containing product table data.
+   - User coordinates to determine headers and columns data.
+   - To define data in a column, use the entire width from the beginning of one column to the beginning of the next column.
+   - Remember that the number of columns with data must correspond to the number of column headings.    
+   - Remember that some columns may be left-aligned relative to the header, some right-aligned, some in the middle. Check all options. 
+   - If you can't determine the required columns by the current coordinates, calculate the midpoint between left and right coordinates of the elements and try to position the columns by this point.
+
 
 2. **Extract product table headers:**
    - Identify product column headers (e.g., Product Code, Description, Quantity, Price, etc.).
    - Put them into the productHeaders array in the response JSON.
+   - Use the full width of the column header before the beginning of the next header to define words related to the column. 
+
 
 3. **Extract product table rows:**
-   - Determine the values of the rows and columns in number and order according to the header list.
+   - Determine the values of the rows and columns in number and order according to the header list and headers coordinates.
    - Put each row into the productRows array in the response JSON.
 
 4. **Extract tax list headers:**
@@ -147,8 +155,10 @@ Your task is to identify and extract the table of products/services and list of 
    - Compare the amounts on the rows of the product table and tax list with the known invoice parameters input.
 
 7. **Correct OCR errors:**
+   - Please note and take into account when analysing that there may be OCR errors and recognition errors, scanning defects, paper breaks and shifts. 
    - Merge or move elements in hierarchy that belong to the same row or column but were split incorrectly.
    - Split merged values if OCR incorrectly combined multiple fields.
+   - Correct the data if you see that the OCR has made a mistake.
 
 8. **Return structured data in JSON format:**
    - Output the extracted product table into the JSON format strictly following the response_format schema.
@@ -161,22 +171,21 @@ You are an AI assistant specialized in extracting structured product data from O
 Your task is to identify and extract the table of products/services and list of TAXes from the provided OCR invoice text and return a well-structured JSON according to the response_format schema.
 
 ### **Input Format:**
-    The OCR-recognized text is provided in a hierarchical structure: blocks, paragraphs, words.
-    Elements are grouped by coordinates of location in the invoice.
-    Each element has the format coordinates: (Top Left X, Top Left Y) - (Top Right X, Top Right Y) - (Bottom Right X, Bottom Right Y) - (Bottom Left X, Bottom Left Y).
+   - The OCR-recognized text is provided in a hierarchical structure: blocks, rows, words.
+   - Words are grouped into rows according to the coordinates of their location in the texture.
+   - Each element has the format coordinates: (TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY).
+   - In the rows the words that are maximally similar to each other on the Y coordinate are already stacked, taking into account the error. 
 
 ### **Task Requirements:**
 
 1. **Identify the product table and tax list:**
    - Use coordinates to logically group data.
-   - Locate blocks containing tabular data.
-   - Note that in the same table rows may have slightly different Y coordinates, and columns may have slightly different X coordinates due to OCR misalignment or distortion of the original image.
-   - Remember that some columns may be left-aligned relative to the header, some right-aligned, some in the middle. Check all options. 
+   - Locate all rows containing product table data.
+   - User coordinates to determine headers and columns data.        
+   - To define data in a column, use the entire width from the beginning of one column to the beginning of the next column.
    - Remember that the number of columns with data must correspond to the number of column headings.    
+   - Remember that some columns may be left-aligned relative to the header, some right-aligned, some in the middle. Check all options. 
    - If you can't determine the required columns by the current coordinates, calculate the midpoint between left and right coordinates of the elements and try to position the columns by this point.
-   - Merge or move elements in hierarchy that belong to the same row or column but were split incorrectly.
-   - Split merged values if OCR incorrectly combined multiple fields.
-
 
 2. **Extract product table**
    - **Column headers:**
@@ -196,10 +205,11 @@ Your task is to identify and extract the table of products/services and list of 
         | 9 | IvaDD                  | Integer number           |  Designation of the Tax category of the product (match using tax summary list) |
         
         - Put found headers into the productHeaders array in the response JSON.
+        - Use the full width of the column header before the beginning of the next header to define words related to the column. 
+
 
    - **Product table rows:**
-        - Determine the target number of products in the product table: under the headings and under the table, find the block with the text ‘N° de artigos:’ and take the corresponding value. 
-        - Find all the products **exactly according to the number of products** found.
+        - Find all the rows that look like the rows of the product table and all the words that can belong to the columns according to the headers coordinates.
         - Put each row into the productRows array in the response JSON.
 
 
@@ -215,7 +225,13 @@ Your task is to identify and extract the table of products/services and list of 
 4. **Check if the data is correct:**.
    - Compare the amounts on the rows of the product table and tax list with the known invoice parameters input.
 
-5. **Return structured data in JSON format:**
+5. **Correct OCR errors:**
+   - Please note and take into account when analysing that there may be OCR errors and recognition errors, scanning defects, paper breaks and shifts. 
+   - Merge or move elements in hierarchy that belong to the same row or column but were split incorrectly.
+   - Split merged values if OCR incorrectly combined multiple fields.
+   - Correct the data if you see that the OCR has made a mistake.
+
+6. **Return structured data in JSON format:**
    - Output the extracted product table into the JSON format strictly following the response_format schema.
    - Do not return JSON schema, only the data.
 ";

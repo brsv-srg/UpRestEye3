@@ -18,10 +18,9 @@ namespace UpRestEye3.Services.Recognition
 
     public interface ITextRecognition
     {
-        Task<RecognizedDocument> TextRecognize(Bitmap sourceImage);
-        Task<string> TextRecognize2(Bitmap sourceImage);
-        Task<string> TextRecognize3(Bitmap sourceImage);
-        Task<SimplifiedDocument> TextRecognize4(Bitmap sourceImage);
+        
+        Task<string> DocumentRecognize(Bitmap sourceImage);
+        Task<SimplifiedDocument> TextRecognize(Bitmap sourceImage);
 
     }
 
@@ -35,63 +34,7 @@ namespace UpRestEye3.Services.Recognition
         }
 
 
-
-        public async Task<RecognizedDocument> TextRecognize(Bitmap sourceImage)
-        {
-            var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(BitmapToBytes(sourceImage));
-
-
-            var clientIA = await ImageAnnotatorClient.CreateAsync();
-            TextAnnotation text = clientIA.DetectDocumentText(googleImage);
-            Console.WriteLine($"Text: {text.Text}");
-
-            var jsonObject = new RecognizedDocument();
-            int blockIndex = 0;
-
-
-            var recognizedDocument = new RecognizedDocument();
-            int blockNumber = 0;
-            foreach (Page page in text.Pages)
-            {
-                foreach (var block in page.Blocks)
-                {
-                    var textBlock = new TextBlock
-                    {
-                        BlockNumber = blockNumber++,
-                        BlockCoordinates = string.Join(" - ", block.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})")),
-                        Paragraphs = new List<TextParagraph>()
-                    };
-                    int paragraphNumber = 0;
-                    foreach (var paragraph in block.Paragraphs)
-                    {
-                        var paragraphText = new StringBuilder();
-                        foreach (var word in paragraph.Words)
-                        {
-                            paragraphText.Append(string.Join("", word.Symbols.Select(s => s.Text))).Append(" ");
-                        }
-
-                        textBlock.Paragraphs.Add(new TextParagraph
-                        {
-                            ParagraphNumber = paragraphNumber++,
-                            ParagraphCoordinates = string.Join(" - ", paragraph.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})")),
-                            ParagraphText = paragraphText.ToString()
-                        });
-                    }
-
-                    recognizedDocument.TextBlocks.Add(textBlock);
-                }
-            }
-
-            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(recognizedDocument));
-
-            return recognizedDocument;
-
-        }
-
-
-
-
-        public async Task<string> TextRecognize2(Bitmap sourceImage)
+        public async Task<SimplifiedDocument> TextRecognize(Bitmap sourceImage)
         {
             var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(BitmapToBytes(sourceImage));
 
@@ -99,45 +42,9 @@ namespace UpRestEye3.Services.Recognition
             TextAnnotation text = clientIA.DetectDocumentText(googleImage);
             Console.WriteLine($"Text: {text.Text}");
 
-            // Упрощенная структура для сериализации
-            var simplifiedDocument = new
-            {
-                //Text = text.Text,
-                Pages = text.Pages.Select(page => new
-                {
-                    Blocks = page.Blocks.Select(block => new
-                    {
-                        BlockCoordinates = string.Join(" - ", block.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})")),
-                        Paragraphs = block.Paragraphs.Select(paragraph => new
-                        {
-                            ParagraphCoordinates = string.Join(" - ", paragraph.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})")),
-                            //ParagraphText = string.Join(" ", paragraph.Words.Select(word => string.Join("", word.Symbols.Select(s => s.Text))))
-                            Words = paragraph.Words.Select(word => new
-                            {
-                                WordText = string.Join("", word.Symbols.Select(s => s.Text)),
-                                WordCoordinates = string.Join(" - ", word.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})"))
-                            })
-                        })
-                    })
-                })
-            };
-
-            // Сериализация упрощенной структуры
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            string serializedDocument = System.Text.Json.JsonSerializer.Serialize(simplifiedDocument, options);
-
-            return serializedDocument;
-        }
-
- 
-
-        public async Task<SimplifiedDocument> TextRecognize4(Bitmap sourceImage)
-        {
-            var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(BitmapToBytes(sourceImage));
-
-            var clientIA = await ImageAnnotatorClient.CreateAsync();
-            TextAnnotation text = clientIA.DetectDocumentText(googleImage);
-            Console.WriteLine($"Text: {text.Text}");
+            HtmlGenerator htmlGenerator = new HtmlGenerator();
+            var html = htmlGenerator.GenerateHtmlFromTextAnnotation(text);
+            htmlGenerator.SaveHtmlToFile(html, "hhttmmllTextAnnotation.html");
 
             // Упрощенная структура для сериализации
             var simplifiedDocument = new SimplifiedDocument
@@ -167,7 +74,7 @@ namespace UpRestEye3.Services.Recognition
  
 
 
-        public async Task<string> TextRecognize3(Bitmap sourceImage)
+        public async Task<string> DocumentRecognize(Bitmap sourceImage)
         {
 
 
@@ -327,10 +234,10 @@ namespace UpRestEye3.Services.Recognition
 //def preprocess_ocr_results(ocr_results):
 //    """
 //    Предварительная обработка OCR результатов для улучшения группировки.
-    
+
 //    Args:
 //        ocr_results: Исходные результаты OCR
-    
+
 //    Returns:
 //        Обработанные результаты OCR
 //    """
@@ -358,3 +265,99 @@ namespace UpRestEye3.Services.Recognition
 
 
 //    return ocr_results
+
+
+
+//public async Task<RecognizedDocument> TextRecognize(Bitmap sourceImage)
+//{
+//    var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(BitmapToBytes(sourceImage));
+
+
+//    var clientIA = await ImageAnnotatorClient.CreateAsync();
+//    TextAnnotation text = clientIA.DetectDocumentText(googleImage);
+//    Console.WriteLine($"Text: {text.Text}");
+
+//    var jsonObject = new RecognizedDocument();
+//    int blockIndex = 0;
+
+
+
+//    var recognizedDocument = new RecognizedDocument();
+//    int blockNumber = 0;
+//    foreach (Page page in text.Pages)
+//    {
+//        foreach (var block in page.Blocks)
+//        {
+//            var textBlock = new TextBlock
+//            {
+//                BlockNumber = blockNumber++,
+//                BlockCoordinates = string.Join(" - ", block.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})")),
+//                Paragraphs = new List<TextParagraph>()
+//            };
+//            int paragraphNumber = 0;
+//            foreach (var paragraph in block.Paragraphs)
+//            {
+//                var paragraphText = new StringBuilder();
+//                foreach (var word in paragraph.Words)
+//                {
+//                    paragraphText.Append(string.Join("", word.Symbols.Select(s => s.Text))).Append(" ");
+//                }
+
+//                textBlock.Paragraphs.Add(new TextParagraph
+//                {
+//                    ParagraphNumber = paragraphNumber++,
+//                    ParagraphCoordinates = string.Join(" - ", paragraph.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})")),
+//                    ParagraphText = paragraphText.ToString()
+//                });
+//            }
+
+//            recognizedDocument.TextBlocks.Add(textBlock);
+//        }
+//    }
+
+//    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(recognizedDocument));
+
+//    return recognizedDocument;
+
+//}
+
+
+
+
+//public async Task<string> TextRecognize2(Bitmap sourceImage)
+//{
+//    var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(BitmapToBytes(sourceImage));
+
+//    var clientIA = await ImageAnnotatorClient.CreateAsync();
+//    TextAnnotation text = clientIA.DetectDocumentText(googleImage);
+//    Console.WriteLine($"Text: {text.Text}");
+
+//    // Упрощенная структура для сериализации
+//    var simplifiedDocument = new
+//    {
+//        //Text = text.Text,
+//        Pages = text.Pages.Select(page => new
+//        {
+//            Blocks = page.Blocks.Select(block => new
+//            {
+//                BlockCoordinates = string.Join(" - ", block.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})")),
+//                Paragraphs = block.Paragraphs.Select(paragraph => new
+//                {
+//                    ParagraphCoordinates = string.Join(" - ", paragraph.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})")),
+//                    //ParagraphText = string.Join(" ", paragraph.Words.Select(word => string.Join("", word.Symbols.Select(s => s.Text))))
+//                    Words = paragraph.Words.Select(word => new
+//                    {
+//                        WordText = string.Join("", word.Symbols.Select(s => s.Text)),
+//                        WordCoordinates = string.Join(" - ", word.BoundingBox.Vertices.Select(v => $"({v.X}, {v.Y})"))
+//                    })
+//                })
+//            })
+//        })
+//    };
+
+//    // Сериализация упрощенной структуры
+//    var options = new JsonSerializerOptions { WriteIndented = true };
+//    string serializedDocument = System.Text.Json.JsonSerializer.Serialize(simplifiedDocument, options);
+
+//    return serializedDocument;
+//}

@@ -233,17 +233,17 @@ Your task is to extract only the list of Grocery Products from the provided OCR 
    - Extract and correctly map **each field** from the tabular product list to the corresponding JSON field **exactly as specified below**. Extract them in **exactly this sequence**:  
 
 
-    | # | **Invoice Table Column** |   **Column Type**        | **Mapped JSON Field**   | **Description** |
-    |---|--------------------------|--------------------------|-------------------------|-----------------|
-    | 1 | `Codigo Artigo`          | Number and letter string | `ProductCode`           | Code of the product from the recognised invoice (if specified) |
-    | 2 | `Descricao Artigo`       | Text                     | `ProductName`           | Name of the product from the recognised invoice |
-    | 3 | `PACK`                   | 2-3 Symbols              | `Container`             | Packaging type, container (package, bottle, box, bag, sack, piece, kg, etc.) (also match the appropriate Measure Units by the value of this field in accordance with the provided dictionary **MeasureUnits**)|
-    | 4 | `PR Unit/KG`             | Decimal number           | `PricePerUnitKG`        | Price of one measure unit |
-    | 5 | `Unit/KG`                | Decimal number           | `UnitsCountInContainer` | Number of units inside the container |
-    | 6 | `Preco U.V.`             | Decimal number           | `PricePerContainer`     | Price of one container |
-    | 7 | `Quant`                  | Integer number           | `QuantityOfContainers`  | Number of container units purchased |
-    | 8 | `Valor Total`            | Decimal number           | `ProductTotalValue`     | Total cost of this product (with or without tax, based on invoice type) |
-    | 9 | `IvaDD`                  | Integer number           | `TaxCategory`           | Designation of the Tax category of the product (match using tax summary list) |
+    | # | **Invoice Table Column** |   **Column Type**        | **Mapped JSON Field** | **Description** |
+    |---|--------------------------|--------------------------|-----------------------|-----------------|
+    | 1 | Código Artigo            | Number and letter string | ProductCode           | Code of the product from the recognised invoice (if specified) |
+    | 2 | Descrição Artigo         | Text                     | ProductName           | Name of the product from the recognised invoice |
+    | 3 | PACK                     | 2-3 Symbols              | Container             | Packaging type, container (package, bottle, box, bag, sack, piece, kg, etc.) (also match the appropriate Measure Units by the value of this field in accordance with the provided dictionary **MeasureUnits**)|
+    | 4 | PR Unit/KG               | Decimal number           | PricePerUnitKG        | Price of one measure unit |
+    | 5 | Unit/KG                  | Decimal number           | UnitsCountInContainer | Number of units inside the container |
+    | 6 | Preço U.V.               | Decimal number           | PricePerContainer     | Price of one container |
+    | 7 | Quant                    | Integer number           | QuantityOfContainers  | Number of container units purchased |
+    | 8 | Valor Total              | Decimal number           | ProductTotalValue     | Total cost of this product (with or without tax, based on invoice type) |
+    | 9 | IvaDD                    | Integer number           | TaxCategory           | Designation of the Tax category of the product (match using tax summary list) |
 
    - **DO NOT swap columns.** Maintain this exact mapping structure.  
    - The product table **must contain exactly 9 columns** as specified above.  

@@ -259,6 +259,22 @@ namespace UpRestEye3.Services.BusinessLogic
         }
     }
 
+    public class RectangleCoordinatesConverter : JsonConverter<RectangleCoordinates>
+    {
+        public override RectangleCoordinates Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            throw new NotImplementedException("Deserialization is not implemented.");
+        }
+
+        public override void Write(Utf8JsonWriter writer, RectangleCoordinates value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue($"({value.TopLeft.X}, {value.TopLeft.Y}) - ({value.TopRight.X}, {value.TopRight.Y}) - ({value.BottomRight.X}, {value.BottomRight.Y}) - ({value.BottomLeft.X}, {value.BottomLeft.Y})");
+        }
+    }
+
+
+
+
     public static class JsonHelper
     {
 
@@ -383,7 +399,8 @@ namespace UpRestEye3.Services.BusinessLogic
                                             new TaxCategoryEnumJsonConverter(),
                                             new InvoiceStatusEnumJsonConverter(),
                                             new RMSProductStatusEnumJsonConverter(),
-                                            new ItemTypeEnumJsonConverter()},
+                                            new ItemTypeEnumJsonConverter(),
+                                            new RectangleCoordinatesConverter()},
             PropertyNameCaseInsensitive = true,
             WriteIndented = true
             };
