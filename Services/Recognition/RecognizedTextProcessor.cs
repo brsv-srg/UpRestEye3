@@ -16,9 +16,9 @@ namespace UpRestEye3.Services.Recognition
 
             var resortedDocument = new ResortedSimplifiedDocument
             {
-                Pages = new List<SimplifiedLinesPage>
+                Pages = new List<SimplifiedRowPage>
                 {
-                    new SimplifiedLinesPage { Blocks = blocks }
+                    new SimplifiedRowPage { Blocks = blocks }
                 }
             };
 
@@ -148,7 +148,7 @@ namespace UpRestEye3.Services.Recognition
         private bool IsSameBlock(SimplifiedRow lastLine, SimplifiedRow currentLine, double averageWordHeight)
         {
             double verticalDistance = currentLine.Words.First().WordCoordinates.TopLeft.Y - lastLine.Words.Last().WordCoordinates.BottomLeft.Y;
-            return verticalDistance < averageWordHeight;
+            return verticalDistance < averageWordHeight*1.5;
         }
     }
 

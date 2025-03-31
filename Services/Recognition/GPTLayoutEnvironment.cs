@@ -56,7 +56,7 @@ namespace UpRestEye3.Services.Recognition
             var options = JsonHelper.GetSerializerOptions();
 
             var _invoiceInformationPrompt = $@"\n
-Extract structured data from this OCR-recognized invoice: {invoiceText}. 
+Extract the table of products/services and list of TAXes from this provided OCR invoice text: {invoiceText}.
 
 Use the following **known invoice details** for validation:
     - **InvoiceNumber**: {currentInvoice.InvoiceNumber},
@@ -83,11 +83,11 @@ Use the following **known invoice details** for validation:
             // Формируем запрос
             var requestBody = new
             {
-                //model = "gpt-4o", 
-                model = "gpt-4o-mini",
-                temperature = 0.2,
-                top_p = 0.3,
-                max_tokens = 2048,
+                model = "gpt-4o", 
+                //model = "gpt-4o-mini",
+
+                temperature = 0.0,
+                top_p = 1.0,
                 n = 1,
                 messages = new object[]
                 {
@@ -119,51 +119,42 @@ Your task is to identify and extract the table of products/services and list of 
    - The OCR-recognized text is provided in a hierarchical structure: blocks, rows, words.
    - Words are grouped into rows according to the coordinates of their location in the texture.
    - Each element has the format coordinates: (TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY).
-   - In the rows the words that are maximally similar to each other on the Y coordinate are already stacked, taking into account the error. 
+   - In the rows, the words that are maximally similar to each other along the Y coordinate are already stacked, taking into account the OCR error. 
 
 ### **Task Requirements:**
 
 1. **Identify the product table and tax list:**
-   - Use coordinates to logically group data.
-   - Locate rows containing product table data.
-   - User coordinates to determine headers and columns data.
-   - To define data in a column, use the entire width from the beginning of one column to the beginning of the next column.
-   - Remember that the number of columns with data must correspond to the number of column headings.    
-   - Remember that some columns may be left-aligned relative to the header, some right-aligned, some in the middle. Check all options. 
-   - If you can't determine the required columns by the current coordinates, calculate the midpoint between left and right coordinates of the elements and try to position the columns by this point.
-
+   - Locate rows containing product table data and tax list items.
 
 2. **Extract product table headers:**
-   - Identify product column headers (e.g., Product Code, Description, Quantity, Price, etc.).
-   - Put them into the productHeaders array in the response JSON.
-   - Use the full width of the column header before the beginning of the next header to define words related to the column. 
-
+   - Identify row (or rows) with product column headers (e.g., Product Code, Description, Quantity, Price, etc.). These may be such or similar words in Portuguese or abbreviations in Portuguese or English.
+   - Put this row (or rows) into the ProductHeaders section in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also coordinates exactly without transformations**.
 
 3. **Extract product table rows:**
-   - Determine the values of the rows and columns in number and order according to the header list and headers coordinates.
-   - Put each row into the productRows array in the response JSON.
+   - Identify **all rows** which looks like product items. **MOST IMPORTANT THING!!!** Identify **all rows** which looks like product items.
+   - Put each row into the ProductRows array in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also coordinates exactly without transformations**.
 
 4. **Extract tax list headers:**
-   - Identify tax list column headers (e.g., IVA, Base, Value, Total, etc.).
-   - Put them into the taxCategoryHeaders array in the response JSON.
+   - Identify row with tax list column headers (e.g., IVA, Base, Value, Total, etc.). These may be such or similar words in Portuguese or abbreviations in Portuguese or English.
+   - Put them into the TaxCategoriesHeaders array in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also coordinates exactly without transformations**.
 
 5. **Extract tax list rows:**
-   - Determine the values of the rows and columns in number and order according to the header list.
-   - Put each row into the taxCategoryRows array in the response JSON.
-
-6. **Check if the data is correct:**.
-   - Compare the amounts on the rows of the product table and tax list with the known invoice parameters input.
+   - Determine all values of the rows and columns in number and order according to the header list.
+   - Put each row into the TaxCategoriesRows array in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also coordinates exactly without transformations**.
 
 7. **Correct OCR errors:**
-   - Please note and take into account when analysing that there may be OCR errors and recognition errors, scanning defects, paper breaks and shifts. 
-   - Merge or move elements in hierarchy that belong to the same row or column but were split incorrectly.
-   - Split merged values if OCR incorrectly combined multiple fields.
+   - Please note and take into account when analyzing that there may be OCR errors and recognition errors, scanning defects, paper breaks and shifts. 
    - Correct the data if you see that the OCR has made a mistake.
 
 8. **Return structured data in JSON format:**
    - Output the extracted product table into the JSON format strictly following the response_format schema.
    - Do not return JSON schema, only the data.
 ";
+
+
+
+
+
 
 
         private const string _systemPromptForParsingLiteralSpecial01 = $@"
@@ -174,71 +165,133 @@ Your task is to identify and extract the table of products/services and list of 
    - The OCR-recognized text is provided in a hierarchical structure: blocks, rows, words.
    - Words are grouped into rows according to the coordinates of their location in the texture.
    - Each element has the format coordinates: (TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY).
-   - In the rows the words that are maximally similar to each other on the Y coordinate are already stacked, taking into account the error. 
+   - In the rows, the words that are maximally similar to each other along the Y coordinate are already stacked, taking into account the OCR error. 
 
 ### **Task Requirements:**
-
 1. **Identify the product table and tax list:**
-   - Use coordinates to logically group data.
-   - Locate all rows containing product table data.
-   - User coordinates to determine headers and columns data.        
-   - To define data in a column, use the entire width from the beginning of one column to the beginning of the next column.
-   - Remember that the number of columns with data must correspond to the number of column headings.    
-   - Remember that some columns may be left-aligned relative to the header, some right-aligned, some in the middle. Check all options. 
-   - If you can't determine the required columns by the current coordinates, calculate the midpoint between left and right coordinates of the elements and try to position the columns by this point.
+   - Locate rows containing product table data and tax list items.
 
-2. **Extract product table**
-   - **Column headers:**
+2. **Extract product table headers:**
+   - Identify row (or rows) with product column headers: ""Código Artigo"", ""Descrição Artigo"", ""PACK"", ""PR Unit/KG"", ""Unit/KG"", ""Preço U.V."", ""Quant"", ""Valor Total"", ""IvaDD"" 
+   - Put this row (or rows) into the ProductHeaders section in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also with all coordinates exactly without transformations**.
 
-        - Identify product column headers and extract them in **exactly this sequence**:  
+3. **Extract product table rows:**
+   - Identify **all rows** which looks like product items. 
+   **MOST IMPORTANT THING!!!** Identify **all rows** which looks like product items.
+   - Put each row into the ProductRows array in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also with all coordinates exactly without transformations**.
 
-        | # |**Product Table Column**|   **Column Type**        |  **Description** |
-        |---|------------------------|--------------------------|------------------|
-        | 1 | Código Artigo          | Number and letter string |  Code of the product from the recognised invoice (if specified) |
-        | 2 | Descrição Artigo       | Text                     |  Name of the product from the recognised invoice |
-        | 3 | PACK                   | 2-3 Symbols              |  Packaging type, container (package, bottle, box, bag, sack, piece, kg, etc.) (also match the appropriate Measure Units by the value of this field in accordance with the provided dictionary **MeasureUnits**)|
-        | 4 | PR Unit/KG             | Decimal number           |  Price of one measure unit |
-        | 5 | Unit/KG                | Decimal number           |  Number of units inside the container |
-        | 6 | Preço U.V.             | Decimal number           |  Price of one container |
-        | 7 | Quant                  | Integer number           |  Number of container units purchased |
-        | 8 | Valor Total            | Decimal number           |  Total cost of this product (with or without tax, based on invoice type) |
-        | 9 | IvaDD                  | Integer number           |  Designation of the Tax category of the product (match using tax summary list) |
-        
-        - Put found headers into the productHeaders array in the response JSON.
-        - Use the full width of the column header before the beginning of the next header to define words related to the column. 
+4. **Check all rows of product table again:**
+    - Check everything again. Make sure all the rows with product items are copied, nothing is lost. 
+    - The product list table usually ends close to tax list headers.
+    - Don't stop until you get to the tax categories. Copy all rows that are similar to the product row, but discard the rows without product items. 
 
+5. **Extract tax list headers:**
+   - Identify row with tax list column headers: ""Valor liq."", ""Taxa IVA"", ""Valor IVA"".
+   - Put them into the TaxCategoriesHeaders array in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also with all coordinates exactly without transformations**.
 
-   - **Product table rows:**
-        - Find all the rows that look like the rows of the product table and all the words that can belong to the columns according to the headers coordinates.
-        - Put each row into the productRows array in the response JSON.
+6. **Extract tax list rows:**
+   - Determine all values of the rows and columns in number and order according to the header list.
+   - Put each row into the TaxCategoriesRows array in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also with all coordinates exactly without transformations**.
 
-
-3. **Extract tax list** 
-   - **Сolumn headers:**
-       - Identify tax list column headers (e.g., IVA, Base, Value, Total, etc.).
-       - Put them into the taxCategoryHeaders array in the response JSON.
-
-   - **Tax list rows:**
-       - Determine the values of the rows and columns in number and order according to the header list.
-       - Put each row into the taxCategoryRows array in the response JSON.
-
-4. **Check if the data is correct:**.
-   - Compare the amounts on the rows of the product table and tax list with the known invoice parameters input.
-
-5. **Correct OCR errors:**
-   - Please note and take into account when analysing that there may be OCR errors and recognition errors, scanning defects, paper breaks and shifts. 
-   - Merge or move elements in hierarchy that belong to the same row or column but were split incorrectly.
-   - Split merged values if OCR incorrectly combined multiple fields.
+7. **Correct OCR errors:**
+   - Please note and take into account when analyzing that there may be OCR errors and recognition errors, scanning defects, paper breaks and shifts. 
    - Correct the data if you see that the OCR has made a mistake.
 
-6. **Return structured data in JSON format:**
+8. **Return structured data in JSON format:**
    - Output the extracted product table into the JSON format strictly following the response_format schema.
    - Do not return JSON schema, only the data.
 ";
 
 
 
-        private const string _resultSchemeLiteral = @"
+    private const string _resultSchemeLiteral = @"
+    {
+        ""$schema"": ""http://json-schema.org/draft-07/schema#"",
+        ""type"": ""object"",
+        ""properties"": {
+            ""ProductHeaders"": {
+                ""type"": ""array"",
+                ""items"": {
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""RowCoordinates"": { ""type"": ""string"" },
+                        ""Words"": {
+                            ""type"": ""array"",
+                            ""items"": {
+                                ""type"": ""object"",
+                                ""properties"": {
+                                    ""WordText"": { ""type"": ""string"" },
+                                    ""WordCoordinates"": { ""type"": ""string"" }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            ""ProductRows"": {
+                ""type"": ""array"",
+                ""items"": {
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""RowCoordinates"": { ""type"": ""string"" },
+                        ""Words"": {
+                            ""type"": ""array"",
+                            ""items"": {
+                                ""type"": ""object"",
+                                ""properties"": {
+                                    ""WordText"": { ""type"": ""string"" },
+                                    ""WordCoordinates"": { ""type"": ""string"" }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            ""TaxCategoriesHeaders"": {
+                ""type"": ""array"",
+                ""items"": {
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""RowCoordinates"": { ""type"": ""string"" },
+                        ""Words"": {
+                            ""type"": ""array"",
+                            ""items"": {
+                                ""type"": ""object"",
+                                ""properties"": {
+                                    ""WordText"": { ""type"": ""string"" },
+                                    ""WordCoordinates"": { ""type"": ""string"" }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            ""TaxCategoriesRows"": {
+                ""type"": ""array"",
+                ""items"": {
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""RowCoordinates"": { ""type"": ""string"" },
+                        ""Words"": {
+                            ""type"": ""array"",
+                            ""items"": {
+                                ""type"": ""object"",
+                                ""properties"": {
+                                    ""WordText"": { ""type"": ""string"" },
+                                    ""WordCoordinates"": { ""type"": ""string"" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }";
+        
+
+
+
+        private const string _resultSchemeLiteralOld = @"
 {
   ""$schema"": ""http://json-schema.org/draft-07/schema#"",
   ""title"": ""InvoiceProductsAndTaxTable"",

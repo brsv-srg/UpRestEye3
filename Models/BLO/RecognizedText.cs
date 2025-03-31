@@ -30,15 +30,22 @@ namespace UpRestEye3.Models.BLO
 
     public class ResortedSimplifiedDocument
     {
-        public List<SimplifiedLinesPage> Pages { get; set; }
+        public List<SimplifiedRowPage> Pages { get; set; }
     }
 
+    public class TablesDataDocument
+    {
+        public List<SimplifiedRow> ProductHeaders { get; set; }
+        public List<SimplifiedRow> ProductRows { get; set; }
+        public List<SimplifiedRow> TaxCategoriesHeaders { get; set; }
+        public List<SimplifiedRow> TaxCategoriesRows { get; set; }
+    }
 
     public class SimplifiedPage
     {
         public List<SimplifiedBlock> Blocks { get; set; }
     }
-    public class SimplifiedLinesPage
+    public class SimplifiedRowPage
     {
         public List<SimplifiedLinesBlock> Blocks { get; set; }
     }

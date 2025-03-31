@@ -7,6 +7,7 @@ using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.Recognition;
 using Google.Api;
+using System.Text.Encodings.Web;
 
 
 
@@ -263,7 +264,26 @@ namespace UpRestEye3.Services.BusinessLogic
     {
         public override RectangleCoordinates Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            throw new NotImplementedException("Deserialization is not implemented.");
+            if (reader.TokenType != JsonTokenType.String)
+            {
+                throw new JsonException("Expected string.");
+            }
+
+            var coordinatesString = reader.GetString();
+            var parts = coordinatesString.Split(new[] { "(", ")", "-", "," }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length != 8)
+            {
+                throw new JsonException("Invalid format for RectangleCoordinates.");
+            }
+
+            return new RectangleCoordinates
+            {
+                TopLeft = new TPoint(int.Parse(parts[0]), int.Parse(parts[1])),
+                TopRight = new TPoint(int.Parse(parts[2]), int.Parse(parts[3])),
+                BottomRight = new TPoint(int.Parse(parts[4]), int.Parse(parts[5])),
+                BottomLeft = new TPoint(int.Parse(parts[6]), int.Parse(parts[7]))
+            };
         }
 
         public override void Write(Utf8JsonWriter writer, RectangleCoordinates value, JsonSerializerOptions options)
@@ -402,6 +422,7 @@ namespace UpRestEye3.Services.BusinessLogic
                                             new ItemTypeEnumJsonConverter(),
                                             new RectangleCoordinatesConverter()},
             PropertyNameCaseInsensitive = true,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             WriteIndented = true
             };
         }
