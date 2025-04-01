@@ -127,12 +127,22 @@ Your task is to identify and extract the table of products/services and list of 
    - Locate rows containing product table data and tax list items.
 
 2. **Extract product table headers:**
-   - Identify row (or rows) with product column headers (e.g., Product Code, Description, Quantity, Price, etc.). These may be such or similar words in Portuguese or abbreviations in Portuguese or English.
-   - Put this row (or rows) into the ProductHeaders section in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also coordinates exactly without transformations**.
+
+   - Identify the row or **group of consecutive rows** containing product column headers (e.g., 'Code', 'Description', 'Quantity', 'Price', etc.).  
+      Headers may appear in Portuguese, English, or as abbreviations (e.g., Cod, Qtd, IVA).
+
+   - **Headers may span multiple lines**. If a column name is split across several rows (e.g., 'Desconto' / 'promocional'), include **all relevant rows**.
+
+   - Add all header words to the `ProductHeaders` section **exactly as recognized** — with original spelling, diacritics, symbols, and full bounding box coordinates.  
+      **Do not modify, merge, normalize, or translate** the text.
 
 3. **Extract product table rows:**
-   - Identify **all rows** which looks like product items. **MOST IMPORTANT THING!!!** Identify **all rows** which looks like product items.
-   - Put each row into the ProductRows array in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also coordinates exactly without transformations**.
+   - Identify **all rows that represent or relate to products** — including main product lines and any additional rows with comments, variants, or extended descriptions.
+   - **Do not stop** after the first group of product-like rows. Continue extracting until a clearly unrelated block begins (e.g., totals, taxes, payment info).
+   - Add each row to the `ProductRows` array in the response JSON **exactly as recognized** — preserving:
+      - Full original text (including all diacritics and symbols),
+      - Original order of words,
+      - Exact coordinates (no modifications, shifts, or normalization).
 
 4. **Extract tax list headers:**
    - Identify row with tax list column headers (e.g., IVA, Base, Value, Total, etc.). These may be such or similar words in Portuguese or abbreviations in Portuguese or English.

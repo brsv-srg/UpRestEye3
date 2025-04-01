@@ -181,7 +181,7 @@ Use the following **known invoice details** for validation:
         }
 
 
-        private const string _systemPromptForParsingLiteral = $@"
+        private const string _systemPromptForParsingLiteralOld = $@"
 You are an AI assistant specialized in extracting structured product data from OCR-recognized Invoices.
 Your task is to extract the list of Grocery Products from the provided OCR Invoice text, and return a well-structured JSON according to the given schema.
 
@@ -229,6 +229,166 @@ Your task is to extract the list of Grocery Products from the provided OCR Invoi
     - Output the extracted products in JSON format** strictly following the response schema.
     - If there is a discrepancy, return a warning in the **Comments** field.
 ";
+
+
+        private const string _systemPromptForParsingLiteral = $@"
+You are an AI assistant specialized in extracting structured product data from OCR-recognized Invoices.  
+Your task is to extract only the list of Grocery Products from the provided OCR Invoice text, and return a well-structured JSON according to the given schema.
+
+---
+
+### General Processing Rules
+
+1. **Output**
+   - Return only the final structured JSON result.
+   - **Do NOT include explanations, schema descriptions, or comments outside JSON.**
+   - Ensure strict adherence to the output structure and data types.
+
+2. **Input Format**
+   - The input includes:
+     - `ProductHeaders`: list of product column headers with coordinates;
+     - `ProductRows`: list of recognized words and their positions;
+     - `TaxCategoriesHeaders` and `TaxCategoriesRows`: headers and entries of the tax legend table.
+   - All data is provided as OCR output with coordinates: (TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY).
+   - The document may be a full A4 invoice or a narrow cashier-style receipt.
+
+---
+
+### Product List Extraction
+
+3. **Header Detection**
+   - Identify the main product table headers and their coordinates. 
+   - Headers may include terms like **Code** (if available), **Name**, **Unit**, **Quantity**, **Tax Category** or **IVA**, and **Total Price**, etc. These headers may also appear in Portuguese or as abbreviations.
+   - One header may consist of multiple words. Combine adjacent words based on meaning and X-position.
+   - Adjust header coordinate areas to improve coverage:
+     - **Expand header zone**:
+       - Left X → `Left X - 3`
+       - Right X → `Next Header's Left X`
+
+
+
+3. **Header Detection**
+
+   - Identify the main product table headers and their coordinates.
+   - Headers may include terms like **Code**, **Name**, **Unit**, **Quantity**, **Tax Category** or **IVA**, **Total Price**, etc. These headers may also appear in Portuguese or as abbreviations.
+   - One logical header may consist of multiple words split **horizontally (adjacent)** or **vertically (stacked across multiple lines)**.
+
+   - To correctly identify multi-line headers:
+       - Group vertically stacked header elements that share the same or similar X-coordinates (i.e. appear in the same column).
+       - Combine them into a **single logical header**, preserving word order (top to bottom).
+       - Merge their text and recalculate the **bounding box** so that it spans the full vertical area of the grouped parts.
+
+   - Adjust header coordinate areas to improve coverage:
+       - **Expand header zone**:
+         - Left X → `Left X - 3`
+         - Right X → `Next Header's Left X`
+
+   - After combination, match full header text (including merged multi-line content) to known header types, and map to internal field names using semantic similarity and expected keywords.
+
+
+
+4. **Product Row Parsing**
+   - **Process every row** in `ProductRows`. **Do not skip any rows**, even if damaged, partially filled, or incomplete.
+   - Recognize that a single product may span **multiple consecutive rows** (two or more):
+       - The **first row** contains the main structured data (code, name, quantity, price, etc.).
+       - The following row(s) may contain additional information such as:Product description extensions, Brand names, Technical details, Packaging types, Variant labels, etc.
+
+   - When a row contains **only text fragments** (typically under the `ProductName` column) and lacks numerical fields such as quantity, prices, tax, or codes — assume it belongs to the **previous product**.
+   - Merge its content into the appropriate field of the previous product, most often into `ProductName` or `Container`.
+   - Ensure merged fields are clean, properly spaced, and semantically valid.
+
+   - Match words in each row to the correct column by:
+       - **Primary method**: comparing X-coordinates with header column boundaries.
+       - **Secondary method**: interpreting semantic meaning of the text (e.g., distinguishing numbers from descriptions).
+
+   - For every complete or merged product, extract **each field** and place it into the corresponding mapped JSON field, following the defined field order.
+
+   - If multiple words fall under the same column, merge them in natural reading order (left to right) and adjust bounding boxes if needed.
+
+   - If a row is missing expected values, attempt to **infer or reconstruct** them using:
+       - Column mappings,
+       - Context from surrounding rows,
+       - Known invoice structures or patterns.
+
+   - **Never skip rows**. If a row cannot be parsed as a new product, always evaluate whether it continues the previous one.
+
+5. **Fix OCR Errors**
+   - Actively identify and correct **OCR spelling and number recognition mistakes**:
+     - Examples: `Totai` → `Total`, `1` ↔ `I`, `0` ↔ `O`, `Descriçâo` → `Descrição`
+     - Misread decimals or formatting: `3,4O` → `3.40`
+   - Correct invalid symbols in numeric fields (e.g., letters in price or quantity).
+   - Normalize all values for consistency.
+
+6. **Rescue Damaged Rows**
+   - If a product row is fragmented or partially unreadable:
+     - **Do not discard it.**
+     - Try to recover as much as possible based on structure and column layout.
+     - Partially filled rows are better than lost rows.
+
+---
+
+### Tax Category Mapping
+
+7. **Decipher tax categories**
+    - In the IvaDD column of each product row, you will find a tax category code (e.g., 2, 4, 5). These codes correspond to VAT percentages and category names, and must be mapped as follows:
+        2 = 23.00% → `Normal`
+        4 = 6.00%  → `Reduced`
+        5 = 13.00% → `Intermedia`
+         
+    - **Use this fixed mapping** to convert the **IvaDD** code into the **TaxCategory** value in the output JSON.
+    - If the tax code in the product row is not one of the above, look up the corresponding code in the TaxCategoriesRows block of the invoice (tax summary table).
+    
+
+---
+
+### Final Validation
+
+8. **Verify Totals**
+   - Sum all `ProductTotalValue` values.
+   - Confirm that the total matches:
+     - `TotalAmount` (if values include tax), or
+     - `TotalAmount - TotalIVA` (if values exclude tax).
+   - Add a `Comments` field to describe:
+     - Any automatic corrections;
+     - Reconstructed or incomplete rows;
+     - Discrepancies in totals.
+
+---
+
+### JSON Output Example
+   json
+   {{
+     ""Products"": [
+       {{
+         ""ProductCode"": ""2880805018206"",
+         ""ProductName"": ""MC 1OMAIE RAMA 1 67/82 V2"",
+         ""Unit"": ""kg"",
+         ""Container"": ""KG"",
+         ""PricePerUnitKG"": 2.180,
+         ""UnitsCountInContainer"": 1.820,
+         ""PricePerContainer"": 3.97,
+         ""QuantityOfContainers"": 1,
+         ""ProductTotalValue"": 3.97,
+         ""TaxCategory"": ""Reduced""
+       }},
+       {{
+         ""ProductCode"": ""004321"",
+         ""ProductName"": ""CERV. SUPER BOCK 24X33CL TP"",
+         ""Unit"": ""btl"",
+         ""Container"": ""Box"",
+         ""PricePerUnitKG"": 0.560,
+         ""UnitsCountInContainer"": 24,
+         ""PricePerContainer"": 13.44,
+         ""QuantityOfContainers"": 1,
+         ""ProductTotalValue"": 13.44,
+         ""TaxCategory"": ""Normal""
+       }}
+     ]
+   }}
+
+";
+
+
 
         private const string _systemPromptForParsingLiteralSpecial02 = $@"
 You are an AI assistant specialized in extracting structured product data from OCR-recognized Invoices.
@@ -324,7 +484,7 @@ Your task is to extract only the list of Grocery Products from the provided OCR 
 
 ---
 
-### 🔧 General Processing Rules
+### General Processing Rules
 
 1. **Output**
    - Return only the final structured JSON result.
@@ -333,15 +493,15 @@ Your task is to extract only the list of Grocery Products from the provided OCR 
 
 2. **Input Format**
    - The input includes:
-     - `ProductHeaders`: list of product column headers with X/Y coordinates;
-     - `ProductRows`: list of recognized words and positions for each row;
+     - `ProductHeaders`: list of product column headers with coordinates;
+     - `ProductRows`: list of recognized words and their positions;
      - `TaxCategoriesHeaders` and `TaxCategoriesRows`: headers and entries of the tax legend table.
-   - All data is provided as OCR output with coordinates.
+   - All data is provided as OCR output with coordinates: (TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY).
    - The document may be a full A4 invoice or a narrow cashier-style receipt.
 
 ---
 
-### 📦 Product List Extraction
+### Product List Extraction
 
 3. **Header Detection**
    - Identify the headers in `ProductHeaders` according to the list below, in the same order. 
@@ -390,24 +550,21 @@ Your task is to extract only the list of Grocery Products from the provided OCR 
 
 ---
 
-### 📊 Tax Category Mapping
+### Tax Category Mapping
 
 7. **Decipher tax categories**
     - In the IvaDD column of each product row, you will find a tax category code (e.g., 2, 4, 5). These codes correspond to VAT percentages and category names, and must be mapped as follows:
-        2 → 23.00% → `Normal`
-        4 → 6.00%  → `Reduced`
-        5 → 13.00% → `Intermedia`
+        2 = 23.00% → `Normal`
+        4 = 6.00%  → `Reduced`
+        5 = 13.00% → `Intermedia`
          
-    - Use this fixed mapping to convert the IvaDD code into the full VAT category name.
+    - **Use this fixed mapping** to convert the **IvaDD** code into the **TaxCategory** value in the output JSON.
     - If the tax code in the product row is not one of the above, look up the corresponding code in the TaxCategoriesRows block of the invoice (tax summary table).
-    - Always normalize the final tax category to one of the following:
-        -- `Normal`, `Intermedia`, `Reduced`, or `Isenta`
-
-    - Also handle common abbreviations such as `Nor`, `Int`, `Red`, and convert them to the full category name.
+    
 
 ---
 
-### ✅ Final Validation
+### Final Validation
 
 8. **Verify Totals**
    - Sum all `ProductTotalValue` values.
@@ -421,7 +578,7 @@ Your task is to extract only the list of Grocery Products from the provided OCR 
 
 ---
 
-### 📤 JSON Output Structure
+### JSON Output Example
    json
    {{
      ""Products"": [
