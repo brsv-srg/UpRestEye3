@@ -364,3 +364,4 @@ FodyWeavers.xsd
 /app.db
 /app.db-shm
 /app.db-wal
+/uploads
