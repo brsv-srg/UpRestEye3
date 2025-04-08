@@ -1,7 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using UpRestEye3.Models.DTO;
 using UpRestEye3.Models.BLO;
+using UpRestEye3.Models.DTO;
+using UpRestEye3.Services.BusinessLogic;
 using UpRestEye3.Services.DataLayer;
 using UpRestEye3.Services.Integration;
 
@@ -37,9 +38,24 @@ namespace UpRestEye3.Controllers
         [HttpPost("save")]
         public async Task<ActionResult<InvoiceDTO>> SaveInvoice(InvoiceDTO invoice)
         {
-            var invoiceId = await _invoiceService.SaveInvoiceAsync(invoice);
-            var updatedInvoice = await _invoiceService.GetInvoiceDTOByIdAsync((int)invoiceId);
-            return Ok(updatedInvoice);
+            try
+            { 
+                // Валидация накладной после QR
+                var validator = InvoiceValidatorBase.CreateValidator(invoice.Status);
+                validator.Validate(invoice, invoice.Consumer.TaxNumber);
+
+                var invoiceId = await _invoiceService.SaveInvoiceAsync(invoice);
+                var updatedInvoice = await _invoiceService.GetInvoiceDTOByIdAsync((int)invoiceId);
+                return Ok(updatedInvoice);
+            }
+            catch (Exception e)
+            {
+                invoice.Status = InvoiceStatusEnum.ProcessError;
+                invoice.Comments += "; " + e.Message;
+                await _invoiceService.SaveInvoiceAsync(invoice);
+                Console.WriteLine(e);
+                return BadRequest(invoice);
+            }
         }
 
 

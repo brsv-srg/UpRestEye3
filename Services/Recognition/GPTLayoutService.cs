@@ -13,7 +13,7 @@ namespace UpRestEye3.Services.Recognition
 
     public interface IGPTLayoutService
     {
-        Task<string> LayoutParsingByLLM(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice);
+        Task<TablesDataDocument> LayoutParsingByLLM(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice);
 
     }
 
@@ -26,7 +26,7 @@ namespace UpRestEye3.Services.Recognition
         {
             _env = new GPTLayoutEnvironment();
         }
-        public async Task<string> LayoutParsingByLLM(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice)
+        public async Task<TablesDataDocument> LayoutParsingByLLM(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice)
         {
             try
             {
@@ -73,7 +73,7 @@ namespace UpRestEye3.Services.Recognition
 
 
         //todo поправить с датой загрузки 
-        private string ResponseInvoiceParsing(string responseContent)
+        private TablesDataDocument ResponseInvoiceParsing(string responseContent)
         {
             try
             {
@@ -89,8 +89,26 @@ namespace UpRestEye3.Services.Recognition
                 {
                     
 
-                        return contentElement.GetRawText();
-                    
+                    using var contentDocument = JsonDocument.Parse(contentElement.GetString());
+                    var rootContent = contentDocument.RootElement;
+
+                    if (rootContent.TryGetProperty("ProductHeaders", out contentElement))
+                    {
+                        var options = JsonHelper.GetSerializerOptions();
+
+                        Console.WriteLine($"Received response from OpenAI API: {rootContent.GetRawText()}");
+
+                        using var tablesDataJsonDocument = JsonDocument.Parse(rootContent.GetRawText());
+                        TablesDataDocument tablesDataDocument = tablesDataJsonDocument.Deserialize<TablesDataDocument>(options);
+
+                        return tablesDataDocument;
+                    }
+                    else
+                    {
+                        throw new Exception("Invoice element not found in JSON response");
+                    }
+
+
                 }
                 else
                 {

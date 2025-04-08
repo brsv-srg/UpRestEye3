@@ -15,7 +15,8 @@ namespace UpRestEye3.Services.BusinessLogic
     {
         Task<(QRCodeData?, Bitmap?)> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath);
         Task<(QRCodeData?, Bitmap?)> DeepQRRecognitionAsync(Bitmap sourceImage, string imagePath);
-        Task<InvoiceDTO?> DeepTextRecognitionAsync(Bitmap sourceImage, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits);
+        Task<InvoiceDTO?> DeepTextRecognitionAsync(Bitmap sourceImage, Bitmap enhancedImage, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits);
+        Task<QRCodeData?> ExtQRRecognitionAsync(Bitmap sourceImage);
 
     }
 
@@ -104,15 +105,28 @@ namespace UpRestEye3.Services.BusinessLogic
             return (null, null);
         }
 
-        public async Task<InvoiceDTO?> DeepTextRecognitionAsync(Bitmap sourceImage, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
+        public async Task<QRCodeData?> ExtQRRecognitionAsync(Bitmap sourceImage)
+        {
+            // Шаг 1. Создание дайджеста изображения
+            var qr = await _textRecognizer.QRRecognize(sourceImage);
+            return qr;
+
+        }
+
+        public async Task<InvoiceDTO?> DeepTextRecognitionAsync(Bitmap sourceImage, Bitmap enhancedImage, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
             InvoiceDTO invoice = null;
 
             // Обращение к внешней OCR
             var recognizedText = await _textRecognizer.TextRecognize(sourceImage);
-            
+
             if (recognizedText == null)
+            {
+                // Пробуем повторно, с улучшеным изображением
+                recognizedText = await _textRecognizer.TextRecognize(enhancedImage);
+                if(recognizedText == null)
                 return invoice;
+            }
 
             // Сортировка строк
             RecognizedTextProcessor textProcessor = new RecognizedTextProcessor();
@@ -127,7 +141,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 return invoice;
 
             // Парсинг таблицы продуктов
-            return await _gptParser.ReceiptParsingByLLM2(productTable, currentInvoice, measUnits);
+            return await _gptParser.ReceiptParsingByLLM (productTable, currentInvoice, measUnits);
             
         }
 

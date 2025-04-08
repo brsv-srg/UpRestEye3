@@ -270,7 +270,7 @@ namespace UpRestEye3.Services.BusinessLogic
             }
 
             var coordinatesString = reader.GetString();
-            var parts = coordinatesString.Split(new[] { "(", ")", "-", "," }, StringSplitOptions.RemoveEmptyEntries);
+            var parts = coordinatesString.Split(new[] { "(", ")", "-", ",", " " }, StringSplitOptions.RemoveEmptyEntries);
 
             if (parts.Length != 8)
             {
@@ -451,27 +451,27 @@ namespace UpRestEye3.Services.BusinessLogic
                                 }},
                                 ""Unit"": {{ 
                                     ""type"": ""string"",
-                                    ""description"": ""Main unit of measurement of product (kilo, liter, piece, etc.)""
+                                    ""description"": ""Main unit of measurement of product (`kg`, `l`, `pcs`, `unit` etc.)""
+                                }},
+                                ""Quantity"": {{ 
+                                    ""type"": ""number"",
+                                    ""description"": ""Number of units or containers sold""
                                 }},
                                 ""Container"": {{ 
                                     ""type"": ""string"",
-                                    ""description"": ""Packaging type, container (package, bottle, box, bag, sack, piece, etc.)""
+                                    ""description"": ""Packaging name/description (e.g., `Box6kg`, `24x0.33L`, `Pack250g`, `Btl 0.75l`)""
+                                }},
+                                ""Count"": {{ 
+                                    ""type"": ""number"",
+                                    ""description"": ""Quantity/volume/units per container (in the specified `Unit`, or in KG for weighed products and in L for liquids)""
                                 }},
                                 ""PricePerUnitKG"": {{ 
                                     ""type"": ""number"",
                                     ""description"": ""Price of one measure unit""
                                 }},
-                                ""UnitsCountInContainer"": {{ 
-                                    ""type"": ""number"",
-                                    ""description"": ""Number of main units in the container""
-                                }},
                                 ""PricePerContainer"": {{ 
                                     ""type"": ""number"",
                                     ""description"": ""Price of one container ""
-                                }},
-                                ""QuantityOfContainers"": {{ 
-                                    ""type"": ""number"",
-                                    ""description"": ""Quantity of containers""
                                 }},
                                 ""ProductTotalValue"": {{ 
                                     ""type"": ""number"",
@@ -579,7 +579,11 @@ namespace UpRestEye3.Services.BusinessLogic
                                     ""Id"": {{ ""type"": ""integer"", ""description"": ""ID of the invoice product"" }},
                                     ""ProductCode"": {{ ""type"": ""string"", ""description"": ""Product code from the supplier"" }},
                                     ""ProductName"": {{ ""type"": ""string"", ""description"": ""Product name from the supplier"" }},
-                                    ""Unit"": {{ ""type"": ""string"", ""description"": ""Unit of measurement"" }}
+                                    ""Unit"": {{ ""type"": ""string"", ""description"": ""Main unit of measurement of product (`kg`, `l`, `pcs`, `unit` etc.)"" }},
+                                    ""Quantity"": {{ ""type"": ""number"", ""description"": ""Number of units or containers sold"" }},
+                                    ""Container"": {{ ""type"": ""string"", ""description"": ""Packaging name/description (e.g., `Box6kg`, `24x0.33L`, `Pack250g`, `Btl 0.75l`)"" }},
+                                    ""Count"": {{ ""type"": ""number"", ""description"": ""Quantity/volume/units per container (in the specified `Unit`, or in KG for weighed products and in L for liquids)"" }} 
+                                    
                                 }}
                             }},
                             ""RMSProduct"": {{

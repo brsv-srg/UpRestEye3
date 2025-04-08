@@ -123,7 +123,10 @@
     z-index: 999;
 }
 
-
+.modal-wide {
+    max-width: 90%;
+}
+ 
 /* Стили для модального окна с 3D тенями */
 .modal-content {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 6px 20px rgba(0, 0, 0, 0.19);*/ /* 3D тени */

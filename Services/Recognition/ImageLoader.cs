@@ -76,7 +76,11 @@ public class ImageLoader
                                         //File.SetAttributes(outputFilePath, FileAttributes.ReadOnly);
 
                                         // Create Bitmap from the saved file
-                                        return new Bitmap(outputFilePath);
+
+                                        using (var stream = new FileStream(outputFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                                        {
+                                            return new Bitmap(stream);
+                                        }
                                     }
 
                                 }
@@ -102,8 +106,44 @@ public class ImageLoader
         }
     }
 
+    private Bitmap LoadImageFromFile_old(string filePath)
+    {
+        using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            return new Bitmap(stream);
+        }
+    }
+
+
     private Bitmap LoadImageFromFile(string filePath)
     {
-        return new Bitmap(filePath);
+        using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            Bitmap bitmap = new Bitmap(stream);
+            if (bitmap.PixelFormat == PixelFormat.Format24bppRgb)
+            {
+                string outputFilePath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(filePath), System.IO.Path.GetFileNameWithoutExtension(filePath) + "_converted.png");
+
+                // Check if the file already exists and delete it
+                if (File.Exists(outputFilePath))
+                {
+                    File.Delete(outputFilePath);
+                }
+
+                Bitmap newBitmap = new Bitmap(bitmap.Width, bitmap.Height, PixelFormat.Format32bppArgb);
+                using (Graphics g = Graphics.FromImage(newBitmap))
+                {
+                    g.DrawImage(bitmap, 0, 0);
+                }
+
+                newBitmap.Save(outputFilePath, ImageFormat.Png);
+
+                using (var newStream = new FileStream(outputFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    return new Bitmap(newStream);
+                }
+            }
+            return bitmap;
+        }
     }
 }

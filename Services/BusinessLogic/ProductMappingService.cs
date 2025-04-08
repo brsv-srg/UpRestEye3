@@ -72,23 +72,28 @@ namespace UpRestEye3.Services.BusinessLogic
                             newRmsProducts.Add(mappedRmsProduct);
                         }
 
-                        // Создаем новый замапленный контейнер
-                        var mappedRMSContainer = new RMSContainerDTO()
+                        RMSContainerDTO mappedRMSContainer = null;
+                        // Если контейнер задан, то создаем его
+                        if (mappedProducts.RMSContainer != null)
                         {
-                            Id = mappedProducts.RMSContainer.Id,
-                            Num = mappedProducts.RMSContainer.Num,
-                            Name = mappedProducts.RMSContainer.Name,
-                            Count = mappedProducts.RMSContainer.Count
-                        };
+
+                            // Создаем новый замапленный контейнер
+                            mappedRMSContainer = new RMSContainerDTO()
+                            {
+                                Id = mappedProducts.RMSContainer.Id,
+                                Num = mappedProducts.RMSContainer.Num,
+                                Name = mappedProducts.RMSContainer.Name,
+                                Count = mappedProducts.RMSContainer.Count
+                            };
 
 
-                        // Если контейнер новый и его еще нет в RMSProduct, то добавляем его в RMSProduct
-                        if (mappedProducts.NewRMSContainer &&
-                            mappedRmsProduct.Containers.Where(c => c.Name == mappedProducts.RMSContainer.Name).Count() == 0)
-                        {
-                            mappedRmsProduct.Containers.Add(mappedRMSContainer);
+                            // Если контейнер новый и его еще нет в RMSProduct, то добавляем его в RMSProduct
+                            if (mappedProducts.NewRMSContainer &&
+                                mappedRmsProduct.Containers.Where(c => c.Name == mappedProducts.RMSContainer.Name).Count() == 0)
+                            {
+                                mappedRmsProduct.Containers.Add(mappedRMSContainer);
+                            }
                         }
-
 
                         // Теперь найдем продукт в накладной по Id и присвоим ему замапленный RMSProduct
                         var invoiceProduct = currentInvoice.Products.Where(p => p.Id == mappedProducts.InvoiceProduct.Id).FirstOrDefault();

@@ -44,27 +44,38 @@ namespace UpRestEye3.Services.Recognition
                 // Конфигурация HTTP-клиента
                 using var httpClient = new HttpClient();
                 httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _env.GetApiKey());
+
                 Console.WriteLine($"Sending request to OpenAI API:..{httpContent.ToString()}");
 
-                // Отправка POST-запроса
-                var response = await httpClient.PostAsync(_env.GetURL(), httpContent);
-
-                // Проверка ответа
-                if (!response.IsSuccessStatusCode)
+                for (int attempt = 0; attempt < 4; attempt++)
                 {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    throw new Exception($"OpenAI API error: {errorContent}");
+                    // Отправка POST-запроса
+                    var response = await httpClient.PostAsync(_env.GetURL(), httpContent);
+
+                    // Проверка ответа
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine($"Rate limit exceeded. Retrying after 30 seconds.");
+
+                        if (attempt >= 3)
+                            throw new Exception($"OpenAI API error: {errorContent}");
+                        else
+                            await Task.Delay(30 * 1000);
+                    }
+                    else
+                    {
+                        var options = JsonHelper.GetSerializerOptions();
+
+                        // Чтение и возврат результата
+                        var responseContent = await response.Content.ReadAsStringAsync();
+                        var result = ResponseParsing(responseContent);
+
+                        return result;
+                    }
                 }
 
-                var options = JsonHelper.GetSerializerOptions();
-
-                // Чтение и возврат результата
-                var responseContent = await response.Content.ReadAsStringAsync();
-                var result = ResponseParsing(responseContent);
-
-
-                return result;
-
+                return new List<MatchedInvoiceProduct>();
 
             }
             catch (Exception ex)

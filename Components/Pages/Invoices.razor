@@ -104,7 +104,7 @@
         {
             <div class="modal-backdrop"></div>
             <div class="modal show d-block" tabindex="-1" role="dialog">
-                <div class="modal-dialog modal-xl" role="document">
+                <div class="modal-dialog modal-wide" role="document">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h2 class="modal-title">Invoice Details</h2>
@@ -148,7 +148,10 @@
                                             <tr>
                                                 <th class ="p-1">Code</th>
                                                 <th class="p-1">Name</th>
+                                                <th class="p-1">Units</th>
                                                 <th class="p-1">Quantity</th>
+                                                <th class="p-1">Container</th>
+                                                <th class="p-1">Count</th>
                                                 <th class="p-1">Total Price</th>
                                                 <th class="p-1">TAX Category</th>
                                                 <th class="p-1">RMS Product</th>
@@ -166,7 +169,10 @@
                                                     {
                                                         <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductCode" /></td>
                                                         <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductName" /></td>
-                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.QuantityOfContainers" /></td>
+                                                        <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.Unit" /></td>
+                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Quantity" /></td>
+                                                        <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.Container" /></td>
+                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Count" /></td>
                                                         <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.ProductTotalValue" /></td>
                                                         <td class="p-1">
                                                             <select class="form-control form-control-sm" @bind="product.TaxCategory">
@@ -225,7 +231,10 @@
                                                     {
                                                         <td class="p-1">@product.ProductCode</td>
                                                         <td class="p-1">@product.ProductName</td>
-                                                        <td class="p-1">@product.QuantityOfContainers</td>
+                                                        <td class="p-1">@product.Unit</td>
+                                                        <td class="p-1">@product.Quantity</td>
+                                                        <td class="p-1">@product.Container</td>
+                                                        <td class="p-1">@product.Count</td>
                                                         <td class="p-1">@product.ProductTotalValue</td>
                                                         <td class="p-1">@product.TaxCategory</td>
                                                         <td class="p-1">@product.RMSProduct?.Name</td>
@@ -245,7 +254,10 @@
                                                 <tr>
                                                     <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductCode" /></td>
                                                     <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductName" /></td>
-                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.QuantityOfContainers" /></td>
+                                                    <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.Unit" /></td>
+                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Quantity" /></td>
+                                                    <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.Container" /></td>
+                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Count" /></td>
                                                     <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.ProductTotalValue" /></td>
                                                     <td class="p-1">
                                                         <select class="form-control form-control-sm" @bind="newProduct.TaxCategory">
@@ -669,14 +681,22 @@
         {
             if (selectedFile != null)
             {
-                Console.WriteLine("Uploading file: " + selectedFile.Name);
+                if (selectedFile.Size > 10 * 1024 * 1024)
+                {
+                    Console.WriteLine("File size exceeds the 10 MB limit.");
+                    uploadMessage = "File size exceeds the 10 MB limit. Please reduce the file size.";
+                    uploadMessageClass = "alert-danger";
+                }
+                else
+                {
+                    Console.WriteLine("Uploading file: " + selectedFile.Name);
 
-                var content = new MultipartFormDataContent();
-                content.Add(new StreamContent(selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)), "file", selectedFile.Name);
-                content.Add(new StringContent(appUser.ConsumerId.ToString()), "consumerId");
+                    var content = new MultipartFormDataContent();
+                    content.Add(new StreamContent(selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)), "file", selectedFile.Name);
+                    content.Add(new StringContent(appUser.ConsumerId.ToString()), "consumerId");
 
-                var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/upload", content);
-
+                    var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/upload", content);
+                }
 
             }
             else
@@ -722,9 +742,9 @@
             target.ProductCode = source.ProductCode;
             target.ProductName = source.ProductName;
             target.Unit = source.Unit;
+			target.Quantity = source.Quantity;
             target.Container = source.Container;
-			target.UnitsCountInContainer = source.UnitsCountInContainer;
-			target.QuantityOfContainers = source.QuantityOfContainers;
+			target.Count = source.Count;
             target.ProductTotalValue = source.ProductTotalValue;
             target.TaxCategory = source.TaxCategory;
             target.RMSProduct = source.RMSProduct;
@@ -763,9 +783,9 @@
             editProduct.ProductCode = backupProduct.ProductCode;
             editProduct.ProductName = backupProduct.ProductName;
             editProduct.Unit = backupProduct.Unit;
+			editProduct.Quantity = backupProduct.Quantity;
             editProduct.Container = backupProduct.Container;
-            editProduct.UnitsCountInContainer = backupProduct.UnitsCountInContainer;
-			editProduct.QuantityOfContainers = backupProduct.QuantityOfContainers;
+            editProduct.Count = backupProduct.Count;
             editProduct.ProductTotalValue = backupProduct.ProductTotalValue;
             editProduct.TaxCategory = backupProduct.TaxCategory;
             editProduct.RMSProduct = backupProduct.RMSProduct;

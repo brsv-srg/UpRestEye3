@@ -65,9 +65,9 @@ namespace UpRestEye3.Data
                                         ProductCode = "EXT-001",
                                         ProductName = "External Product 1",
                                         Unit = "pcs",
-                                        Container = "Container 1",
-                                        UnitsCountInContainer = 1.00m,
-                                        QuantityOfContainers = 10,
+                                        Quantity = 10,
+                                        Container = "250g",
+                                        Count = 0.250m,
                                         ProductTotalValue = 100.00m
                                     }
                                 }
@@ -100,9 +100,9 @@ namespace UpRestEye3.Data
                                         ProductCode = "EXT-002",
                                         ProductName = "External Product 2",
                                         Unit = "pcs",
-                                        Container = "Container 1",
-                                        UnitsCountInContainer = 1.00m,
-                                        QuantityOfContainers = 10,
+                                        Quantity = 1,
+                                        Container = "50g",
+                                        Count = 0.05m,
                                         ProductTotalValue = 100.00m
                                     },
                                     new InvoiceProductDTO
@@ -110,9 +110,9 @@ namespace UpRestEye3.Data
                                         ProductCode = "EXT-003",
                                         ProductName = "External Product 3",
                                         Unit = "pcs",
-                                        Container = "Container 1",
-                                        UnitsCountInContainer = 1.00m,
-                                        QuantityOfContainers = 10,
+                                        Quantity = 10,
+                                        Container = "300g",
+                                        Count = 0.30m,
                                         ProductTotalValue = 104.00m
                                     },
                                 }

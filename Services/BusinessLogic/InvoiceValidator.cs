@@ -16,8 +16,15 @@ namespace UpRestEye3.Services.BusinessLogic
         {
             return status switch
             {
+                InvoiceStatusEnum.ProcessError => new QRCodeProcessedValidator(),
+
+                InvoiceStatusEnum.QRError => new QRCodeProcessedValidator(),
                 InvoiceStatusEnum.QRCodeProcessed => new QRCodeProcessedValidator(),
+
+                InvoiceStatusEnum.TextRecognitionError => new TextProcessedValidator(),
                 InvoiceStatusEnum.TextProcessed => new TextProcessedValidator(),
+                
+                InvoiceStatusEnum.MappingError => new ProductsMappedValidator(),
                 InvoiceStatusEnum.ProductsMapped => new ProductsMappedValidator(),
                 _ => throw new NotSupportedException($"Status {status} is not supported for validation")
             };
@@ -54,6 +61,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     throw new Exception("Invoice QR code processing error: Invalid tax category data.");
                 }
             }
+            invoice.Status = InvoiceStatusEnum.QRCodeProcessed;
         }
     }
 
@@ -65,7 +73,10 @@ namespace UpRestEye3.Services.BusinessLogic
                                            p.ProductTotalValue <= 0 ||
                                            p.TaxCategory == null ||
                                            string.IsNullOrEmpty(p.Unit) ||
-                                           p.QuantityOfContainers <= 0))
+                                           p.Quantity <= 0
+                                           //|| (!string.IsNullOrEmpty(p.Container) && p.Count == null)
+                                           ))
+
             {
                 invoice.Status = InvoiceStatusEnum.TextRecognitionError;
                 invoice.Comments = "Missing or invalid product data.";
@@ -95,6 +106,8 @@ namespace UpRestEye3.Services.BusinessLogic
                 invoice.Comments = "Tax category mismatch.";
                 throw new Exception("Invoice text processing error: Tax category mismatch.");
             }
+            invoice.Status = InvoiceStatusEnum.TextProcessed;
+
         }
     }
 
@@ -104,12 +117,13 @@ namespace UpRestEye3.Services.BusinessLogic
         public override void Validate(InvoiceDTO invoice, string customerTaxId)
         {
             if (invoice.Products.Any(p => p.RMSProduct == null ||
-                                           p.RMSContainer == null ||
+                                           (!string.IsNullOrEmpty(p.Container) && p.RMSContainer == null) ||
                                            p.RMSStorage == null))
             {
                 invoice.Status = InvoiceStatusEnum.MappingError;
                 throw new Exception("Invoice products mapping error: Missing RMS data.");
             }
+            invoice.Status = InvoiceStatusEnum.ProductsMapped;
         }
     }
 

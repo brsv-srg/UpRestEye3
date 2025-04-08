@@ -13,8 +13,7 @@ namespace UpRestEye3.Services.Recognition
 
     public interface IGPTSemanticService
     {
-        Task<InvoiceDTO?> ReceiptParsingByLLM(RecognizedDocument invoiceText, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> _measUnits);
-        Task<InvoiceDTO?> ReceiptParsingByLLM2(string invoiceText, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits);
+        Task<InvoiceDTO?> ReceiptParsingByLLM(TablesDataDocument tablesDataDocument, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits);
 
     }
 
@@ -28,51 +27,14 @@ namespace UpRestEye3.Services.Recognition
             _env = new GPTSemanticEnvironment();
         }
 
-        public async Task<InvoiceDTO?> ReceiptParsingByLLM(RecognizedDocument invoiceText, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
+        
+
+
+        public async Task<InvoiceDTO?> ReceiptParsingByLLM(TablesDataDocument tablesDataDocument, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
 
             // Сериализация тела запроса
-            var jsonBody = _env.GetReceiptParsingRequestBody(invoiceText, currentInvoice, measUnits);
-
-
-            var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");
-
-
-            // Конфигурация HTTP-клиента
-            using var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _env.GetApiKey());
-            Console.WriteLine($"Sending request to OpenAI API:..{httpContent.ToString()}");
-            // Отправка POST-запроса
-            var response = await httpClient.PostAsync(_env.GetURL(), httpContent);
-
-            // Проверка ответа
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                throw new Exception($"OpenAI API error: {errorContent}");
-            }
-
-
-            // Чтение и возврат результата
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            var invoice = ResponseInvoiceParsing(responseContent);
-
-            if (invoice != null && invoice.Products != null)
-            {
-                currentInvoice.Status = InvoiceStatusEnum.TextProcessed;
-                currentInvoice.Products = invoice.Products;
-                
-            }
-            return currentInvoice;
-        }
-
-
-        public async Task<InvoiceDTO?> ReceiptParsingByLLM2(string invoiceText, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
-        {
-
-            // Сериализация тела запроса
-            var jsonBody = _env.GetReceiptParsingRequestBody2(invoiceText, currentInvoice, measUnits);
+            var jsonBody = _env.GetReceiptParsingRequestBody(tablesDataDocument, currentInvoice, measUnits);
 
 
             var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");

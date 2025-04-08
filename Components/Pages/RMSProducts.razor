@@ -1,11 +1,9 @@
 ﻿@page "/rmsproducts"
-@using System.Text
 @rendermode InteractiveServer
 @* TODO разобраться с рендерингом *@
 
 @inject HttpClient Http
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UserManager<AppUser> UserManager
 
@@ -352,7 +350,7 @@
         target.Description = source.Description;
         target.Num = source.Num;
         target.MainUnit = source.MainUnit;
-        target.Containers = source.Containers.Select(c => new RMSContainerDTO
+        target.Containers = source.Containers?.Select(c => new RMSContainerDTO
             {
                 Id = c.Id,
                 Num = c.Num,
@@ -360,7 +358,7 @@
                 Count = c.Count,
                 ContainerWeight = c.ContainerWeight,
                 FullContainerWeight = c.FullContainerWeight
-            }).ToList();
+            })?.ToList();
     }
 
 

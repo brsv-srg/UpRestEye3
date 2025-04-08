@@ -38,7 +38,9 @@ namespace UpRestEye3.Services.Recognition
                     }
                 }
             }
-            return words;
+            var averageWordHeight = GetAverageWordHeight(words);
+
+            return words.Where(word => !IsVerticalText(word, averageWordHeight)).ToList();
         }
 
         private double GetAverageWordHeight(List<SimplifiedWord> words)
@@ -150,6 +152,14 @@ namespace UpRestEye3.Services.Recognition
             double verticalDistance = currentLine.Words.First().WordCoordinates.TopLeft.Y - lastLine.Words.Last().WordCoordinates.BottomLeft.Y;
             return verticalDistance < averageWordHeight*1.5;
         }
+
+        private bool IsVerticalText(SimplifiedWord word, double averageWordHeight)
+        {
+            double wordHeight = word.WordCoordinates.BottomLeft.Y - word.WordCoordinates.TopLeft.Y;
+            double wordWidth = word.WordCoordinates.TopRight.X - word.WordCoordinates.TopLeft.X;
+            return wordHeight > wordWidth * 2 && wordHeight > averageWordHeight * 1.5; // Height is more than twice the width and exceeds average word height
+        }
+
     }
 
     public static class SimplifiedLineExtensions

@@ -87,14 +87,17 @@ namespace UpRestEye3.Services.BusinessLogic
                     // Распознование QR-кода "в лоб" и с помощью предсказания
                     var (basicQRCode, basicProcessedImage) = await imageProcessor.BasicQRRecognitionAsync(image, filePath);
 
-
+                    Bitmap enhancedImage = null;
                     if (basicQRCode != null)
                     {
                         // Если QR-код распознан, сохраняем изменения и идем на распознавание текста
 
                         // Проверяем тот ли Consumer
                         if (basicQRCode.CustomerTaxNumber != consumer.TaxNumber)
+                        {
+                            workingInvoice.Status = InvoiceStatusEnum.QRError;
                             throw new Exception("ConsumerId not match");
+                        }
 
                         // Внесение изменений в существующую накладную
                         InvoiceHelper.UpdateInvoiceByQR(workingInvoice, basicQRCode, filePath);
@@ -107,24 +110,31 @@ namespace UpRestEye3.Services.BusinessLogic
                         invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
 
                         if (invoiceId == null || workingInvoice.Status != InvoiceStatusEnum.QRCodeProcessed)
+                        {
+                            workingInvoice.Status = InvoiceStatusEnum.QRError;
                             throw new Exception("Failed to recognize QR-code.");
+                        }
 
                         // Если есть улучшенное изображение берем его
                         if (basicProcessedImage != null)
-                            image = basicProcessedImage;
+                            enhancedImage = basicProcessedImage;
                         
                         await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognized successfully.");
 
                     }
                     else
                     {
+
                         // Если QR-код в лоб и с предсказанием не распознан, идем на распознавание через подбор вариантов
                         var (deepQRCode, deepProcessedImage) = await imageProcessor.DeepQRRecognitionAsync(image, filePath);
                         if (deepQRCode != null)
                         {
                             // Проверяем тот ли Consumer
                             if (deepQRCode.CustomerTaxNumber != consumer.TaxNumber)
+                            {
+                                workingInvoice.Status = InvoiceStatusEnum.QRError;
                                 throw new Exception("ConsumerId not match");
+                            }
 
                             // Внесение изменений в существующую накладную
                             InvoiceHelper.UpdateInvoiceByQR(workingInvoice, deepQRCode, filePath);
@@ -137,25 +147,34 @@ namespace UpRestEye3.Services.BusinessLogic
                             invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
 
                             if (invoiceId == null || workingInvoice.Status != InvoiceStatusEnum.QRCodeProcessed)
+                            {
+                                workingInvoice.Status = InvoiceStatusEnum.QRError;
                                 throw new Exception("Failed to recognize QR-code.");
+                            }
 
 
                             // Если есть улучшенное изображение берем его
                             if (deepProcessedImage != null)
-                                image = deepProcessedImage;
-                            
+                                enhancedImage = deepProcessedImage;
+
                             await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognized successfully.");
+                        }
+                        else
+                        {
+                            workingInvoice.Status = InvoiceStatusEnum.QRError;
+                            throw new Exception("Failed to recognize QR-code.");
                         }
                     }
 
-
-
                     var measUnits = await rmsMeasureUnitsService.GetUnitsByConsumerIdAsync((int)consumerId);
                     if (measUnits == null)
+                    {
+                        workingInvoice.Status = InvoiceStatusEnum.TextRecognitionError;
                         throw new Exception("Failed to get measure units.");
+                    }
 
                     // Распознование текста и формирование полной накладной  
-                    var recognisedInvoice = await imageProcessor.DeepTextRecognitionAsync(image, workingInvoice, measUnits);
+                    var recognisedInvoice = await imageProcessor.DeepTextRecognitionAsync(image, enhancedImage, workingInvoice, measUnits);
                     // Если текст распознан, то сохраняем полный документ
                     if (recognisedInvoice != null)
                     {
@@ -170,7 +189,10 @@ namespace UpRestEye3.Services.BusinessLogic
                         invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
 
                         if (invoiceId == null || workingInvoice.Status != InvoiceStatusEnum.TextProcessed)
+                        {
+                            workingInvoice.Status = InvoiceStatusEnum.TextRecognitionError;
                             throw new Exception("Failed to text recognize.");
+                        }
 
                         await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognized successfully.");
 
@@ -179,7 +201,10 @@ namespace UpRestEye3.Services.BusinessLogic
 
                     }
                     else
+                    {
+                        workingInvoice.Status = InvoiceStatusEnum.TextRecognitionError;
                         throw new Exception("Failed to recognize text.");
+                    }
 
 
 
@@ -204,7 +229,10 @@ namespace UpRestEye3.Services.BusinessLogic
                             // Сохранение нового продукта в БД
                             newRMSProduct.Id = await rmsProductService.SaveProductAsync(newRMSProduct);
                             if (newRMSProduct.Id == null)
+                            {
+                                workingInvoice.Status = InvoiceStatusEnum.MappingError;
                                 throw new Exception("Failed to save product.");
+                            }   
 
                             // Сохраняем ID сохраненного продукта в накладной
                             var rmsToSaveId = mappedInvoice.Products.Where(p => p.RMSProduct.Name == newRMSProduct.Name && p.RMSProduct.Id == null).FirstOrDefault();
@@ -224,12 +252,18 @@ namespace UpRestEye3.Services.BusinessLogic
                         invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
 
                         if (invoiceId == null || workingInvoice.Status != InvoiceStatusEnum.ProductsMapped)
+                        {
+                            workingInvoice.Status = InvoiceStatusEnum.MappingError;
                             throw new Exception("Failed of product mapping.");
+                        }
 
                         await hubContext.Clients.All.SendAsync("ReceiveMessage", "Product mapped successfully.");
                     }
                     else
+                    {
+                        workingInvoice.Status = InvoiceStatusEnum.MappingError;
                         throw new Exception("Failed to map products.");
+                    }
 
 
 

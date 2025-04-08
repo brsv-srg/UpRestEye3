@@ -11,8 +11,8 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250316131834_next06")]
-    partial class next06
+    [Migration("20250404081848_next07")]
+    partial class next07
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -329,7 +329,6 @@ namespace UpRestEye3.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Container")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("InvoiceId")
@@ -346,7 +345,7 @@ namespace UpRestEye3.Migrations
                     b.Property<decimal>("ProductTotalValue")
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("QuantityOfContainers")
+                    b.Property<decimal?>("QuantityOfContainers")
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("RMSContainerId")

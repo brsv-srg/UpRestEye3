@@ -50,9 +50,9 @@ namespace UpRestEye3.Models.DAO
         public string ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
-        public string Container { get; set; } = string.Empty;
-        public decimal UnitsCountInContainer { get; set; } = 0.0m;
-        public decimal QuantityOfContainers { get; set; } = 0.0m;
+        public decimal Quantity { get; set; } = 0.0m;
+        public string? Container { get; set; } 
+        public decimal? Count { get; set; } 
         public decimal ProductTotalValue { get; set; } = 0.0m;
 
         public TaxCategoryEnum TaxCategory { get; set; } = TaxCategoryEnum.Intermediate;

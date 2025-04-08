@@ -1,16 +1,18 @@
-﻿using Google.Cloud.Vision.V1;
-using Google.Cloud.DocumentAI.V1;
+﻿using Google.Cloud.DocumentAI.V1;
+using Google.Cloud.Vision.V1;
 using Google.Protobuf;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Newtonsoft.Json;
+using SkiaSharp;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using UpRestEye3.Models.BLO;
-using System.Drawing.Imaging;
-using SkiaSharp;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Microsoft.EntityFrameworkCore;
+using static Google.Rpc.Context.AttributeContext.Types;
 
 
 namespace UpRestEye3.Services.Recognition
@@ -21,6 +23,7 @@ namespace UpRestEye3.Services.Recognition
         
         Task<string> DocumentRecognize(Bitmap sourceImage);
         Task<SimplifiedDocument> TextRecognize(Bitmap sourceImage);
+        Task<QRCodeData> QRRecognize(Bitmap sourceImage);
 
     }
 
@@ -69,6 +72,36 @@ namespace UpRestEye3.Services.Recognition
             };
 
             return simplifiedDocument;
+        }
+
+ 
+        public async Task<QRCodeData> QRRecognize(Bitmap sourceImage)
+        {
+            var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(BitmapToBytes(sourceImage));
+
+            var clientIA = await ImageAnnotatorClient.CreateAsync();
+            var text = await clientIA.DetectTextAsync(googleImage);
+           
+
+            if (text == null || text.Count == 0)
+                return null;
+
+            // Сконкатенируем все фрагменты текста
+            string allText = string.Join("\n", text.Select(x => x.Description));
+
+            // Определяем регулярное выражение для поиска строки в формате QR
+            // Пример: A:510945929*B:514092815*C:PT*D:FT*...
+            string pattern = @"^A:.*\*B:.*\*C:.*\*D:.*\*E:.*\*F:.*\*G:.*\*H:.*$";
+
+            var match = Regex.Match(allText, pattern);
+            if (match.Success)
+            {
+                // Если нашли совпадение, создаем объект QRCodeData
+                var qrCodeData = new QRCodeData(match.Value.Trim());
+                return qrCodeData;
+            }
+
+            return null;
         }
 
  

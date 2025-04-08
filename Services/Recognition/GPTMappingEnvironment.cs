@@ -43,7 +43,10 @@ namespace UpRestEye3.Services.Recognition
                 Id = p.Id,
                 ProductCode = p.ProductCode,
                 ProductName = p.ProductName,
-                Unit = p.Unit
+                Unit = p.Unit,
+                Container = p.Container,
+                Count = p.Count,
+                Quantity = p.Quantity
             }));
             var _rmsProducts = new List<RMSProductMappingDTO>(rmsProducts.Select(p => new RMSProductMappingDTO()
             {
@@ -61,21 +64,30 @@ namespace UpRestEye3.Services.Recognition
                 }))
             }));
 
+            // Проекция для выбора только нужных полей
+            var _storages = storages.Select(s => new
+            {
+                s.Id,
+                s.Name,
+                s.Description
+            }).ToList();
 
-            var storageString = string.Format(_storagePrompt, string.Join(", ", storages.Select(s => "`" + s.Name + "` - " + s.Description)));
 
             // Формируем запрос
 
             var requestData = new
             {
                 model = "gpt-4o", //"gpt-4o-mini",
-                temperature = 0.3,
+
+                temperature = 0.0,
+                top_p = 1.0,
+
                 messages = new object[]
                 {
                     new
                     {
                         role = "system",
-                        content = string.Format(_systemMessage, storageString)
+                        content = _systemMessage
                     },
                     new
                     {
@@ -85,9 +97,29 @@ namespace UpRestEye3.Services.Recognition
                     new
                     {
                         role = "user",
-                        content = JsonSerializer.Serialize(new { InvoiceProducts = _invoiceProducts, RMSProducts = _rmsProducts, MeasureUnits = _measUnits }, options)
+                        content = JsonSerializer.Serialize(new { InvoiceProducts = _invoiceProducts}, options),
 
-                    }
+                    },
+
+                    new
+                    {
+                        role = "user",
+                        content = JsonSerializer.Serialize(new { RMSProducts = _rmsProducts }, options),
+
+                    },
+
+                    new
+                    {
+                        role = "user",
+                        content = JsonSerializer.Serialize(new { MeasureUnits = _measUnits,  }, options),
+
+                    },
+
+                    new
+                    {
+                        role = "user",
+                        content = JsonSerializer.Serialize(new { StorageList = _storages,  }, options),
+                    },
                 },
 
                 response_format = new
@@ -107,11 +139,9 @@ namespace UpRestEye3.Services.Recognition
 
 
 
-        // todo подавать на вход все, что распознали в QR - суммы и налоговые категории. в промпте указать, чтобы сверил с тем что распознает
-        // todo разобрать пример промпта в телеге, взять ключевые моменты оттуда
 
 
-        private const string _systemMessage = @$"
+        private const string _systemMessageOld = @$"
 You are an AI assistant that matches OCR-extracted invoice products with products from the restaurant management system. 
 Your primary task is to ensure accurate mapping of `InvoiceProducts` to `RMSProducts`, considering product names, units, and packaging, and put mapped products into the predefined JSON in the response_format section. 
 If a product is missing in the RMS system, create a new one following the structured guidelines.
@@ -138,6 +168,133 @@ Example Matching:
 - InvoiceProduct: ""MORGADO QUINTAO BRANCO 2023 75CL 12%"" 
 - RMSProduct: ""MORGADO QUINTAO BRANCO"" 
 - Packaging match: 75CL -> Btl 0,75cl (use existing).";
+
+
+
+private const string _systemMessage = @$"
+
+You are an AI assistant that matches OCR-extracted invoice products with products from the restaurant management system (RMS).  
+Your task is to ensure accurate mapping of `InvoiceProducts` to `RMSProducts`, considering names, units, and packaging, and return a well-structured JSON strictly following the provided response schema.
+
+---
+
+### 💡 Matching Logic
+
+1. **Copy Each InvoiceProduct**  
+   For each product from the `InvoiceProducts` list:
+   - Copy all its fields into the `InvoiceProduct` field of the response JSON.
+
+2. **Match to Existing RMS Product**  
+   - Try to find the best match from the `RMSProducts` list.
+   - Match by product name, brand, key attributes (e.g. ""red wine"" ≠ ""white wine"").
+   - Match by unit: `kg`, `l`, `pcs` must be semantically compatible.
+
+   ➤ **If a match is found**:
+   - Copy all fields (`Id`, `Name`, `Description`, `Num`, `Unit`, `Containers`) into the `RMSProduct`.
+
+   ➤ **If no match is found**:
+   - Create a new RMSProduct.
+   - For a new RMSProduct, fill only `Name`, `Description`, `Unit` (selected from `MeasureUnits` dictionary)..
+   - Leave `Id` and `Num` as `null`.
+   - Set `NewRMSProduct = true`.
+
+---
+
+### 📦 Container (RMSContainer) Matching Logic
+
+1. **If InvoiceProduct has only simple unit (e.g., `KG`, `L`, `pcs`), no explicit container info and container field is empty**:
+   - Leave `RMSContainer` empty (`null` or fields not filled).
+   - Set `NewRMSContainer = false`.
+
+2. **If InvoiceProduct has a container or packaging (e.g., ""Box6KG"", ""Btl 0.33L"", ""24x0.33L"")**:
+   - Try to match the container to one from `RMSProduct.Containers`.
+   - Match by:
+     - Name (semantic similarity, abbreviations),
+     - Count (volume or quantity inside container),
+     - Unit consistency.
+
+   ➤ **If matched container exists**:
+   - Copy it to `RMSContainer`.
+   - Set `NewRMSContainer = false`.
+
+   ➤ **If not found, and container looks standard (box, bottle, pack, etc.)**:
+   - Create a new RMSContainer.
+   - Fill only `Name` and `Count` (e.g., `""Box6KG""`, `6.0`).
+   - Leave `Id` and `Num` as `null`.
+   - Set `NewRMSContainer = true`.
+
+3. **Ensure consistency**:
+   - Container Count and Unit must be logically consistent with the RMSProduct's main unit and InvoiceProduct's Unit.
+
+---
+
+### 🏷 Storage Assignment
+
+- For each product, assign the most appropriate **Storage** based on product type and meaning.
+
+- The available storages are provided in the input as StorageList.  
+  - Always choose one of the storages from that list.
+  - Match based on semantic meaning and intended use of the product.
+
+- Use the following as general **guidelines**:
+  - If the product is a food item, ingredient, grocery, or kitchen-use — assign to something like `""Kitchen""`.
+  - If the product is a drink, alcohol, mixer, or bar-related — assign to something like `""Bar""`.
+  - If the product is intended for resale, takeaway, or is branded merchandise — assign to something like `""Retail""`.
+  - If the product is a cleaning item, maintenance, or non-consumable — assign to something like `""Household""`.
+
+- If the storage name does not exactly match `""Kitchen""`, `""Bar""`, `""Retail""`, or `""Household""` analyze its meaning and pick the closest appropriate one.
+
+- Fill the `Storage` field with the exact name of the selected storage from the list.
+
+
+### ⚙️ JSON Output Rules
+
+- Strictly follow this response structure:
+
+```json
+{{
+  ""MatchedInvoiceProducts"": [
+    {{
+      ""InvoiceProduct"": {{
+        ""Id"": 1,
+        ""ProductCode"": ""123456"",
+        ""ProductName"": ""CERVEJA SUPER BOCK 24X33CL"",
+        ""Unit"": ""btl"",
+        ""Container"": ""Box 24x33cl"",
+        ""UnitsCount"": 24,
+        ""QuantityOfContainers"": 1
+      }},
+      ""RMSProduct"": {{
+        ""Id"": 321,
+        ""Name"": ""SUPER BOCK CERVEJA"",
+        ""Description"": ""Cerveja portuguesa 33cl"",
+        ""Num"": ""PRD-00992"",
+        ""Unit"": ""btl"",
+        ""Containers"": [
+          {{
+            ""Id"": 102,
+            ""Num"": ""CONT-0054"",
+            ""Name"": ""Box 24x33cl"",
+            ""Count"": 24
+          }}
+        ]
+      }},
+      ""RMSContainer"": {{
+        ""Id"": 102,
+        ""Num"": ""CONT-0054"",
+        ""Name"": ""Box 24x33cl"",
+        ""Count"": 24
+      }},
+      ""NewRMSProduct"": false,
+      ""NewRMSContainer"": false,
+      ""Storage"": ""Bar"",
+      ""Comments"": ""Matched by name and packaging.""
+    }}
+  ]
+}}
+
+
+";
 
 
 

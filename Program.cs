@@ -2,19 +2,20 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-
+using System.Net;
 using UpRestEye3.Components;
+using UpRestEye3.Components.Account;
+using UpRestEye3.Controllers;
 using UpRestEye3.Data;
 using UpRestEye3.Models.Account;
-using UpRestEye3.Components.Account;
 using UpRestEye3.Services;
+using UpRestEye3.Services.Account;
 using UpRestEye3.Services.BusinessLogic;
 using UpRestEye3.Services.DataLayer;
+using UpRestEye3.Services.Integration;
 using UpRestEye3.Services.MLServices;
 using UpRestEye3.Services.Recognition;
-using UpRestEye3.Services.Account;
-using UpRestEye3.Controllers;
-using UpRestEye3.Services.Integration;
+using static UpRestEye3.Services.BusinessLogic.NetworkHelper;
 
 
 // TODO добавить логирование
@@ -104,6 +105,24 @@ builder.Services.AddScoped<IRMSAccountsService, RMSAccountsService>();
 
 
 
+//// Configure AppConfig
+//var appConfig = new AppConfig
+//{
+//    IpAddress = NetworkHelper.GetLocalIpAddress()
+//};
+//builder.Services.AddSingleton(appConfig);
+
+
+//// Настройка Kestrel для использования сертификата
+//builder.WebHost.ConfigureKestrel(serverOptions =>
+//{
+//    serverOptions.Listen(IPAddress.Parse("192.168.1.124"), 7124, listenOptions =>
+//    {
+//        // Путь к PFX файлу и пароль, который вы указали при экспорте
+//        listenOptions.UseHttps("c:\\certs\\ipcert.pfx", "certPwd1!");
+//    });
+//});
+
 var app = builder.Build();
 
 //----------------------------------------------------------------------------------------
@@ -160,4 +179,4 @@ using (var scope = app.Services.CreateScope())
 
 
 app.Run();
-
+//app.Run($"https://{appConfig.IpAddress}:{appConfig.HttpsPort}");

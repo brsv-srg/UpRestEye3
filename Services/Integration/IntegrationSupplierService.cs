@@ -50,10 +50,13 @@ namespace UpRestEye3.Services.BusinessLogic
                 await InitConnectionParams(consumerId);
                 await AuthenticateAsync();
                 var suppliersRMS = await GetSuppliersAsync();
+
+                var suppliersRMSWithNIF = suppliersRMS.EmployeeList.Where(supplierRMS => !string.IsNullOrEmpty(supplierRMS.TaxpayerIdNumber)).ToList();
+
                 var suppliersThis = await _supplierService.GetSuppliersDTOAsync(consumerId);
                 
 
-                foreach (var supplierRMS in suppliersRMS.EmployeeList)
+                foreach (var supplierRMS in suppliersRMSWithNIF)
                 {
                     var supplierThis = suppliersThis.Where(s => s.RMSSupplierId != null && 
                                                                 s.RMSSupplierId != Guid.Empty && 

@@ -17,7 +17,7 @@ namespace UpRestEye3.Migrations
             migrationBuilder.RenameColumn(
                 name: "Price",
                 table: "InvoiceProducts",
-                newName: "UnitsCountInContainer");
+                newName: "UnitsCount");
 
             migrationBuilder.AddColumn<string>(
                 name: "Container",
@@ -57,7 +57,7 @@ namespace UpRestEye3.Migrations
                 table: "InvoiceProducts");
 
             migrationBuilder.RenameColumn(
-                name: "UnitsCountInContainer",
+                name: "UnitsCount",
                 table: "InvoiceProducts",
                 newName: "Price");
 
