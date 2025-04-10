@@ -69,8 +69,9 @@ namespace UpRestEye3.Services.BusinessLogic
     {
         public override void Validate(InvoiceDTO invoice, string customerTaxId)
         {
+            
             if (invoice.Products.Any(p => string.IsNullOrEmpty(p.ProductName) ||
-                                           p.ProductTotalValue <= 0 ||
+                                           p.ProductTotalValue < 0 ||
                                            p.TaxCategory == null ||
                                            string.IsNullOrEmpty(p.Unit) ||
                                            p.Quantity <= 0
@@ -84,11 +85,11 @@ namespace UpRestEye3.Services.BusinessLogic
             }
 
             var totalProductPrice = invoice.Products.Sum(p => p.ProductTotalValue); // * (decimal)p.Quantity);
-            if (totalProductPrice == invoice.TotalAmount)
+            if (Math.Abs(totalProductPrice - invoice.TotalAmount) <= 0.02m)
             {
                 invoice.ProductsTaxIncluded = true;
             }
-            else if (totalProductPrice == (invoice.TotalAmount - invoice.TotalIVA))
+            else if (Math.Abs(totalProductPrice - (invoice.TotalAmount - invoice.TotalIVA)) <= 0.02m)
             {
                 invoice.ProductsTaxIncluded = false;
             }

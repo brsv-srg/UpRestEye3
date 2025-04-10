@@ -133,7 +133,10 @@ public class ImageLoader
                 Bitmap newBitmap = new Bitmap(bitmap.Width, bitmap.Height, PixelFormat.Format32bppArgb);
                 using (Graphics g = Graphics.FromImage(newBitmap))
                 {
-                    g.DrawImage(bitmap, 0, 0);
+                    g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                    g.DrawImage(bitmap, new Rectangle(0, 0, bitmap.Width, bitmap.Height));
                 }
 
                 newBitmap.Save(outputFilePath, ImageFormat.Png);

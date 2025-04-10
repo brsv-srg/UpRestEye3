@@ -601,6 +601,8 @@
             Console.WriteLine($"An error occurred: {ex.Message}");
         }
     }
+
+
     private async Task LoadSuppliersAsync() // Добавлено: Метод для загрузки списка поставщиков
     {
         try
@@ -619,6 +621,7 @@
         }
     }
 
+
     private async Task LoadStoragesAsync() // Добавлено: Метод для загрузки списка cкладов
     {
         try
@@ -635,6 +638,7 @@
         }
     }
 
+
     private async Task LoadRMSProductsAsync() // Добавлено: Метод для загрузки списка продуктов
     {
         try
@@ -650,6 +654,7 @@
             Console.WriteLine($"An error occurred: {ex.Message}");
         }
     }
+
 
     private async Task InitializeSignalRAsync()
     {
@@ -668,12 +673,14 @@
         await hubConnection.StartAsync();
     }
 
+
     private void HandleFileSelected(InputFileChangeEventArgs e)
     {
         selectedFile = e.File;
         Console.WriteLine("File selected: " + selectedFile.Name);
         UploadFile();
     }
+
 
     private async Task UploadFile()
     {

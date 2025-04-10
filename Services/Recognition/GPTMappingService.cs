@@ -1,11 +1,13 @@
-﻿using System.Net.Http.Headers;
-using System.Text.Json;
+﻿using System.Drawing;
+using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
-using UpRestEye3.Models.DTO;
-using UpRestEye3.Models.BLO;
-using UpRestEye3.Services.BusinessLogic;
-using System.Drawing;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using UpRestEye3.Components.Pages;
+using UpRestEye3.Models.BLO;
+using UpRestEye3.Models.DTO;
+using UpRestEye3.Services.BusinessLogic;
 using static Google.Apis.Requests.BatchRequest;
 
 namespace UpRestEye3.Services.Recognition
@@ -47,7 +49,7 @@ namespace UpRestEye3.Services.Recognition
 
                 Console.WriteLine($"Sending request to OpenAI API:..{httpContent.ToString()}");
 
-                for (int attempt = 0; attempt < 4; attempt++)
+                for (int attempt = 0; attempt < 3; attempt++)
                 {
                     // Отправка POST-запроса
                     var response = await httpClient.PostAsync(_env.GetURL(), httpContent);
@@ -56,12 +58,19 @@ namespace UpRestEye3.Services.Recognition
                     if (!response.IsSuccessStatusCode)
                     {
                         var errorContent = await response.Content.ReadAsStringAsync();
-                        Console.WriteLine($"Rate limit exceeded. Retrying after 30 seconds.");
 
-                        if (attempt >= 3)
-                            throw new Exception($"OpenAI API error: {errorContent}");
-                        else
-                            await Task.Delay(30 * 1000);
+                        if (response.StatusCode == (HttpStatusCode)429) // Too Many Requests
+                        {
+                            var retryAfter = ExtractRetryAfterSeconds(errorContent);
+                            if (!retryAfter.HasValue)
+                                retryAfter = 30;
+
+                            Console.WriteLine($"Rate limit exceeded. Retrying after {retryAfter.Value} seconds.");
+                            await Task.Delay(retryAfter.Value * 1000);
+                            continue;
+                        }
+
+                        throw new Exception($"OpenAI API error: {errorContent}");
                     }
                     else
                     {
@@ -86,7 +95,31 @@ namespace UpRestEye3.Services.Recognition
             }
         }
 
+        private int? ExtractRetryAfterSeconds(string errorContent)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(errorContent);
+                var root = document.RootElement;
 
+                if (root.TryGetProperty("error", out JsonElement errorElement) &&
+                    errorElement.TryGetProperty("message", out JsonElement messageElement))
+                {
+                    var message = messageElement.GetString();
+                    var match = Regex.Match(message, @"Please try again in (\d+(\.\d+)?)s", RegexOptions.IgnoreCase);
+                    if (match.Success && double.TryParse(match.Groups[1].Value, out double retryAfter))
+                    {
+                        return (int)Math.Ceiling(retryAfter);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error parsing retry-after seconds: {ex.Message}");
+            }
+
+            return null;
+        }
 
         private MatchedInvoiceProducts ResponseParsing(string responseContent)
         {
