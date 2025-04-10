@@ -85,7 +85,8 @@ namespace UpRestEye3.Services.Integration
                     var responseValue = (DocumentValidationResult)deserializer.Deserialize(reader);
                     if (responseValue != null)
                     {
-                        invoiceDTO.Status = InvoiceStatusEnum.SavedToSystem;
+                        invoiceDTO.Stage = InvoiceStageEnum.SavedToSystem;
+                        invoiceDTO.StageStatus = InvoiceStatusEnum.Ok;
                         return invoiceDTO;
                     }
                     else
@@ -97,7 +98,7 @@ namespace UpRestEye3.Services.Integration
             }
             catch (Exception ex)
             {
-                invoiceDTO.Status = InvoiceStatusEnum.UploadError;
+                invoiceDTO.StageStatus = InvoiceStatusEnum.Error;
                 invoiceDTO.Comments = ex.Message;
                 Console.WriteLine($"Error writing Invoice to RMS: {ex.Message}");
                 return invoiceDTO;

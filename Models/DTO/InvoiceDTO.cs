@@ -23,11 +23,12 @@ namespace UpRestEye3.Models.DTO
 
         public string Comments { get; set; } = string.Empty;
 
-        public InvoiceStatusEnum Status { get; set; } = InvoiceStatusEnum.New;
-
         public bool IsSelected { get; set; } = false;
 
         public bool ProductsTaxIncluded { get; set; } = false;
+
+        public InvoiceStageEnum Stage { get; set; } = InvoiceStageEnum.New;
+        public InvoiceStatusEnum StageStatus { get; set; } = InvoiceStatusEnum.Ok;
 
         // Default constructor
         public InvoiceDTO()

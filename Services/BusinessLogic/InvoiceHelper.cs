@@ -70,19 +70,15 @@ namespace UpRestEye3.Services.BusinessLogic
                 if (qrCode.Base23 > 0)
                     invoice.TaxCategories.Add(new TaxesDTO { TaxCategory = GetTaxCategory("23%"), Base = qrCode.Base23, IVA = qrCode.IVA23, Total = qrCode.Base23 + qrCode.IVA23 });
 
-                invoice.Status = InvoiceStatusEnum.QRCodeProcessed;
-                invoice.FilePath = filePath;
-            }
-            else
-            if (filePath != null)
-            {
-                invoice.Status = InvoiceStatusEnum.RawFile;
+                invoice.Stage = InvoiceStageEnum.QRCodeProcessed;
+                invoice.StageStatus = InvoiceStatusEnum.Ok;
                 invoice.FilePath = filePath;
             }
             else
             {
-                invoice.Status = InvoiceStatusEnum.QRError;
-                throw new ArgumentException("Both QRCodeData and filePath are null");
+                invoice.Stage = InvoiceStageEnum.QRCodeProcessed;
+                invoice.StageStatus = InvoiceStatusEnum.Error;
+                throw new ArgumentException("QRCodeData are null");
             }
         }
 
@@ -154,9 +150,14 @@ namespace UpRestEye3.Services.BusinessLogic
                 Total = t.Total
             }).ToList();
 
-            if (invoiceSource.Status != null)
+            if (invoiceSource.Stage != null)
             {
-                invoiceTarget.Status = invoiceSource.Status;
+                invoiceTarget.Stage = invoiceSource.Stage;
+            }
+            
+            if (invoiceSource.StageStatus != null)
+            {
+                invoiceTarget.StageStatus = invoiceSource.StageStatus;
             }
 
             if (!string.IsNullOrWhiteSpace(invoiceSource.FilePath))
@@ -166,73 +167,6 @@ namespace UpRestEye3.Services.BusinessLogic
 
         }
 
-        public static void CopyInvoice(InvoiceDAO invoiceTarget, InvoiceDAO invoiceSource)
-        {
-            if (invoiceTarget.Supplier == null)
-            {
-                invoiceTarget.Supplier = new SupplierDAO();
-            }
-            if (invoiceSource.Supplier != null)
-            {
-                invoiceTarget.Supplier.Id = invoiceSource.Supplier.Id;
-                invoiceTarget.Supplier.Name = invoiceSource.Supplier.Name;
-                invoiceTarget.Supplier.TaxNumber = invoiceSource.Supplier.TaxNumber;
-                invoiceTarget.Supplier.BankAccount = invoiceSource.Supplier.BankAccount;
-                invoiceTarget.Supplier.RMSSupplierId = invoiceSource.Supplier.RMSSupplierId;
-            }
-            invoiceTarget.SupplierId = invoiceSource.SupplierId;
-
-
-            if (invoiceTarget.Consumer == null)
-            {
-                invoiceTarget.Consumer = new ConsumerDAO();
-            }
-            if (invoiceSource.Consumer != null)
-            {
-                invoiceTarget.Consumer.Id = invoiceSource.Consumer.Id;
-                invoiceTarget.Consumer.Name = invoiceSource.Consumer.Name;
-                invoiceTarget.Consumer.TaxNumber = invoiceSource.Consumer.TaxNumber;
-            }
-            invoiceTarget.ConsumerId = invoiceSource.ConsumerId;
-
-            invoiceTarget.Id = invoiceSource.Id;
-            invoiceTarget.InvoiceNumber = invoiceSource.InvoiceNumber;
-            invoiceTarget.InvoiceDate = invoiceSource.InvoiceDate;
-            invoiceTarget.TotalIVA = invoiceSource.TotalIVA;
-            invoiceTarget.TotalAmount = invoiceSource.TotalAmount;
-
-            invoiceTarget.Products = invoiceSource.Products.Select(p => new InvoiceProductDAO
-            {
-                Id = p.Id,
-                InvoiceId = p.InvoiceId,
-                ProductCode = p.ProductCode,
-                ProductName = p.ProductName,
-                Unit = p.Unit,
-                Quantity = p.Quantity,
-                Container = p.Container,
-                Count = p.Count,
-                ProductTotalValue = p.ProductTotalValue,
-                TaxCategory = p.TaxCategory,
-                RMSProduct = RMSProductHelper.CopyRMSProductDAO(p.RMSProduct),
-                RMSContainer = RMSProductHelper.CopyRMSContainerDAO(p.RMSContainer),
-                RMSStorage = RMSProductHelper.CopyRMSStorageDAO(p.RMSStorage),
-                Comments = p.Comments
-    }).ToList();
-
-            invoiceTarget.TaxCategories = invoiceSource.TaxCategories.Select(t => new TaxesDAO
-            {
-                Id = t.Id,
-                InvoiceId = t.InvoiceId,
-                TaxCategory = t.TaxCategory,
-                Base = t.Base,
-                IVA = t.IVA,
-                Total = t.Total
-            }).ToList();
-
-            invoiceTarget.Status = invoiceSource.Status;
-
-            invoiceTarget.FilePath = invoiceSource.FilePath;
-        }
 
         public static TaxCategoryEnum GetTaxCategory(string stringCategory)
         {
@@ -276,8 +210,6 @@ namespace UpRestEye3.Services.BusinessLogic
                     throw new ArgumentException("Invalid category string");
             }
         }
-
-
 
 
         public static InvoiceDTO? BuildInvoiceDTO(InvoiceDAO? invoiceDAO)
@@ -345,7 +277,8 @@ namespace UpRestEye3.Services.BusinessLogic
             invoiceDTO.FilePath = invoiceDAO.FilePath;
             invoiceDTO.UploadTime = invoiceDAO.UploadTime;
             invoiceDTO.Comments = invoiceDAO.Comments;
-            invoiceDTO.Status = invoiceDAO.Status;
+            invoiceDTO.Stage = invoiceDAO.Stage;
+            invoiceDTO.StageStatus = invoiceDAO.StageStatus;
             return invoiceDTO;
         }
 
@@ -422,7 +355,8 @@ namespace UpRestEye3.Services.BusinessLogic
                 invoiceDAO.FilePath = invoiceDTO.FilePath;
                 invoiceDAO.UploadTime = invoiceDTO.UploadTime;
                 invoiceDAO.Comments = invoiceDTO.Comments;
-                invoiceDAO.Status = invoiceDTO.Status;
+                invoiceDAO.Stage = invoiceDTO.Stage;
+                invoiceDAO.StageStatus = invoiceDTO.StageStatus;
                 return invoiceDAO;
             }
             catch (Exception ex)

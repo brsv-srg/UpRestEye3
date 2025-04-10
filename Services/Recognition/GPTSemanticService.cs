@@ -62,7 +62,7 @@ namespace UpRestEye3.Services.Recognition
 
             if (invoice != null && invoice.Products != null)
             {
-                currentInvoice.Status = InvoiceStatusEnum.TextProcessed;
+                currentInvoice.StageStatus = InvoiceStatusEnum.Error;
                 currentInvoice.Products = invoice.Products;
 
             }

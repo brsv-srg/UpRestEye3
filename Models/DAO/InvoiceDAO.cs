@@ -22,7 +22,9 @@ namespace UpRestEye3.Models.DAO
         public string FilePath { get; set; } = string.Empty;
         public DateTime UploadTime { get; set; } = DateTime.Now;
         public string Comments { get; set; } = string.Empty;
-        public InvoiceStatusEnum Status { get; set; } = InvoiceStatusEnum.New;
+
+        public InvoiceStageEnum Stage { get; set; } = InvoiceStageEnum.New;
+        public InvoiceStatusEnum StageStatus { get; set; } = InvoiceStatusEnum.Ok;
 
         // Default constructor
         public InvoiceDAO()

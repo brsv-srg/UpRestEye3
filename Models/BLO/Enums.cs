@@ -3,18 +3,18 @@
   
     public enum InvoiceStatusEnum
     {
+        Ok,
+        Error,
+        Manual
+    }
+
+    public enum InvoiceStageEnum
+    {
         New,
-        RawFile,
         QRCodeProcessed,
         TextProcessed,
         ProductsMapped,
-        AttentionRequired,
-        SavedToSystem,
-        QRError,
-        TextRecognitionError,
-        MappingError,
-        UploadError,
-        ProcessError
+        SavedToSystem
     }
 
     public enum TaxCategoryEnum

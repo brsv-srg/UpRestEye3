@@ -63,7 +63,8 @@ namespace UpRestEye3.Services.BusinessLogic
 
                     // Сохранение пустой накладной в базу данных
                     workingInvoice.FilePath = filePath;
-                    workingInvoice.Status = InvoiceStatusEnum.New;
+                    workingInvoice.Stage = InvoiceStageEnum.New;
+                    workingInvoice.StageStatus = InvoiceStatusEnum.Ok;
                     workingInvoice.Consumer = new ConsumerDTO()
                     {
                         Name = consumer.Name,
@@ -95,7 +96,7 @@ namespace UpRestEye3.Services.BusinessLogic
                         // Проверяем тот ли Consumer
                         if (basicQRCode.CustomerTaxNumber != consumer.TaxNumber)
                         {
-                            workingInvoice.Status = InvoiceStatusEnum.QRError;
+                            workingInvoice.StageStatus = InvoiceStatusEnum.Error;
                             throw new Exception("ConsumerId not match");
                         }
 
@@ -103,15 +104,15 @@ namespace UpRestEye3.Services.BusinessLogic
                         InvoiceHelper.UpdateInvoiceByQR(workingInvoice, basicQRCode, filePath);
 
                         // Валидация накладной после QR
-                        var validatorQR = InvoiceValidatorBase.CreateValidator(InvoiceStatusEnum.QRCodeProcessed);
+                        var validatorQR = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.QRCodeProcessed);
                         validatorQR.Validate(workingInvoice, consumer.TaxNumber);
 
                         // Сохранение изменений в базу данных
                         invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
 
-                        if (invoiceId == null || workingInvoice.Status != InvoiceStatusEnum.QRCodeProcessed)
+                        if (invoiceId == null || workingInvoice.Stage != InvoiceStageEnum.QRCodeProcessed)
                         {
-                            workingInvoice.Status = InvoiceStatusEnum.QRError;
+                            workingInvoice.StageStatus = InvoiceStatusEnum.Error;
                             throw new Exception("Failed to recognize QR-code.");
                         }
 
@@ -132,7 +133,7 @@ namespace UpRestEye3.Services.BusinessLogic
                             // Проверяем тот ли Consumer
                             if (deepQRCode.CustomerTaxNumber != consumer.TaxNumber)
                             {
-                                workingInvoice.Status = InvoiceStatusEnum.QRError;
+                                workingInvoice.StageStatus = InvoiceStatusEnum.Error;
                                 throw new Exception("ConsumerId not match");
                             }
 
@@ -140,15 +141,15 @@ namespace UpRestEye3.Services.BusinessLogic
                             InvoiceHelper.UpdateInvoiceByQR(workingInvoice, deepQRCode, filePath);
                             
                             // Валидация накладной после QR
-                            var validatorQR = InvoiceValidatorBase.CreateValidator(InvoiceStatusEnum.QRCodeProcessed);
+                            var validatorQR = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.QRCodeProcessed);
                             validatorQR.Validate(workingInvoice, consumer.TaxNumber);
 
                             // Сохранение изменений в базу данных
                             invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
 
-                            if (invoiceId == null || workingInvoice.Status != InvoiceStatusEnum.QRCodeProcessed)
+                            if (invoiceId == null || workingInvoice.Stage != InvoiceStageEnum.QRCodeProcessed)
                             {
-                                workingInvoice.Status = InvoiceStatusEnum.QRError;
+                                workingInvoice.StageStatus = InvoiceStatusEnum.Error;
                                 throw new Exception("Failed to recognize QR-code.");
                             }
 
@@ -161,7 +162,7 @@ namespace UpRestEye3.Services.BusinessLogic
                         }
                         else
                         {
-                            workingInvoice.Status = InvoiceStatusEnum.QRError;
+                            workingInvoice.StageStatus = InvoiceStatusEnum.Error;
                             throw new Exception("Failed to recognize QR-code.");
                         }
                     }
@@ -169,7 +170,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     var measUnits = await rmsMeasureUnitsService.GetUnitsByConsumerIdAsync((int)consumerId);
                     if (measUnits == null)
                     {
-                        workingInvoice.Status = InvoiceStatusEnum.TextRecognitionError;
+                        workingInvoice.StageStatus = InvoiceStatusEnum.Error;
                         throw new Exception("Failed to get measure units.");
                     }
 
@@ -182,15 +183,15 @@ namespace UpRestEye3.Services.BusinessLogic
                         InvoiceHelper.CopyInvoice(workingInvoice, recognisedInvoice);
 
                         // Валидация накладной после распознавания
-                        var validatorText = InvoiceValidatorBase.CreateValidator(InvoiceStatusEnum.TextProcessed);
+                        var validatorText = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.TextProcessed);
                         validatorText.Validate(workingInvoice, consumer.TaxNumber);
 
                         // Cохранение изменений в базу данных
                         invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
 
-                        if (invoiceId == null || workingInvoice.Status != InvoiceStatusEnum.TextProcessed)
+                        if (invoiceId == null || workingInvoice.Stage != InvoiceStageEnum.TextProcessed)
                         {
-                            workingInvoice.Status = InvoiceStatusEnum.TextRecognitionError;
+                            workingInvoice.StageStatus = InvoiceStatusEnum.Error;
                             throw new Exception("Failed to text recognize.");
                         }
 
@@ -202,7 +203,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     }
                     else
                     {
-                        workingInvoice.Status = InvoiceStatusEnum.TextRecognitionError;
+                        workingInvoice.StageStatus = InvoiceStatusEnum.Error;
                         throw new Exception("Failed to recognize text.");
                     }
 
@@ -230,7 +231,7 @@ namespace UpRestEye3.Services.BusinessLogic
                             newRMSProduct.Id = await rmsProductService.SaveProductAsync(newRMSProduct);
                             if (newRMSProduct.Id == null)
                             {
-                                workingInvoice.Status = InvoiceStatusEnum.MappingError;
+                                workingInvoice.StageStatus = InvoiceStatusEnum.Error;
                                 throw new Exception("Failed to save product.");
                             }   
 
@@ -245,15 +246,15 @@ namespace UpRestEye3.Services.BusinessLogic
                         InvoiceHelper.CopyInvoice(workingInvoice, mappedInvoice);
 
                         // Валидация накладной после распознавания
-                        var validatorMapp = InvoiceValidatorBase.CreateValidator(InvoiceStatusEnum.ProductsMapped);
+                        var validatorMapp = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.ProductsMapped);
                         validatorMapp.Validate(workingInvoice, consumer.TaxNumber);
 
                         // Cохранение изменений в базу данных
                         invoiceId = await invoiceService.SaveInvoiceAsync(workingInvoice);
 
-                        if (invoiceId == null || workingInvoice.Status != InvoiceStatusEnum.ProductsMapped)
+                        if (invoiceId == null || workingInvoice.Stage != InvoiceStageEnum.ProductsMapped)
                         {
-                            workingInvoice.Status = InvoiceStatusEnum.MappingError;
+                            workingInvoice.StageStatus = InvoiceStatusEnum.Error;
                             throw new Exception("Failed of product mapping.");
                         }
 
@@ -261,7 +262,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     }
                     else
                     {
-                        workingInvoice.Status = InvoiceStatusEnum.MappingError;
+                        workingInvoice.StageStatus = InvoiceStatusEnum.Error;
                         throw new Exception("Failed to map products.");
                     }
 
@@ -272,11 +273,12 @@ namespace UpRestEye3.Services.BusinessLogic
                 }
                 catch (Exception ex)
                 {
-                    workingInvoice.Comments += "; " + ex.Message;
-                    if (workingInvoice.Status != InvoiceStatusEnum.QRError && 
-                            workingInvoice.Status != InvoiceStatusEnum.TextRecognitionError && 
-                            workingInvoice.Status != InvoiceStatusEnum.MappingError)
-                        workingInvoice.Status = InvoiceStatusEnum.ProcessError;
+
+                    if (!string.IsNullOrWhiteSpace(workingInvoice.Comments))
+                        workingInvoice.Comments += "; ";
+                    workingInvoice.Comments += ex.Message;
+
+                    workingInvoice.StageStatus = InvoiceStatusEnum.Error;
 
                     await invoiceService.SaveInvoiceAsync(workingInvoice);
 

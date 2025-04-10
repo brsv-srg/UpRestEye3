@@ -208,24 +208,42 @@ namespace UpRestEye3.Services.BusinessLogic
                 var stringValue = reader.GetString();
                 return stringValue switch
                 {
-                    var s when s.Contains("New") => InvoiceStatusEnum.New,
-                    var s when s.Contains("RawFile") => InvoiceStatusEnum.RawFile,
-                    var s when s.Contains("QRCodeProcessed") => InvoiceStatusEnum.QRCodeProcessed,
-                    var s when s.Contains("TextProcessed") => InvoiceStatusEnum.TextProcessed,
-                    var s when s.Contains("ProductsMapped") => InvoiceStatusEnum.ProductsMapped,
-                    var s when s.Contains("SavedToSystem") => InvoiceStatusEnum.SavedToSystem,
-                    var s when s.Contains("TextRecognitionError") => InvoiceStatusEnum.TextRecognitionError,
-                    var s when s.Contains("QRError") => InvoiceStatusEnum.QRError,
-                    var s when s.Contains("MappingError") => InvoiceStatusEnum.MappingError,
-                    var s when s.Contains("UploadError") => InvoiceStatusEnum.UploadError,
-                    var s when s.Contains("ProcessError") => InvoiceStatusEnum.ProcessError,
-                    _ => throw new JsonException("Invalid token type for TaxCategory.")
+                    var s when s.Contains("Ok") => InvoiceStatusEnum.Ok,
+                    var s when s.Contains("Error") => InvoiceStatusEnum.Error,
+                    var s when s.Contains("Manual") => InvoiceStatusEnum.Manual,
+                    _ => throw new JsonException("Invalid token type for Invoice Stage Status.")
                 };
             }
-            throw new JsonException("Invalid token type for TaxCategory.");
+            throw new JsonException("Invalid token type for Invoice Stage Status.");
         }
         
         public override void Write(Utf8JsonWriter writer, InvoiceStatusEnum value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString());
+        }
+    }
+
+    public class InvoiceStageEnumJsonConverter : JsonConverter<InvoiceStageEnum>
+    {
+        public override InvoiceStageEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                var stringValue = reader.GetString();
+                return stringValue switch
+                {
+                    var s when s.Contains("New") => InvoiceStageEnum.New,
+                    var s when s.Contains("QRCodeProcessed") => InvoiceStageEnum.QRCodeProcessed,
+                    var s when s.Contains("TextProcessed") => InvoiceStageEnum.TextProcessed,
+                    var s when s.Contains("ProductsMapped") => InvoiceStageEnum.ProductsMapped,
+                    var s when s.Contains("SavedToSystem") => InvoiceStageEnum.SavedToSystem,
+                    _ => throw new JsonException("Invalid token type for Invoice Stage.")
+                };
+            }
+            throw new JsonException("Invalid token type for Invoice Stage.");
+        }
+        
+        public override void Write(Utf8JsonWriter writer, InvoiceStageEnum value, JsonSerializerOptions options)
         {
             writer.WriteStringValue(value.ToString());
         }
@@ -342,7 +360,9 @@ namespace UpRestEye3.Services.BusinessLogic
             {
 
                 InvoiceDTO invoice = new InvoiceDTO();
-                invoice.Status = InvoiceStatusEnum.ProductsMapped;
+                invoice.Stage = InvoiceStageEnum.ProductsMapped;
+                invoice.StageStatus = InvoiceStatusEnum.Ok;
+
 
                 var options = JsonHelper.GetSerializerOptions();
                 string invoiceJsonString = JsonSerializer.Serialize(invoice, options);
@@ -418,6 +438,7 @@ namespace UpRestEye3.Services.BusinessLogic
                                             new IntegerJsonConverter(),
                                             new TaxCategoryEnumJsonConverter(),
                                             new InvoiceStatusEnumJsonConverter(),
+                                            new InvoiceStageEnumJsonConverter(),
                                             new RMSProductStatusEnumJsonConverter(),
                                             new ItemTypeEnumJsonConverter(),
                                             new RectangleCoordinatesConverter()},

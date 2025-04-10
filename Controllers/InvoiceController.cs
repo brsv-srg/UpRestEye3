@@ -41,7 +41,7 @@ namespace UpRestEye3.Controllers
             try
             { 
                 // Валидация накладной после QR
-                var validator = InvoiceValidatorBase.CreateValidator(invoice.Status);
+                var validator = InvoiceValidatorBase.CreateValidator(invoice.Stage);
                 validator.Validate(invoice, invoice.Consumer.TaxNumber);
 
                 var invoiceId = await _invoiceService.SaveInvoiceAsync(invoice);
@@ -50,7 +50,7 @@ namespace UpRestEye3.Controllers
             }
             catch (Exception e)
             {
-                invoice.Status = InvoiceStatusEnum.ProcessError;
+                invoice.StageStatus = InvoiceStatusEnum.Manual;
                 invoice.Comments += "; " + e.Message;
                 await _invoiceService.SaveInvoiceAsync(invoice);
                 Console.WriteLine(e);
@@ -59,13 +59,15 @@ namespace UpRestEye3.Controllers
         }
 
 
+        //todo переделать на общий процессный движок
+
         [HttpPost("upload")]
         public async Task<ActionResult<InvoiceDTO>> UploadInvoice(InvoiceDTO invoiceToUpload)
         {
             try
             {
                 var result = await _integrationService.PostInvoiceAsync(invoiceToUpload);
-                if (result != null && result.Status != InvoiceStatusEnum.UploadError )
+                if (result != null && result.Stage == InvoiceStageEnum.SavedToSystem && result.StageStatus != InvoiceStatusEnum.Error)
                 {
                     await _invoiceService.SaveInvoiceAsync(invoiceToUpload);
                     return Ok(invoiceToUpload);
@@ -75,7 +77,7 @@ namespace UpRestEye3.Controllers
             }
             catch (Exception e)
             {
-                invoiceToUpload.Status = InvoiceStatusEnum.UploadError;
+                invoiceToUpload.StageStatus = InvoiceStatusEnum.Error;
                 invoiceToUpload.Comments += "; " + e.Message;
                 await _invoiceService.SaveInvoiceAsync(invoiceToUpload);
                 Console.WriteLine(e);

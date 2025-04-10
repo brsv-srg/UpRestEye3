@@ -41,7 +41,8 @@ namespace UpRestEye3.Services.BusinessLogic
                 // Если Invoice замеплен и есть новые продукты, то связываем их с Invoice Products
                 if (mappingResult != null)
                 {
-                    currentInvoice.Status = InvoiceStatusEnum.ProductsMapped;
+                    currentInvoice.Stage = InvoiceStageEnum.ProductsMapped;
+                    currentInvoice.StageStatus = InvoiceStatusEnum.Ok;
 
                     // Проходим по всем замапленным продуктам
                     foreach (var mappedProducts in mappingResult)
