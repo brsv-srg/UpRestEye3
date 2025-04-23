@@ -122,7 +122,7 @@ namespace UpRestEye3.Services.Integration
 
         private async Task<List<GetProductDTO>> GetProductsAsync()
         {
-            var productsUrl = $"{_apiUrl}api/v2/entities/products/list?includeDeleted=false&type=GOODS&key={_token}";
+            var productsUrl = $"{_apiUrl}api/v2/entities/products/list?includeDeleted=false&type=GOODS&type=SERVICE&key={_token}";
 
             _httpClient.DefaultRequestHeaders.AcceptLanguage.Add(new StringWithQualityHeaderValue("en-GB"));
 
@@ -144,7 +144,8 @@ namespace UpRestEye3.Services.Integration
                 Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }*/
             });
 
-            return products?.Where(p => p.type == "GOODS")?.ToList() ?? new List<GetProductDTO>();
+            return products?.Where(p => p.type == "GOODS" || p.type == "SERVICE")?.ToList() ?? new List<GetProductDTO>();
+            //return products;
         }
 
 

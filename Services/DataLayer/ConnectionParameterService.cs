@@ -28,6 +28,7 @@ namespace UpRestEye3.Services.DataLayer
         {
             var connectionParameterDAO = await _context.ConnectionParameters
                 .Include(p => p.Consumer)
+                .Include(cp => cp.DeliveryService)
                 .FirstOrDefaultAsync(cp => cp.ConsumerId == consumerId);
             return connectionParameterDAO != null ? new ConnectionParameterDTO
             {
@@ -35,7 +36,9 @@ namespace UpRestEye3.Services.DataLayer
                 ApiLogin = connectionParameterDAO.ApiLogin,
                 ApiPassword = connectionParameterDAO.ApiPassword,
                 ConsumerTaxNumber = connectionParameterDAO.Consumer.TaxNumber,
-                ConsumerId = (int)connectionParameterDAO.ConsumerId
+                ConsumerId = (int)connectionParameterDAO.ConsumerId,
+                DeliveryServiceId = connectionParameterDAO.DeliveryServiceId,
+                DeliveryServiceName = connectionParameterDAO.DeliveryService?.Name
             } : null;
         }
 
@@ -54,17 +57,29 @@ namespace UpRestEye3.Services.DataLayer
                 {
                     throw new Exception("Consumer not found");
                 }
+                // Attach and set state for DeliveryService
+                var deliveryService = await _context.RMSProducts
+                    .AsNoTracking()
+                    .Where(p => p.ConsumerId == consumerId)
+                    .FirstOrDefaultAsync(cp => cp.ConsumerId == consumerId &&
+                                                    (connectionParameter.DeliveryServiceId == null && cp.Name == connectionParameter.DeliveryServiceName ||
+                                                    connectionParameter.DeliveryServiceId != null && cp.Id == connectionParameter.DeliveryServiceId));
 
                 var parameters = await _context.ConnectionParameters
+                    .AsNoTracking()
+                    .Include(cp => cp.Consumer)
+                    .Include(cp => cp.DeliveryService)
                     .FirstOrDefaultAsync(cp => cp.ConsumerId == consumerId);
                 if (parameters == null)
                 {
+
                     parameters = new ConnectionParameterDAO
                     {
                         ConsumerId = consumerId,
                         ApiUrl = connectionParameter.ApiUrl,
                         ApiLogin = connectionParameter.ApiLogin,
-                        ApiPassword = connectionParameter.ApiPassword
+                        ApiPassword = connectionParameter.ApiPassword,
+                        DeliveryServiceId = deliveryService?.Id
                     };
                     _context.ConnectionParameters.Add(parameters);
                 }
@@ -73,6 +88,7 @@ namespace UpRestEye3.Services.DataLayer
                     parameters.ApiUrl = connectionParameter.ApiUrl;
                     parameters.ApiLogin = connectionParameter.ApiLogin;
                     parameters.ApiPassword = connectionParameter.ApiPassword;
+                    parameters.DeliveryServiceId = connectionParameter.DeliveryServiceId;
                     _context.Entry(parameters).State = EntityState.Modified;
                 }
 
@@ -87,7 +103,10 @@ namespace UpRestEye3.Services.DataLayer
                     ApiUrl = parameters.ApiUrl,
                     ApiLogin = parameters.ApiLogin,
                     ApiPassword = parameters.ApiPassword,
-                    ConsumerTaxNumber = consumerTaxNumber
+                    ConsumerTaxNumber = consumerTaxNumber,
+                    DeliveryServiceId = parameters.DeliveryService?.Id,
+                    DeliveryServiceName = parameters.DeliveryService?.Name
+
                 };
             }
             catch (Exception e)

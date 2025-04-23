@@ -41,7 +41,11 @@ namespace UpRestEye3.Services.Recognition
 
 
             // Конфигурация HTTP-клиента
-            using var httpClient = new HttpClient();
+            using var httpClient = new HttpClient
+            {
+                Timeout = TimeSpan.FromMinutes(5) // Increase timeout to 5 minutes
+            };
+
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _env.GetApiKey());
             Console.WriteLine($"Sending request to OpenAI API:..{httpContent.ToString()}");
             // Отправка POST-запроса
@@ -58,20 +62,14 @@ namespace UpRestEye3.Services.Recognition
             // Чтение и возврат результата
             var responseContent = await response.Content.ReadAsStringAsync();
 
-            var invoice = ResponseInvoiceParsing(responseContent);
+            currentInvoice.Products = ResponseInvoiceParsing(responseContent);
 
-            if (invoice != null && invoice.Products != null)
-            {
-                currentInvoice.StageStatus = InvoiceStatusEnum.Error;
-                currentInvoice.Products = invoice.Products;
-
-            }
             return currentInvoice;
         }
 
 
         //todo поправить с датой загрузки 
-        private InvoiceDTO? ResponseInvoiceParsing(string responseContent)
+        private List<InvoiceProductDTO> ResponseInvoiceParsing(string responseContent)
         {
             try
             {
@@ -97,7 +95,7 @@ namespace UpRestEye3.Services.Recognition
                         using var invoiceDocument = JsonDocument.Parse(rootContent.GetRawText());
                         InvoiceDTO invoice = invoiceDocument.Deserialize<InvoiceDTO>(options);
 
-                        return invoice;
+                        return invoice.Products;
                     }
                     else
                     {

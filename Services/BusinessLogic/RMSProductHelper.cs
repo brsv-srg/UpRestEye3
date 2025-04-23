@@ -29,6 +29,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 RMSProductExtGuid = rmsProductDAO.RMSProductExtGuid,
                 Num = rmsProductDAO.Num,
                 MainUnit = rmsProductDAO.MainUnit,
+                Type = GetDTOItemType(rmsProductDAO.Type),
                 Status = rmsProductDAO.Status,
                 Containers = rmsProductDAO.Containers.Select(c => new RMSContainerDTO
                 {
@@ -61,10 +62,11 @@ namespace UpRestEye3.Services.BusinessLogic
                     TaxNumber = rmsProductDTO.ConsumerTaxId
                 },
                 Name = rmsProductDTO.Name,
-                Description = rmsProductDTO.Description,
+                Description = rmsProductDTO.Description ?? string.Empty,
                 RMSProductExtGuid = rmsProductDTO.RMSProductExtGuid,
                 Num = rmsProductDTO.Num,
                 MainUnit = rmsProductDTO.MainUnit,
+                Type = GetDAOItemType(rmsProductDTO.Type),
                 Status = rmsProductDTO.Status,
                 Containers = rmsProductDTO.Containers.Select(c => new RMSContainerDAO
                 {
@@ -97,6 +99,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 RMSProductExtGuid = rmsProductDTO.RMSProductExtGuid,
                 Num = rmsProductDTO.Num,
                 MainUnit = rmsProductDTO.MainUnit,
+                Type = rmsProductDTO.Type,
                 Status = rmsProductDTO.Status,
                 Containers = rmsProductDTO.Containers.Select(c => new RMSContainerDTO
                 {
@@ -127,6 +130,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 RMSProductExtGuid = rmsProductDAO.RMSProductExtGuid,
                 Num = rmsProductDAO.Num,
                 MainUnit = rmsProductDAO.MainUnit,
+                Type = rmsProductDAO.Type,
                 Status = rmsProductDAO.Status,
                 Containers = rmsProductDAO.Containers.Select(c => new RMSContainerDAO
                 {
@@ -316,6 +320,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 Description = dto.description,
                 Num = dto.num,
                 MainUnit = dto.mainUnit,
+                Type = dto.type,
                 Status = RMSProductStatusEnum.FromRMS,
                 Containers = dto.containers.Select(c => new RMSContainerDTO
                 {
@@ -346,6 +351,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 description = dto.Description,
                 num = string.IsNullOrEmpty(dto.Num) ? null : dto.Num,
                 mainUnit = dto.MainUnit,
+                type = dto.Type,
                 containers = dto.Containers.Select(c => new GetContainerDTO
                 {
                     id = c.RMSContainerExtGuid,
@@ -374,7 +380,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 description = dto.Description,
                 num = string.IsNullOrEmpty(dto.Num) ? null : dto.Num,
                 mainUnit = dto.MainUnit,
-                type = "GOODS",
+                type = dto.Type,
                 containers = dto.Containers.Select(c => new SaveContainerDTO
                 {
                     num = string.IsNullOrEmpty(c.Num) ? counter++.ToString("D3") : c.Num,
@@ -389,6 +395,36 @@ namespace UpRestEye3.Services.BusinessLogic
 
         }
 
+        public static string GetDTOItemType(ItemTypeEnum type)
+        {
+            switch (type)
+            {
+
+                case ItemTypeEnum.GOODS:
+                    return "GOODS";
+                case ItemTypeEnum.SERVICE:
+                    return "SERVICE";
+                default:
+                    return string.Empty;
+            }
+
+        }
+
+        public static ItemTypeEnum GetDAOItemType(string type)
+        {
+            switch (type)
+            {
+
+                case "GOODS":
+                    return ItemTypeEnum.GOODS;
+
+                case "SERVICE":
+                    return ItemTypeEnum.SERVICE;
+                default:
+                    return ItemTypeEnum.GOODS;
+            }
+
+        }
     }
 
 }

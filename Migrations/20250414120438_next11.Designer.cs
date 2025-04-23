@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UpRestEye3.Data;
 
@@ -10,9 +11,11 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250414120438_next11")]
+    partial class next11
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.12");
@@ -237,15 +240,9 @@ namespace UpRestEye3.Migrations
                     b.Property<int?>("ConsumerId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("DeliveryServiceId")
-                        .HasColumnType("INTEGER");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ConsumerId")
-                        .IsUnique();
-
-                    b.HasIndex("DeliveryServiceId")
                         .IsUnique();
 
                     b.ToTable("ConnectionParameters");
@@ -296,9 +293,6 @@ namespace UpRestEye3.Migrations
                     b.Property<string>("InvoiceNumber")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<bool>("ProductsTaxIncluded")
-                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Stage")
                         .HasColumnType("INTEGER");
@@ -656,13 +650,7 @@ namespace UpRestEye3.Migrations
                         .WithOne("ConnectionParameter")
                         .HasForeignKey("UpRestEye3.Models.DAO.ConnectionParameterDAO", "ConsumerId");
 
-                    b.HasOne("UpRestEye3.Models.DAO.RMSProductDAO", "DeliveryService")
-                        .WithOne()
-                        .HasForeignKey("UpRestEye3.Models.DAO.ConnectionParameterDAO", "DeliveryServiceId");
-
                     b.Navigation("Consumer");
-
-                    b.Navigation("DeliveryService");
                 });
 
             modelBuilder.Entity("UpRestEye3.Models.DAO.InvoiceDAO", b =>

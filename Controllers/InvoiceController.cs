@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.RegularExpressions;
+using UpRestEye3.Components.Pages;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.BusinessLogic;
@@ -14,11 +16,13 @@ namespace UpRestEye3.Controllers
     public class InvoicesController : ControllerBase
     {
         private readonly IInvoiceService _invoiceService;
+        private readonly IInvoiceFileProcessor _invoiceFileService;
         private readonly IIntegrationInvoiceService _integrationService;
 
-        public InvoicesController(IInvoiceService invoiceService, IIntegrationInvoiceService integrationService)
+        public InvoicesController(IInvoiceService invoiceService, IInvoiceFileProcessor invoiceFileService, IIntegrationInvoiceService integrationService)
         {
             _invoiceService = invoiceService;
+            _invoiceFileService = invoiceFileService;
             _integrationService = integrationService;
         }
 
@@ -39,7 +43,9 @@ namespace UpRestEye3.Controllers
         public async Task<ActionResult<InvoiceDTO>> SaveInvoice(InvoiceDTO invoice)
         {
             try
-            { 
+            {
+                CheckQR(invoice);
+
                 // Валидация накладной после QR
                 var validator = InvoiceValidatorBase.CreateValidator(invoice.Stage);
                 validator.Validate(invoice, invoice.Consumer.TaxNumber);
@@ -51,7 +57,10 @@ namespace UpRestEye3.Controllers
             catch (Exception e)
             {
                 invoice.StageStatus = InvoiceStatusEnum.Manual;
-                invoice.Comments += "; " + e.Message;
+                if(!string.IsNullOrEmpty(invoice.Comments))
+                    invoice.Comments += "; " ;
+                invoice.Comments += e.Message;
+
                 await _invoiceService.SaveInvoiceAsync(invoice);
                 Console.WriteLine(e);
                 return BadRequest(invoice);
@@ -78,12 +87,64 @@ namespace UpRestEye3.Controllers
             catch (Exception e)
             {
                 invoiceToUpload.StageStatus = InvoiceStatusEnum.Error;
-                invoiceToUpload.Comments += "; " + e.Message;
+                if (!string.IsNullOrWhiteSpace(invoiceToUpload.Comments))
+                    invoiceToUpload.Comments += "; ";
+                invoiceToUpload.Comments += e.Message;
                 await _invoiceService.SaveInvoiceAsync(invoiceToUpload);
                 Console.WriteLine(e);
                 return BadRequest(invoiceToUpload);
             }
             
+        }
+
+        
+
+        [HttpPost("process/{consumerId}")]
+        public async Task<IActionResult> ProcessSelectedInvoices(int consumerId, [FromBody] List<int> invoiceIds)
+        {
+            if (invoiceIds == null || !invoiceIds.Any())
+            {
+                return BadRequest("No invoice IDs provided.");
+            }
+
+            foreach (var id in invoiceIds)
+            {
+                _ = Task.Run(() => _invoiceFileService.InvoiceFileProcessAsync(id, (int)consumerId));
+            }
+            return Ok("Invoices are being processed asynchronously.");
+
+        }
+
+
+        [HttpPost("delete")]
+        public async Task<IActionResult> DeleteInvoices([FromBody] List<int> invoiceIds)
+        {
+            if (invoiceIds == null || !invoiceIds.Any())
+            {
+                return BadRequest("No invoice IDs provided.");
+            }
+
+            try
+            {
+                await _invoiceService.DeleteInvoicesAsync(invoiceIds);
+                return Ok("Invoices deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred while deleting invoices: {ex.Message}");
+            }
+        }
+
+        private void CheckQR(InvoiceDTO invoice)
+        {
+         if (invoice.Stage == InvoiceStageEnum.QRCodeProcessed && invoice.StageStatus != InvoiceStatusEnum.Ok)
+         {
+            if (!string.IsNullOrEmpty(invoice.Comments) && QRCodeData.IsMatchingATQRCode(invoice.Comments))
+            {
+                var basicQRCode = new QRCodeData(invoice.Comments);
+                InvoiceHelper.UpdateInvoiceByQR(invoice, basicQRCode, invoice.FilePath);
+            }
+         }
         }
     }
 }

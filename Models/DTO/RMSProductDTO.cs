@@ -18,6 +18,7 @@ namespace UpRestEye3.Models.DTO
         public Guid? RMSProductExtGuid { get; set; }
         public string? Num { get; set; } 
         public Guid MainUnit { get; set; } = Guid.Empty;
+        public string Type { get; set; } = "GOODS";
         public List<RMSContainerDTO> Containers { get; set; } = new List<RMSContainerDTO>();
         public RMSProductStatusEnum Status { get; set; } = RMSProductStatusEnum.NewProduct;
     }

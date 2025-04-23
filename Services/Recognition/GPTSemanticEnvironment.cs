@@ -93,8 +93,9 @@ namespace UpRestEye3.Services.Recognition
             // Формируем запрос
             var requestBody = new
             {
+                model = "gpt-4.1",
+                //model = "gpt-4o", 
                 //model = "gpt-4o-mini",
-                model = "gpt-4o", 
 
                 temperature = 0.0,
                 top_p = 1.0,
@@ -232,6 +233,9 @@ Your task is to extract only the list of **Grocery Products** from the provided 
 - Be cautious with **technical or packaging-related products** (e.g., cups, lids, containers, bags):
   - These often have long descriptive names but **must not be skipped** if price and quantity are present.
   - If in doubt — include the row as a separate product rather than risk losing it.
+
+- ✅ Treat **delivery services** as regular products:
+  - If a row includes delivery-related terms (e.g., `ENTREGA`, `DELIVERY`, `DLV`, etc.) in **Portuguese, English, or abbreviations**, and has price/quantity — process it **as a separate product** like any other.
 
 - Match words to headers by:
   - Primary method: X-coordinate position;

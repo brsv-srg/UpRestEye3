@@ -124,7 +124,7 @@
 }
 
 .modal-wide {
-    max-width: 90%;
+    max-width: 95%;
 }
  
 /* Стили для модального окна с 3D тенями */
@@ -161,3 +161,27 @@
     .btn-light:active i {
         transform: scale(0.9);
     }
+
+
+/* Контейнер для изображения */
+.scanned-image-container {
+    position: relative;
+    width: 100%;
+    height: 400px; /* Ограничение высоты контейнера */
+    overflow: hidden; /* Обрезка содержимого за пределами контейнера */
+    border: 2px solid #ccc; /* Рамка вокруг контейнера */
+    border-radius: 8px; /* Скругление углов */
+    background-color: #f9f9f9; /* Фон контейнера */
+    touch-action: none; /* Отключение жестов браузера для корректной работы */
+}
+
+/* Изображение */
+.scanned-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: center center; /* Точка увеличения */
+    transition: transform 0.1s ease; /* Плавное увеличение */
+    cursor: grab; /* Указатель мыши для перемещения */
+}
+

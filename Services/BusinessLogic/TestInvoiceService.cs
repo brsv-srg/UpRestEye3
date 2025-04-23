@@ -50,7 +50,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 {
                     Supplier = supplier,
                     Consumer = consumer,
-                    InvoiceNumber = "INV-003",
+                    InvoiceNumber = $"INV-003 {DateTime.Now}",
                     InvoiceDate = DateTime.Now,
                     TotalIVA = 2.00m * 0.13m,
                     TotalAmount = 2.00m + 2.00m * 0.13m,

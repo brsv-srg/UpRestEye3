@@ -1,14 +1,16 @@
-﻿using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Globalization;
-using System.ComponentModel.DataAnnotations;
-using UpRestEye3.Models.DAO;
-using UpRestEye3.Models.BLO;
-using UpRestEye3.Models.DTO;
-using System.Linq.Expressions;
-using UpRestEye3.Models.RMSDTO;
+﻿using Google.Cloud.Vision.V1;
 using OpenCvSharp.ML;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
+using System.Globalization;
+using System.Linq.Expressions;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Tensorflow;
+using UpRestEye3.Models.BLO;
+using UpRestEye3.Models.DAO;
+using UpRestEye3.Models.DTO;
+using UpRestEye3.Models.RMSDTO;
 
 
 
@@ -164,6 +166,7 @@ namespace UpRestEye3.Services.BusinessLogic
             {
                 invoiceTarget.FilePath = invoiceSource.FilePath;
             }
+            invoiceTarget.Comments = invoiceSource.Comments;
 
         }
 
@@ -277,6 +280,7 @@ namespace UpRestEye3.Services.BusinessLogic
             invoiceDTO.FilePath = invoiceDAO.FilePath;
             invoiceDTO.UploadTime = invoiceDAO.UploadTime;
             invoiceDTO.Comments = invoiceDAO.Comments;
+            invoiceDTO.ProductsTaxIncluded = invoiceDAO.ProductsTaxIncluded;
             invoiceDTO.Stage = invoiceDAO.Stage;
             invoiceDTO.StageStatus = invoiceDAO.StageStatus;
             return invoiceDTO;
@@ -355,6 +359,8 @@ namespace UpRestEye3.Services.BusinessLogic
                 invoiceDAO.FilePath = invoiceDTO.FilePath;
                 invoiceDAO.UploadTime = invoiceDTO.UploadTime;
                 invoiceDAO.Comments = invoiceDTO.Comments;
+                invoiceDAO.ProductsTaxIncluded = invoiceDTO.ProductsTaxIncluded;
+
                 invoiceDAO.Stage = invoiceDTO.Stage;
                 invoiceDAO.StageStatus = invoiceDTO.StageStatus;
                 return invoiceDAO;
@@ -367,76 +373,107 @@ namespace UpRestEye3.Services.BusinessLogic
 
         public static IncomingInvoiceDto MapToIncomingInvoiceDto(InvoiceDTO invoiceDTO)
         {
-            return new IncomingInvoiceDto
+            var integrationInvoice = new IncomingInvoiceDto();
+
+
+            //Id = invoiceDTO.Id?.ToString(),
+            //Conception = invoiceDTO.Conception,
+            //ConceptionCode = invoiceDTO.ConceptionCode,
+            integrationInvoice.Comment = invoiceDTO.Comments;
+            //DocumentNumber = invoiceDTO.InvoiceNumber,
+
+            integrationInvoice.DateIncoming = invoiceDTO.InvoiceDate.ToString("yyyy-MM-ddTHH:mm:ss");
+
+            integrationInvoice.Invoice = invoiceDTO.InvoiceNumber;
+
+            // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            // надо забирать склады и их подставлять в инвойс
+            // DefaultStore = invoiceDTO.DefaultStore,
+            // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            // надо забирать поставщика и его подставлять в инвойс
+            integrationInvoice.Supplier = invoiceDTO.Supplier?.RMSSupplierId.ToString();
+
+            // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            // брать из настроек поставщика и подставлять дату погашения.
+            // если это фактура-ресибо, то эта дата равна дате документа
+            integrationInvoice.DueDate = invoiceDTO.InvoiceDate.AddDays(30).ToString("yyyy-MM-ddTHH:mm:ss");
+            // дата заведения документа
+            integrationInvoice.IncomingDate = invoiceDTO.InvoiceDate.ToString("yyyy-MM-dd");
+            // false
+            integrationInvoice.UseDefaultDocumentTime = false;
+
+            integrationInvoice.Status = DocumentStatus.New;
+            // опять номер накладной?
+            integrationInvoice.IncomingDocumentNumber = invoiceDTO.InvoiceNumber;
+
+            //EmployeePassToAccount = invoiceDTO.EmployeePassToAccount,
+            //TransportInvoiceNumber = invoiceDTO.TransportInvoiceNumber,
+            //LinkedOutgoingInvoiceId = invoiceDTO.LinkedOutgoingInvoiceId,
+            integrationInvoice.DistributionAlgorithm = DistributionAlgorithmType.DistributionByAmount;
+            integrationInvoice.Items = [];
+
+            for (int i = 0; i < invoiceDTO.Products.Count(); i++)
             {
-                //Id = invoiceDTO.Id?.ToString(),
-                //Conception = invoiceDTO.Conception,
-                //ConceptionCode = invoiceDTO.ConceptionCode,
-                Comment = invoiceDTO.Comments,
-                //DocumentNumber = invoiceDTO.InvoiceNumber,
-                
-                DateIncoming = invoiceDTO.InvoiceDate.ToString("yyyy-MM-ddTHH:mm:ss"),
-                Invoice = invoiceDTO.InvoiceNumber,
-                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                // надо забирать склады и их подставлять в инвойс
-                // DefaultStore = invoiceDTO.DefaultStore,
-                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                // надо забирать поставщика и его подставлять в инвойс
-                Supplier = invoiceDTO.Supplier?.RMSSupplierId.ToString(),
-                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                // брать из настроек поставщика и подставлять дату погашения.
-                // если это фактура-ресибо, то эта дата равна дате документа
-                DueDate = invoiceDTO.InvoiceDate.AddDays(30).ToString("yyyy-MM-ddTHH:mm:ss"),
-                // дата заведения документа
-                IncomingDate = DateTime.Now.ToString("yyyy-MM-dd"),
-                // false
-                UseDefaultDocumentTime = false,
+                var item = invoiceDTO.Products[i];
+                var integrationItem = new IncomingInvoiceItemDto();
 
-                Status = DocumentStatus.New,
-                // опять номер накладной?
-                IncomingDocumentNumber = invoiceDTO.InvoiceNumber,
 
-                //EmployeePassToAccount = invoiceDTO.EmployeePassToAccount,
-                //TransportInvoiceNumber = invoiceDTO.TransportInvoiceNumber,
-                //LinkedOutgoingInvoiceId = invoiceDTO.LinkedOutgoingInvoiceId,
-                DistributionAlgorithm = DistributionAlgorithmType.DistributionByAmount,
+                integrationItem.IsAdditionalExpense = false;
+                integrationItem.Amount = item.RMSContainer == null ? item.Quantity : item.Quantity * item.RMSContainer.Count;
+                integrationItem.ActualAmount = integrationItem.Amount;
 
-                
-                Items = invoiceDTO.Products?.Select(static (item, index) => new IncomingInvoiceItemDto
+                integrationItem.Product = item.RMSProduct.RMSProductExtGuid.ToString();
+                integrationItem.ProductArticle = item.RMSProduct.Num;
+
+                integrationItem.Num = i + 1;
+                integrationItem.ContainerId = item.RMSContainer?.RMSContainerExtGuid?.ToString() ?? "";
+                integrationItem.AmountUnit = item.RMSProduct.MainUnit.ToString();
+
+
+                // Проставляем суммы, очень внимательно
+                if (invoiceDTO.ProductsTaxIncluded)
                 {
-                    IsAdditionalExpense = false,
-                    Amount = item.RMSContainer == null ? item.Quantity : item.Quantity * (item.RMSContainer.Count),
-                    ActualAmount = item.RMSContainer == null ? item.Quantity : item.Quantity * (item.RMSContainer.Count),
+                    // Если сумма уже с налогами, то ...
 
+                    // Напрямую добавляем сумму
+                    integrationItem.Sum = item.ProductTotalValue;
 
-                    // SupplierProduct = item.SupplierProduct,
-                    // SupplierProductArticle = item.SupplierProductArticle,
-                    Product = item.RMSProduct.RMSProductExtGuid.ToString(),
-                    ProductArticle = item.RMSProduct.Num,
-                    //Producer = item.Producer,
-                    Num = index+1,
-                    ContainerId = item.RMSContainer?.RMSContainerExtGuid?.ToString() ?? "",
-                    AmountUnit = item.RMSProduct.MainUnit.ToString(),
-                    //ActualUnitWeight = item.ActualUnitWeight,
+                    // Налог вычисляем обратной формулой - из итоговой суммы вычесть величину базы
+                    integrationItem.VatSum = item.ProductTotalValue - (item.ProductTotalValue / (1 + GetTaxCategoryPercent(item.TaxCategory) / 100));
 
+                    // Прайс - просто делим на количество 
+                    integrationItem.Price = item.ProductTotalValue / item.Quantity; 
+
+                    // Сперва считаем базу без налогов и потом делим на количество 
+                    integrationItem.PriceWithoutVat = (item.ProductTotalValue / (1 + GetTaxCategoryPercent(item.TaxCategory) / 100)) / item.Quantity; 
+                }
+                else
+                {
+                    // Если сумма уже с налогами, то...
                     
+                    // Добавляем налог к итоговой сумме 
+                    integrationItem.Sum = item.ProductTotalValue + item.ProductTotalValue / 100 * GetTaxCategoryPercent(item.TaxCategory);
 
-                    Sum =    item.ProductTotalValue + item.ProductTotalValue/100*GetTaxCategoryPercent(item.TaxCategory), 
-                    VatSum = item.ProductTotalValue / 100 * GetTaxCategoryPercent(item.TaxCategory),
+                    // Для получения величины налога просто умножаем на процент
+                    integrationItem.VatSum = item.ProductTotalValue / 100 * GetTaxCategoryPercent(item.TaxCategory);
 
-                    Price = (item.ProductTotalValue + item.ProductTotalValue / 100 * GetTaxCategoryPercent(item.TaxCategory)) / (item.Quantity),
+                    // Цена за контейнер? Сперва считаем с налогами и потом делим
+                    integrationItem.Price = (item.ProductTotalValue + item.ProductTotalValue / 100 * GetTaxCategoryPercent(item.TaxCategory)) / item.Quantity; 
 
-                    PriceWithoutVat = item.ProductTotalValue/ (item.Quantity),
+                    //Цена за контейнер без налогов? Если без налогов, сразу делим на количество 
+                    integrationItem.PriceWithoutVat = item.ProductTotalValue / item.Quantity; 
+                }
 
 
-                    //DiscountSum = item.DiscountSum,
-                    VatPercent = GetTaxCategoryPercent(item.TaxCategory),
-                    //PriceUnit = item.PriceUnit,
-                    //Code = item.RMSProduct.Num,
-                    Store = item.RMSStorage.EntityExtGuid.ToString(),
-                    //CustomsDeclarationNumber = item.CustomsDeclarationNumber,
-                }).ToArray()
+
+
+                //DiscountSum = item.DiscountSum,
+                integrationItem.VatPercent = GetTaxCategoryPercent(item.TaxCategory);
+                integrationItem.Store = item.RMSStorage.EntityExtGuid.ToString();
+
+                integrationInvoice.Items = integrationInvoice.Items.Append(integrationItem).ToArray();
             };
+            return integrationInvoice;
         }
 
     }

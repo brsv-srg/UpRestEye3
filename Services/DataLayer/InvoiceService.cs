@@ -20,6 +20,9 @@ namespace UpRestEye3.Services.DataLayer
 
         Task<int?> SaveInvoiceAsync(InvoiceDTO invoice);
         Task<int?> SaveInvoiceAsync(InvoiceDAO invoice);
+
+        Task DeleteInvoicesAsync(List<int> invoiceIds);
+
     }
 
     public class InvoiceService : IInvoiceService
@@ -143,7 +146,11 @@ namespace UpRestEye3.Services.DataLayer
                         invoice.SupplierId = existingSupplier.Id;
                         invoice.Supplier.Id = invoice.SupplierId;
 
-                        if (string.IsNullOrWhiteSpace(existingSupplier.Name) || string.IsNullOrWhiteSpace(existingSupplier.BankAccount))
+                        if (string.IsNullOrWhiteSpace(existingSupplier.Name) && 
+                                !string.IsNullOrWhiteSpace(invoice.Supplier.Name)
+                            || string.IsNullOrWhiteSpace(existingSupplier.BankAccount) && 
+                                !string.IsNullOrWhiteSpace(invoice.Supplier.Name) && 
+                                !string.IsNullOrWhiteSpace(invoice.Supplier.BankAccount))
                             _context.Entry(invoice.Supplier).State = EntityState.Modified;
                         else
                             _context.Entry(invoice.Supplier).State = EntityState.Unchanged;
@@ -157,6 +164,21 @@ namespace UpRestEye3.Services.DataLayer
                     .Include(i => i.Products)
                     .Include(i => i.TaxCategories)  
                     .FirstOrDefaultAsync(i => i.Id == invoice.Id);
+
+
+                // Check of the doubles
+                var doubleInvoice = await _context.Invoices
+               .AsNoTracking()
+               .FirstOrDefaultAsync(i => i.ConsumerId == invoice.ConsumerId &&
+                                            i.SupplierId == invoice.SupplierId &&
+                                            i.InvoiceNumber == invoice.InvoiceNumber &&
+                                            (invoice.Id == null || invoice.Id != null && i.Id != invoice.Id));
+                if (doubleInvoice != null)
+                {
+                    throw new InvalidOperationException("Invoice with the same number already exists.");
+                }
+
+
                 if (existingInvoice == null)
                 {
                     _context.Invoices.Add(invoice);
@@ -166,7 +188,6 @@ namespace UpRestEye3.Services.DataLayer
                 }
                 else
                 {
-
                     // Update TaxCategories
                     var existingTaxCategories = existingInvoice.TaxCategories.ToList();
                     var newTaxCategories = invoice.TaxCategories;
@@ -211,7 +232,15 @@ namespace UpRestEye3.Services.DataLayer
                     foreach (var newProduct in newInvoiceProducts)
                     {
                         var existingProduct = existingInvoiceProducts
-                            .FirstOrDefault(c => c.ProductName == newProduct.ProductName && c.ProductCode == newProduct.ProductCode);
+                            .FirstOrDefault(c =>
+                                newProduct.Id != null && 
+                                    c.Id == newProduct.Id ||
+                                    
+                                newProduct.Id == null && 
+                                    c.ProductName == newProduct.ProductName && 
+                                    c.ProductCode == newProduct.ProductCode && 
+                                    c.ProductTotalValue == newProduct.ProductTotalValue);
+
 
                         if (existingProduct == null)
                         {
@@ -246,10 +275,10 @@ namespace UpRestEye3.Services.DataLayer
                     return existingInvoice.Id;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return null;
+                throw new Exception($"Error saving invoice: {ex.Message}");
             }
         }
 
@@ -270,6 +299,17 @@ namespace UpRestEye3.Services.DataLayer
             {
 
                 _context.Invoices.Remove(invoice);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task DeleteInvoicesAsync(List<int> invoiceIds)
+        {
+            var invoicesToDelete = _context.Invoices.Where(i => invoiceIds.Contains((int)i.Id)).ToList();
+
+            if (invoicesToDelete.Any())
+            {
+                _context.Invoices.RemoveRange(invoicesToDelete);
                 await _context.SaveChangesAsync();
             }
         }

@@ -40,6 +40,10 @@ namespace UpRestEye3.Data
                 .ValueGeneratedOnAdd();
 
             modelBuilder.Entity<InvoiceDAO>()
+                .HasIndex(i => new { i.ConsumerId, i.SupplierId, i.InvoiceNumber })
+                .IsUnique();
+
+            modelBuilder.Entity<InvoiceDAO>()
                 .HasOne(i => i.Consumer)
                 .WithMany(c => c.Invoices)
                 .HasForeignKey(i => i.ConsumerId)
@@ -57,7 +61,7 @@ namespace UpRestEye3.Data
                 .HasMany(i => i.Products)
                 .WithOne(p => p.Invoice)
                 .HasForeignKey(p => p.InvoiceId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
 
             // Configure owned types for Taxes collection
@@ -65,7 +69,7 @@ namespace UpRestEye3.Data
                 .HasMany(i => i.TaxCategories)
                 .WithOne(t => t.Invoice)
                 .HasForeignKey(t => t.InvoiceId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             ////////////////////////////////////////////////////////////////
 
@@ -164,6 +168,11 @@ namespace UpRestEye3.Data
                 .HasOne(cp => cp.Consumer)
                 .WithOne(c => c.ConnectionParameter)
                 .HasForeignKey<ConnectionParameterDAO>(cp => cp.ConsumerId);
+
+            modelBuilder.Entity<ConnectionParameterDAO>()
+                .HasOne(cp => cp.DeliveryService)
+                .WithOne()
+                .HasForeignKey<ConnectionParameterDAO>(cp => cp.DeliveryServiceId);
 
 
 

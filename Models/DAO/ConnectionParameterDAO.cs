@@ -8,5 +8,7 @@
         public string ApiPassword { get; set; } = string.Empty;
         public int? ConsumerId { get; set; }
         public ConsumerDAO? Consumer { get; set; }
+        public int? DeliveryServiceId { get; set; }
+        public RMSProductDAO? DeliveryService { get; set; }
     }
 }

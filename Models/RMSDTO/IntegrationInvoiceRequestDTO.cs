@@ -113,7 +113,7 @@ namespace UpRestEye3.Models.RMSDTO
         public decimal VatSum { get; set; }
 
         [XmlElement("priceUnit")]
-        public string PriceUnit { get; set; }
+        public decimal PriceUnit { get; set; }
 
         [XmlElement("price")]
         public decimal Price { get; set; }

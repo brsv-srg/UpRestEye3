@@ -16,1040 +16,1326 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
 <AuthorizeView>
-    <Authorized>
-        <PageTitle>Invoices</PageTitle>
+	<Authorized>
+		<PageTitle>Invoices</PageTitle>
 
 
 
-        <div class="d-flex justify-content-between align-items-center">
-            <h1 class="flex-grow-1 text-nowrap">Invoices</h1>
-            <button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await InitializeDataAsync()" title="Read Invoices from DB">
-                <i class="fa fa-arrows-rotate"></i>
-            </button>
-            <button class="btn btn-outline-primary ml-auto" style="width: auto; margin-left: auto;" @onclick="async () => await UploadInvoice()" title="Upload Invoices into RMS">
-                <i class="fa fa-upload"></i>
-            </button>
-        </div>
+		<div class="d-flex justify-content-between align-items-center">
+			<h1 class="flex-grow-1 text-nowrap">Invoices</h1>
+			<button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await InitializeDataAsync()" title="Read Invoices from DB">
+				<i class="fa fa-arrows-rotate"></i>
+			</button>
+
+			<button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await ProcessSelectedInvoicesAsync()" title="Process selected Invoices">
+				<i class="fa fa-gear"></i>
+			</button>
+
+			<button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await UploadInvoice()" title="Upload selected Invoices into RMS">
+				<i class="fa fa-upload"></i>
+			</button>
+
+			<button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => ShowDeleteConfirmation()" title="Delete selected Invoices from DB">
+				<i class="fa fa-trash"></i>
+			</button>
+
+		</div>
 
 
-        @if (invoices == null)
-        {
-            <p><em>Loading...</em></p>
-        }
-        else
-        {
-            <div style="overflow-y: auto; max-height: 70vh; ">
-                <table class="table table-striped" style="background-color: white; ">
-                    <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
-                        <tr>
-                            <th><input type="checkbox" @onclick="ToggleSelectAll" /></th>
-                            <th>Upload Time</th>
-                            <th>Invoice Number</th>
-                            <th>Invoice Date</th>
-                            <th>Supplier Name</th>
-                            <th>Supplier TaxID</th>
-                            <th>Total IVA</th>
-                            <th>Total Amount</th>
-                            <th>Stage</th>
-                            <th>Status</th>
-                            <th style="text-align: center;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var invoice in invoices.OrderByDescending(i => i.UploadTime))
-                        {
-                            <tr>
-                                <td><input type="checkbox" @bind="invoice.IsSelected" /></td>
-                                <td>@invoice.UploadTime.ToString("dd.MM.yy hh:mm")</td>
-                                <td>@invoice.InvoiceNumber</td>
-                                <td>@invoice.InvoiceDate.ToString("dd.MM.yy")</td>
-                                <td>@(invoice.Supplier != null ? invoice.Supplier.Name : "")</td>
-                                <td>@(invoice.Supplier != null ? invoice.Supplier.TaxNumber : "")</td>
-                                <td>@invoice.TotalIVA</td>
-                                <td>@invoice.TotalAmount</td>
-                                <td>@invoice.Stage</td>
-                                <td>
-                                    <span class="@GetStatusClass(invoice.StageStatus)">
-                                        @invoice.StageStatus.ToString()
-                                    </span>
-                                </td>
-                                <td>
-                                    <button class="custom-btn" @onclick="async () => await ShowInvoiceAsync(invoice)">
-                                        @* <i class="fas fa-ellipsis-v"></i> *@
-                                        <i class="fa fa-pencil" aria-hidden="true"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-            <div class="upload-button-container"> 
-                <label class="upload-button"> 
-                    <span class="plus-icon">+</span>
-                    <InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.png,.heic,.pdf" />
-                </label> 
-            </div>
+		@if (invoices == null)
+		{
+			<p><em>Loading...</em></p>
+		}
+		else
+		{
+			<div style="overflow-y: auto; max-height: 70vh; ">
+				<table class="table table-striped" style="background-color: white; ">
+					<thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
+						<tr>
+							<th><input type="checkbox" @onclick="ToggleSelectAll" /></th>
+							<th>Upload Time</th>
+							<th>File Name</th>
+							<th>Invoice Number</th>
+							<th>Invoice Date</th>
+							<th>Supplier Name</th>
+							<th>Supplier TaxID</th>
+							<th>Total IVA</th>
+							<th>Total Amount</th>
+							<th>Stage</th>
+							<th>Status</th>
+							<th style="text-align: center;">Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						@foreach (var invoice in invoices.OrderByDescending(i => i.UploadTime))
+						{
+							<tr>
+								<td><input type="checkbox" @bind="invoice.IsSelected" /></td>
+								<td>@invoice.UploadTime.ToString("dd.MM.yy hh:mm")</td>
+                                <td>@Path.GetFileName(invoice.FilePath)</td>
+								<td>@invoice.InvoiceNumber</td>
+								<td>@invoice.InvoiceDate.ToString("dd.MM.yy")</td>
+								<td>@(invoice.Supplier != null ? invoice.Supplier.Name : "")</td>
+								<td>@(invoice.Supplier != null ? invoice.Supplier.TaxNumber : "")</td>
+								<td>@invoice.TotalIVA</td>
+								<td>@invoice.TotalAmount</td>
+								<td>@invoice.Stage</td>
+								<td>
+									<span class="@GetStatusClass(invoice.StageStatus)">
+										@invoice.StageStatus.ToString()
+									</span>
+								</td>
+								<td>
+									<button class="custom-btn" @onclick="async () => await ShowInvoiceAsync(invoice)">
+										@* <i class="fas fa-ellipsis-v"></i> *@
+										<i class="fa fa-pencil" aria-hidden="true"></i>
+									</button>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<div class="upload-button-container">
+				<label class="upload-button">
+					<span class="plus-icon">+</span>
+					<InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.png,.heic,.pdf" multiple />
+				</label>
+			</div>
 
-        }
+		}
 
-
-
-        @if (!string.IsNullOrEmpty(uploadMessage))
-        {
-            <div class="alert @uploadMessageClass" role="alert" style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
-                @uploadMessage
-            </div>
-        }
-
-        @if (showInvoiceModal)
-        {
-            <div class="modal-backdrop"></div>
-            <div class="modal show d-block" tabindex="-1" role="dialog">
-                <div class="modal-dialog modal-wide" role="document">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h2 class="modal-title">Invoice Details</h2>
-                        </div>
-
-                        <div class="modal-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="invoiceNumber" class="form-label">Invoice Number</label>
-                                        <InputText id="invoiceNumber" class="form-control" @bind-Value="editInvoice.InvoiceNumber" />
-                                    </div>
-                                    <div class="mb-4">
-                                        <label for="invoiceDate" class="form-label">Invoice Date</label>
-                                        <InputDate id="invoiceDate" class="form-control" @bind-Value="editInvoice.InvoiceDate" />
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6"> 
-                                    <div class="mb-3">
-                                        <label for="supplier" class="form-label">Supplier</label>
-                                        <InputText id="supplier" class="form-control" @bind-Value="editInvoice.Supplier.Name" />
-                                    </div>
-                                    <div class="mb-4">
-                                        <label for="supplierTaxNumber" class="form-label">Supplier Tax Number</label>
-                                        <InputText id="supplierTaxNumber" class="form-control" @bind-Value="editInvoice.Supplier.TaxNumber" />
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mb-4">
-                                <div class="mb-3 d-flex justify-content-between align-items-center">
-                                    <label for="products" class="form-label font-weight-bold fs-4">Products</label>
-                                    <button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewProduct()">
-                                        <i class="fa fa-plus-square fa-2x" aria-hidden="true"></i>
-                                    </button>
-                                </div>
-
-                                <div style="max-height: 400px; overflow-y: auto;">
-                                    <table class="table table-striped table-sm">
-                                        <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
-                                            <tr>
-                                                <th class ="p-1">Code</th>
-                                                <th class="p-1">Name</th>
-                                                <th class="p-1">Units</th>
-                                                <th class="p-1">Quantity</th>
-                                                <th class="p-1">Container</th>
-                                                <th class="p-1">Count</th>
-                                                <th class="p-1">Total Price</th>
-                                                <th class="p-1">TAX Category</th>
-                                                <th class="p-1">RMS Product</th>
-                                                <th class="p-1">RMS Container</th>
-                                                <th class="p-1">RMS Storage</th>
-
-                                                <th style="text-align: center;">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach (var product in editInvoice.Products)
-                                            {
-                                                <tr>
-                                                    @if (editProduct != null && editProduct == product)
-                                                    {
-                                                        <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductCode" /></td>
-                                                        <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductName" /></td>
-                                                        <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.Unit" /></td>
-                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Quantity" /></td>
-                                                        <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.Container" /></td>
-                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Count" /></td>
-                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.ProductTotalValue" /></td>
-                                                        <td class="p-1">
-                                                            <select class="form-control form-control-sm" @bind="product.TaxCategory">
-                                                                @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
-                                                                {
-                                                                    <option value="@taxCategory">@taxCategory</option>
-                                                                }
-                                                            </select>
-                                                        </td>
-                                                        <td class="p-1">
-                                                            <select class="form-control form-control-sm" @bind="product.RMSProduct">
-                                                                <option value="">@((RMSProductDTO?)null)</option>
-                                                                @foreach (var rmsProduct in rmsProducts)
-                                                                {
-                                                                    <option value="@rmsProduct.Id">@rmsProduct.Name</option>
-                                                                }
-                                                            </select>
-                                                        </td>
-                                                        <td class="p-1">
-                                                            <select class="form-control form-control-sm" @bind="product.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, product))">
-                                                                <option value="">@((RMSContainerDTO?)null)</option>
-                                                            @foreach (var rmsContainer in product.RMSProduct?.Containers ?? Enumerable.Empty<RMSContainerDTO>())
-                                                                {
-                                                                    <option value="@rmsContainer.Id">@rmsContainer.Name</option>
-                                                                }
-                                                            </select>
-                                                        </td>
-
-                                                        <td class="p-1">
-                                                            <select class="form-control form-control-sm" @bind="product.RMSStorage">
-                                                                <option value="">@((RMSAccountDTO?)null)</option>
-                                                                @foreach (var rmsStorage in rmsStorages)
-                                                                {
-                                                                    <option value="@rmsStorage.Id">@rmsStorage.Name</option>
-                                                                }
-                                                            </select>
-                                                        </td>
+		@if (showDeleteConfirmationModal)
+		{
+			<div class="modal-backdrop"></div>
+			<div class="modal show d-block" tabindex="-1" role="dialog">
+				<div class="modal-dialog" role="document">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title">Confirm Deletion</h5>
+						</div>
+						<div class="modal-body">
+							<p>Are you sure you want to delete @selectedInvoiceCount invoice(s)?</p>
+						</div>
+						<div class="modal-footer">
+							<button class="btn btn-secondary" @onclick="CancelDelete">No</button>
+							<button class="btn btn-danger" @onclick="ConfirmDelete">Yes</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		}
 
 
-                                                        <td class="p-1 align-middle">
-                                                            <div class="d-flex justify-content-around align-items-center">
-                                                                <button class="custom-btn" @onclick="async () => SaveProduct(product)">
-                                                                    <i class="fa fa-save" aria-hidden="true"></i>
-                                                                </button>
-                                                                <button class="custom-btn" @onclick="async () => CancelEditProduct(product)">
-                                                                    <i class="fa fa-undo" aria-hidden="true"></i>
-                                                                </button>
-                                                                <button class="custom-btn" @onclick="async () => DeleteProduct(product)">
-                                                                    <i class="fa fa-trash" aria-hidden="true"></i>
-                                                                </button>
-                                                            </div>
-                                                        </td>
+		@if (!string.IsNullOrEmpty(uploadMessage))
+		{
+			<div class="alert @uploadMessageClass" role="alert" style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
+				@uploadMessage
+			</div>
+		}
 
-                                                    }
-                                                    else
-                                                    {
-                                                        <td class="p-1">@product.ProductCode</td>
-                                                        <td class="p-1">@product.ProductName</td>
-                                                        <td class="p-1">@product.Unit</td>
-                                                        <td class="p-1">@product.Quantity</td>
-                                                        <td class="p-1">@product.Container</td>
-                                                        <td class="p-1">@product.Count</td>
-                                                        <td class="p-1">@product.ProductTotalValue</td>
-                                                        <td class="p-1">@product.TaxCategory</td>
-                                                        <td class="p-1">@product.RMSProduct?.Name</td>
-                                                        <td class="p-1">@product.RMSContainer?.Name</td>
-                                                        <td class="p-1">@product.RMSStorage?.Name</td>
-                                                        <td class="p-1">
-                                                            <button class="custom-btn" @onclick="async () => EditProduct(product)">
-                                                                <i class="fa fa-pencil" aria-hidden="true"></i>
-                                                            </button>
-                                                        </td>
-                                                    }
-                                                </tr>
-                                            }
+		@if (showInvoiceModal)
+		{
+			<div class="modal-backdrop"></div>
+			<div class="modal show d-block" tabindex="-1" role="dialog">
+				<div class="modal-dialog modal-wide" role="document">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h2 class="modal-title">Invoice Details</h2>
+						</div>
 
-                                            @if (isAddingNewProduct)
-                                            {
-                                                <tr>
-                                                    <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductCode" /></td>
-                                                    <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductName" /></td>
-                                                    <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.Unit" /></td>
-                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Quantity" /></td>
-                                                    <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.Container" /></td>
-                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Count" /></td>
-                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.ProductTotalValue" /></td>
-                                                    <td class="p-1">
-                                                        <select class="form-control form-control-sm" @bind="newProduct.TaxCategory">
-                                                            @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
-                                                            {
-                                                                <option value="@taxCategory">@taxCategory</option>
-                                                            }
-                                                        </select>
-                                                    </td>
-                                                    <td class="p-1">
-                                                        <select class="form-control form-control-sm" @bind="newProduct.RMSProduct">
-                                                            <option value="">@((RMSProductDTO?)null)</option>
-                                                            @foreach (var rmsProduct in rmsProducts)
-                                                            {
-                                                                <option value="@rmsProduct.Id">@rmsProduct.Name</option>
-                                                            }
-                                                        </select>
-                                                    </td>
-                                                    <td class="p-1">
-                                                        <select class="form-control form-control-sm" @bind="newProduct.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, newProduct))">
-                                                            @if (newProduct.RMSProduct != null)
-                                                            {
-                                                                <option value="">@((RMSContainerDTO?)null)</option>
-                                                                @foreach (var rmsContainer in newProduct.RMSProduct?.Containers)
-                                                                {
-                                                                    <option value="@rmsContainer.Id">@rmsContainer.Name</option>
-                                                                }
-                                                            }
-                                                        </select>
-                                                    </td>
+						<div class="modal-body">
+							<div class="row">
 
-                                                    <td class="p-1">
-                                                        <select class="form-control form-control-sm" @bind="newProduct.RMSStorage">
-                                                            <option value="">@((RMSAccountDTO?)null)</option>
-                                                            @foreach (var rmsStorage in rmsStorages)
-                                                            {
-                                                                <option value="@rmsStorage.Id">@rmsStorage.Name</option>
-                                                            }
-                                                        </select>
-                                                    </td>
 
-                                                    <td class="p-1 align-middle">
-                                                        <div class="d-flex justify-content-around align-items-center">
-                                                            <button class="custom-btn" @onclick="async () => SaveNewProduct()">
-                                                                <i class="fa fa-save" aria-hidden="true"></i>
-                                                            </button>
-                                                            <button class="custom-btn" @onclick="async () => CancelNewProduct()">
-                                                                <i class="fa fa-undo" aria-hidden="true"></i>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3 d-flex justify-content-between align-items-center">
-                                        <label for="taxCategories" class="form-label font-weight-bold fs-4">Tax Categories</label>
-                                        <button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewTaxCategory()">
-                                            <i class="fa fa-plus-square fa-2x" aria-hidden="true"></i>
-                                        </button>
-                                    </div>
-                                    <div style="max-height: 200px; overflow-y: auto;">
-                                        <table class="table table-striped table-sm">
-                                            <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
-                                                <tr>
-                                                    <th class="p-1">Category</th>
-                                                    <th class="p-1">Base</th>
-                                                    <th class="p-1">IVA</th>
-                                                    <th class="p-1">Total</th>
-                                                    <th style="text-align: center;">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach (var tax in editInvoice.TaxCategories)
-                                                {
-                                                    <tr>
-                                                        @if (editTaxCategory != null && editTaxCategory == tax)
-                                                        {
-                                                            <td class="p-1">
-                                                                <select class="form-control form-control-sm" @bind="tax.TaxCategory">
-                                                                    @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
-                                                                    {
-                                                                        <option value="@taxCategory">@taxCategory</option>
-                                                                    }
-                                                                </select>
-                                                            </td>
-                                                            <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="tax.Base" /></td>
-                                                            <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="tax.IVA" /></td>
-                                                            <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="tax.Total" /></td>
-                                                            <td class="p-1 align-middle">
-                                                                <div class="d-flex justify-content-around align-items-center">
-                                                                    <button class="custom-btn" @onclick="async () => SaveTaxCategory(tax)">
-                                                                        <i class="fa fa-save" aria-hidden="true"></i>
-                                                                    </button>
-                                                                    <button class="custom-btn" @onclick="async () => CancelEditTaxCategory(tax)">
-                                                                        <i class="fa fa-undo" aria-hidden="true"></i>
-                                                                    </button>
-                                                                    <button class="custom-btn" @onclick="async () => DeleteTaxCategory(tax)">
-                                                                        <i class="fa fa-trash" aria-hidden="true"></i>
-                                                                    </button>
-                                                                </div>
-                                                            </td>
 
-                                                        }
-                                                        else
-                                                        {
-                                                            <td class="p-1">@tax.TaxCategory</td>
-                                                            <td class="p-1">@tax.Base</td>
-                                                            <td class="p-1">@tax.IVA</td>
-                                                            <td class="p-1">@tax.Total</td>
-                                                            <td class="p-1">
-                                                                <button class="custom-btn" @onclick="async () => EditTaxCategory(tax)">
-                                                                    <i class="fa fa-pencil" aria-hidden="true"></i>
-                                                                </button>
-                                                            </td>
-                                                        }
-                                                    </tr>
-                                                }
-                                                @if (isAddingNewTaxCategory)
-                                                {
-                                                    <td class="p-1">
-                                                        <select class="form-control form-control-sm" @bind="newTaxCategory.TaxCategory">
-                                                            @foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
-                                                            {
-                                                                <option value="@taxCategory">@taxCategory</option>
-                                                            }
-                                                        </select>
-                                                    </td>
-                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newTaxCategory.Base" /></td>
-                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newTaxCategory.IVA" /></td>
-                                                    <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newTaxCategory.Total" /></td>
-                                                    <td class="p-1 align-middle">
-                                                        <div class="d-flex justify-content-around align-items-center">
-                                                            <button class="custom-btn" @onclick="async () => SaveNewTaxCategory()">
-                                                                <i class="fa fa-save" aria-hidden="true"></i>
-                                                            </button>
-                                                            <button class="custom-btn" @onclick="async () => CancelNewTaxCategory()">
-                                                                <i class="fa fa-undo" aria-hidden="true"></i>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                }
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
 
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="totalIVA" class="form-label font-weight-bold fs-4">Total IVA</label>
-                                        <InputNumber id="totalIVA" class="form-control" @bind-Value="editInvoice.TotalIVA" />
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="totalAmount" class="form-label font-weight-bold fs-4">Total Amount</label>
-                                        <InputNumber id="totalAmount" class="form-control" @bind-Value="editInvoice.TotalAmount" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" @onclick="async () => await CloseInvoiceModalAsync()">Close</button>
-                            <button type="button" class="btn btn-primary" @onclick="async () => await SaveInvoiceAsync()">Save changes</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
 
-    </Authorized>
-    <NotAuthorized>
-        <RedirectToLogin />
-        <p>You are not authorized to view this content.</p>
-    </NotAuthorized>
+								<div class="col-md-8">
+									<div class="row">
+
+										<div class="col-md-6">
+											<div class="mb-3">
+												<label for="invoiceNumber" class="form-label">Invoice Number</label>
+												<InputText id="invoiceNumber" class="form-control" @bind-Value="editInvoice.InvoiceNumber" />
+											</div>
+											<div class="mb-4">
+												<label for="invoiceDate" class="form-label">Invoice Date</label>
+												<InputDate id="invoiceDate" class="form-control" @bind-Value="editInvoice.InvoiceDate" />
+											</div>
+										</div>
+
+										<div class="col-md-6">
+											<div class="mb-3">
+												<label for="supplier" class="form-label">Supplier</label>
+												<InputText id="supplier" class="form-control" @bind-Value="editInvoice.Supplier.Name" />
+											</div>
+											<div class="mb-4">
+												<label for="supplierTaxNumber" class="form-label">Supplier Tax Number</label>
+												<InputText id="supplierTaxNumber" class="form-control" @bind-Value="editInvoice.Supplier.TaxNumber" />
+											</div>
+										</div>
+									</div>
+									<div class="mb-4">
+										<div class="mb-3 d-flex justify-content-between align-items-center">
+											<label for="products" class="form-label font-weight-bold fs-4">Products</label>
+											<button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewProduct()">
+												<i class="fa fa-plus-square fa-2x" aria-hidden="true"></i>
+											</button>
+										</div>
+
+										<div style="max-height: 400px; overflow-y: auto;">
+											<table class="table table-striped table-sm">
+												<thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
+													<tr>
+														<th class="p-1">Code</th>
+														<th class="p-1">Name</th>
+														<th class="p-1">Units</th>
+														<th class="p-1">Quantity</th>
+														<th class="p-1">Container</th>
+														<th class="p-1">Count</th>
+														<th id="totalPriceHeader" class="p-1 ">Total Price</th>
+														<th class="p-1">TAX Category</th>
+														<th class="p-1">RMS Product</th>
+														<th class="p-1">RMS Container</th>
+														<th class="p-1">RMS Storage</th>
+
+														<th style="text-align: center;">Actions</th>
+													</tr>
+												</thead>
+												<tbody>
+													@foreach (var product in editInvoice.Products)
+													{
+														<tr>
+															@if (editProduct != null && editProduct == product)
+															{
+																<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductCode" /></td>
+																<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductName" /></td>
+																<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.Unit" /></td>
+																<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Quantity" /></td>
+																<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.Container" /></td>
+																<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Count" /></td>
+																<td class="p-1"><input type="number" class="form-control form-control-sm text-end pe-5" @bind="product.ProductTotalValue" /></td>
+																<td class="p-1">
+																	<select class="form-control form-control-sm" @bind="product.TaxCategory">
+																		@foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
+																		{
+																			<option value="@taxCategory">@taxCategory</option>
+																		}
+																	</select>
+																</td>
+																<td class="p-1">
+																	<select class="form-control form-control-sm" @bind="product.RMSProduct">
+																		<option value="">@((RMSProductDTO?)null)</option>
+																		@foreach (var rmsProduct in rmsProducts)
+																		{
+																			<option value="@rmsProduct.Id">@rmsProduct.Name</option>
+																		}
+																	</select>
+																</td>
+																<td class="p-1">
+																	<select class="form-control form-control-sm" @bind="product.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, product))">
+																		<option value="">@((RMSContainerDTO?)null)</option>
+																		@foreach (var rmsContainer in product.RMSProduct?.Containers ?? Enumerable.Empty<RMSContainerDTO>())
+																		{
+																			<option value="@rmsContainer.Id">@rmsContainer.Name</option>
+																		}
+																	</select>
+																</td>
+
+																<td class="p-1">
+																	<select class="form-control form-control-sm" @bind="product.RMSStorage">
+																		<option value="">@((RMSAccountDTO?)null)</option>
+																		@foreach (var rmsStorage in rmsStorages)
+																		{
+																			<option value="@rmsStorage.Id">@rmsStorage.Name</option>
+																		}
+																	</select>
+																</td>
+
+
+																<td class="p-1 align-middle">
+																	<div class="d-flex justify-content-around align-items-center">
+																		<button class="custom-btn" @onclick="async () => SaveProduct(product)">
+																			<i class="fa fa-save" aria-hidden="true"></i>
+																		</button>
+																		<button class="custom-btn" @onclick="async () => CancelEditProduct(product)">
+																			<i class="fa fa-undo" aria-hidden="true"></i>
+																		</button>
+																		<button class="custom-btn" @onclick="async () => DeleteProduct(product)">
+																			<i class="fa fa-trash" aria-hidden="true"></i>
+																		</button>
+																	</div>
+																</td>
+
+															}
+															else
+															{
+																<td class="p-1">@product.ProductCode</td>
+																<td class="p-1">@product.ProductName</td>
+																<td class="p-1">@product.Unit</td>
+																<td class="p-1">@product.Quantity</td>
+																<td class="p-1">@product.Container</td>
+																<td class="p-1">@product.Count</td>
+																<td class="p-1 text-end pe-5">@product.ProductTotalValue</td>
+																<td class="p-1">@product.TaxCategory</td>
+																<td class="p-1">@product.RMSProduct?.Name</td>
+																<td class="p-1">@product.RMSContainer?.Name</td>
+																<td class="p-1">@product.RMSStorage?.Name</td>
+																<td class="p-1">
+																	<button class="custom-btn" @onclick="async () => EditProduct(product)">
+																		<i class="fa fa-pencil" aria-hidden="true"></i>
+																	</button>
+																</td>
+															}
+														</tr>
+													}
+
+													@if (isAddingNewProduct)
+													{
+														<tr>
+															<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductCode" /></td>
+															<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductName" /></td>
+															<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.Unit" /></td>
+															<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Quantity" /></td>
+															<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.Container" /></td>
+															<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Count" /></td>
+															<td class="p-1"><input type="number" class="form-control form-control-sm text-end pe-5" @bind="newProduct.ProductTotalValue" /></td>
+															<td class="p-1">
+																<select class="form-control form-control-sm" @bind="newProduct.TaxCategory">
+																	@foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
+																	{
+																		<option value="@taxCategory">@taxCategory</option>
+																	}
+																</select>
+															</td>
+															<td class="p-1">
+																<select class="form-control form-control-sm" @bind="newProduct.RMSProduct">
+																	<option value="">@((RMSProductDTO?)null)</option>
+																	@foreach (var rmsProduct in rmsProducts)
+																	{
+																		<option value="@rmsProduct.Id">@rmsProduct.Name</option>
+																	}
+																</select>
+															</td>
+															<td class="p-1">
+																<select class="form-control form-control-sm" @bind="newProduct.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, newProduct))">
+																	@if (newProduct.RMSProduct != null)
+																	{
+																		<option value="">@((RMSContainerDTO?)null)</option>
+																		@foreach (var rmsContainer in newProduct.RMSProduct?.Containers)
+																		{
+																			<option value="@rmsContainer.Id">@rmsContainer.Name</option>
+																		}
+																	}
+																</select>
+															</td>
+
+															<td class="p-1">
+																<select class="form-control form-control-sm" @bind="newProduct.RMSStorage">
+																	<option value="">@((RMSAccountDTO?)null)</option>
+																	@foreach (var rmsStorage in rmsStorages)
+																	{
+																		<option value="@rmsStorage.Id">@rmsStorage.Name</option>
+																	}
+																</select>
+															</td>
+
+															<td class="p-1 align-middle">
+																<div class="d-flex justify-content-around align-items-center">
+																	<button class="custom-btn" @onclick="async () => SaveNewProduct()">
+																		<i class="fa fa-save" aria-hidden="true"></i>
+																	</button>
+																	<button class="custom-btn" @onclick="async () => CancelNewProduct()">
+																		<i class="fa fa-undo" aria-hidden="true"></i>
+																	</button>
+																</div>
+															</td>
+														</tr>
+													}
+												</tbody>
+											</table>
+										</div>
+										<div style="position: absolute; height: 20px;">
+											<span id="totalPriceSum" style="font-weight: bold;">@GetTotalPriceSum()</span>
+										</div>
+
+
+									</div>
+									<div class="row">
+										<div class="col-md-6">
+											<div class="mb-3 d-flex justify-content-between align-items-center">
+												<label for="taxCategories" class="form-label font-weight-bold fs-4">Tax Categories</label>
+												<button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewTaxCategory()">
+													<i class="fa fa-plus-square fa-2x" aria-hidden="true"></i>
+												</button>
+											</div>
+											<div style="max-height: 200px; overflow-y: auto;">
+												<table class="table table-striped table-sm">
+													<thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
+														<tr>
+															<th class="p-1">Category</th>
+															<th class="p-1">Base</th>
+															<th class="p-1">IVA</th>
+															<th class="p-1">Total</th>
+															<th style="text-align: center;">Actions</th>
+														</tr>
+													</thead>
+													<tbody>
+														@foreach (var tax in editInvoice.TaxCategories)
+														{
+															<tr>
+																@if (editTaxCategory != null && editTaxCategory == tax)
+																{
+																	<td class="p-1">
+																		<select class="form-control form-control-sm" @bind="tax.TaxCategory">
+																			@foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
+																			{
+																				<option value="@taxCategory">@taxCategory</option>
+																			}
+																		</select>
+																	</td>
+																	<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="tax.Base" /></td>
+																	<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="tax.IVA" /></td>
+																	<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="tax.Total" /></td>
+																	<td class="p-1 align-middle">
+																		<div class="d-flex justify-content-around align-items-center">
+																			<button class="custom-btn" @onclick="async () => SaveTaxCategory(tax)">
+																				<i class="fa fa-save" aria-hidden="true"></i>
+																			</button>
+																			<button class="custom-btn" @onclick="async () => CancelEditTaxCategory(tax)">
+																				<i class="fa fa-undo" aria-hidden="true"></i>
+																			</button>
+																			<button class="custom-btn" @onclick="async () => DeleteTaxCategory(tax)">
+																				<i class="fa fa-trash" aria-hidden="true"></i>
+																			</button>
+																		</div>
+																	</td>
+
+																}
+																else
+																{
+																	<td class="p-1">@tax.TaxCategory</td>
+																	<td class="p-1">@tax.Base</td>
+																	<td class="p-1">@tax.IVA</td>
+																	<td class="p-1">@tax.Total</td>
+																	<td class="p-1">
+																		<button class="custom-btn" @onclick="async () => EditTaxCategory(tax)">
+																			<i class="fa fa-pencil" aria-hidden="true"></i>
+																		</button>
+																	</td>
+																}
+															</tr>
+														}
+														@if (isAddingNewTaxCategory)
+														{
+														<td class="p-1">
+															<select class="form-control form-control-sm" @bind="newTaxCategory.TaxCategory">
+																@foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
+																{
+																	<option value="@taxCategory">@taxCategory</option>
+																}
+															</select>
+														</td>
+														<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newTaxCategory.Base" /></td>
+														<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newTaxCategory.IVA" /></td>
+														<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newTaxCategory.Total" /></td>
+														<td class="p-1 align-middle">
+															<div class="d-flex justify-content-around align-items-center">
+																<button class="custom-btn" @onclick="async () => SaveNewTaxCategory()">
+																	<i class="fa fa-save" aria-hidden="true"></i>
+																</button>
+																<button class="custom-btn" @onclick="async () => CancelNewTaxCategory()">
+																	<i class="fa fa-undo" aria-hidden="true"></i>
+																</button>
+															</div>
+														</td>
+													}
+													</tbody>
+												</table>
+											</div>
+										</div>
+
+										<div class="col-md-6">
+											<div class="mb-3">
+												<label for="totalIVA" class="form-label font-weight-bold fs-4">Total IVA</label>
+												<InputNumber id="totalIVA" class="form-control" @bind-Value="editInvoice.TotalIVA" />
+											</div>
+											<div class="mb-3">
+												<label for="totalAmount" class="form-label font-weight-bold fs-4">Total Amount</label>
+												<InputNumber id="totalAmount" class="form-control" @bind-Value="editInvoice.TotalAmount" />
+											</div>
+										</div>
+									</div>
+								</div>
+
+
+								<div class="col-md-4">
+									<div class="mb-3">
+										@if (!string.IsNullOrEmpty(scannedImageBase64))
+										{
+											<img src="data:image/png;base64,@scannedImageBase64" alt="Scanned Document" class="img-fluid" />
+										}
+										else
+										{
+											<p><em>Loading scanned document...</em></p>
+										}
+									</div>
+								</div>
+
+							</div>
+						</div>
+						<div class="modal-footer d-flex justify-content-between align-items-center">
+							<div class="flex-grow-1 me-4">
+								<input type="text" class="form-control" placeholder="Comments" @bind="editInvoice.Comments" />
+							</div>
+							<div class="d-flex">
+								<button type="button" class="btn btn-secondary me-3" @onclick="async () => await CloseInvoiceModalAsync()">Close</button>
+								<button type="button" class="btn btn-primary me-3" @onclick="async () => await SaveInvoiceAsync()">Save changes</button>
+							</div>
+						</div>
+
+					</div>
+				</div>
+			</div>
+		}
+
+	</Authorized>
+	<NotAuthorized>
+		<RedirectToLogin />
+		<p>You are not authorized to view this content.</p>
+	</NotAuthorized>
 </AuthorizeView>
 
 
 <script>
-    function showModal(modalId) {
-    var modal = document.getElementById(modalId);
-    if (modal) {
-    modal.classList.add('show');
-    modal.style.display = 'block';
-    }
-    }
+	function showModal(modalId) {
+	var modal = document.getElementById(modalId);
+	if (modal) {
+	modal.classList.add('show');
+	modal.style.display = 'block';
+	}
+	}
 
-    function hideModal(modalId) {
-    var modal = document.getElementById(modalId);
-    if (modal) {
-    modal.classList.remove('show');
-    modal.style.display = 'none';
-    }
-    }
+	function hideModal(modalId) {
+	var modal = document.getElementById(modalId);
+	if (modal) {
+	modal.classList.remove('show');
+	modal.style.display = 'none';
+	}
+	}
 </script>
 
+<script>
+	function alignTotalPriceSum() {
+		const header = document.getElementById('totalPriceHeader');
+		const sumField = document.getElementById('totalPriceSum');
+
+		if (header && sumField) {
+			// Получаем ширину и положение заголовка
+			const headerRect = header.getBoundingClientRect();
+
+			const offset = 120;
+
+			// Применяем ширину и позицию к полю с суммой
+			sumField.style.position = 'absolute';
+			sumField.style.left = `${headerRect.left - offset}px`;
+			sumField.style.width = `${headerRect.width}px`;
+			sumField.style.textAlign = 'right';
+
+		}
+	}
+
+</script>
+
+
 @code {
-    // Выбранный файл 
-    private IBrowserFile? selectedFile;
 
-    // Список инвойсов
-    private InvoiceDTO[]? invoices;
-    // Редактируемый продукт (выбранный в списке)
-    private InvoiceDTO? selectedInvoice; 
-    // Временная модель для редактирования, чтобы не менять объект из списка напрямую
-    private InvoiceDTO editInvoice = new InvoiceDTO(); 
+	// Выбранный файл
+	// private IBrowserFile? selectedFile;
+	private List<IBrowserFile> selectedFiles = new();
+
+	private string? scannedImageBase64;
+	private Dictionary<int, string> scannedImageCache = new(); // Кэш для изображений
 
 
-
-    // Список продуктов
-    private RMSProductDTO[]? rmsProducts; 
-    // Редактируемый продукт
-    private InvoiceProductDTO? editProduct;
-    // Временная модель для бэкапа продукта
-    private InvoiceProductDTO? backupProduct;
+	// Список инвойсов
+	private InvoiceDTO[]? invoices;
+	// Редактируемый продукт (выбранный в списке)
+	private InvoiceDTO? selectedInvoice;
+	// Временная модель для редактирования, чтобы не менять объект из списка напрямую
+	private InvoiceDTO editInvoice = new InvoiceDTO();
 
 
 
-    // Новый продукт
-    private InvoiceProductDTO newProduct = new InvoiceProductDTO(); 
-    // Флаг для добавления нового продукта
-    private bool isAddingNewProduct = false;
-
-
-    // Редактируемая категория
-    private TaxesDTO? editTaxCategory;
-    // Временная модель для бекапа категории
-    private TaxesDTO? backupTaxCategory;
-
-    // Новая категория
-    private TaxesDTO newTaxCategory = new TaxesDTO();
-    // Флаг для добавления новой категории
-    private bool isAddingNewTaxCategory = false; 
-
-    // Признак отображения модальной формы Invoice
-    private bool showInvoiceModal = false; 
-
-    private SupplierDTOConverter? converterSupplier;
-    private RMSProductDTOConverter? converterProduct;
-    private RMSAccountDTOConverter? converterStorages;
-    private RMSContainerDTOConverter? converterContainer;
-
-    private string? uploadMessage;
-    private string? uploadMessageClass;
-
-    private SupplierDTO[]? suppliers;   // Добавлено: Список поставщиков
-    private RMSContainerDTO[]? rmsContainers; // Добавлено: Список контейнеров
-
-    // Storages
-    private RMSAccountDTO[]? rmsStorages;
-
-    // private List<InvoiceProductDTO>? selectedProducts;
-    private AppUser appUser;
-    private string? errorMessage;
-    private bool isInitialized = false;
-    private HubConnection? hubConnection; // Добавлено: HubConnection для SignalR
-    private string baseUri;
-
-    private bool selectAll = false;
-
-    private void ToggleSelectAll()
-    {
-        selectAll = !selectAll;
-        foreach (var invoice in invoices)
-        {
-            invoice.IsSelected = selectAll;
-        }
-    }
+	// Список продуктов
+	private RMSProductDTO[]? rmsProducts;
+	// Редактируемый продукт
+	private InvoiceProductDTO? editProduct;
+	// Временная модель для бэкапа продукта
+	private InvoiceProductDTO? backupProduct;
 
 
 
-    protected override async Task OnInitializedAsync()
-    {
-        baseUri = Navigation.BaseUri;
-        if (baseUri.EndsWith('/'))
-        {
-            baseUri = baseUri.Substring(0, baseUri.Length - 1);
-        }
-
-        if (!isInitialized)
-        {
-            isInitialized = true;
-            await InitializeDataAsync();
-            await InitializeSignalRAsync(); // Добавлено: Инициализация SignalR
-        }
-    }
-
-    private async Task InitializeDataAsync()
-    {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        appUser = await UserManager.GetUserAsync(user);
-
-        if (user.Identity.IsAuthenticated && appUser?.ConsumerId != null)
-        {
-            await LoadInvoicesAsync();
-            await LoadSuppliersAsync(); // Добавлено: Загрузка списка поставщиков
-            await LoadStoragesAsync();
-            await LoadRMSProductsAsync(); // Добавлено: Загрузка списка продуктов
-            await SetTypeConverters(); // Добавлено: Установка конвертеров для SupplierDTO
-
-        }
-        else
-        {
-            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
-            Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
-        }
-    }
-
-    private async Task SetTypeConverters()
-    {
-        if (converterSupplier == null)
-            converterSupplier = TypeDescriptor.GetConverter(typeof(SupplierDTO)) as SupplierDTOConverter;
-        converterSupplier.SetSourceList(suppliers);
-
-        if (converterProduct == null)
-            converterProduct = TypeDescriptor.GetConverter(typeof(RMSProductDTO)) as RMSProductDTOConverter;
-        converterProduct.SetSourceList(rmsProducts);
-
-        if(converterStorages == null)
-            converterStorages = TypeDescriptor.GetConverter(typeof(RMSAccountDTO)) as RMSAccountDTOConverter;
-        converterStorages.SetSourceList(rmsStorages);
-
-    }
+	// Новый продукт
+	private InvoiceProductDTO newProduct = new InvoiceProductDTO();
+	// Флаг для добавления нового продукта
+	private bool isAddingNewProduct = false;
 
 
-    private async Task LoadInvoicesAsync()
-    {
-        try
-        {
-            invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices/{appUser.ConsumerId}");
-        }
-        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-        {
-            Console.WriteLine("Invoices not found.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred: {ex.Message}");
-        }
-    }
+	// Редактируемая категория
+	private TaxesDTO? editTaxCategory;
+	// Временная модель для бекапа категории
+	private TaxesDTO? backupTaxCategory;
 
+	// Новая категория
+	private TaxesDTO newTaxCategory = new TaxesDTO();
+	// Флаг для добавления новой категории
+	private bool isAddingNewTaxCategory = false;
 
-    private async Task LoadSuppliersAsync() // Добавлено: Метод для загрузки списка поставщиков
-    {
-        try
-        {
-            suppliers = await Http.GetFromJsonAsync<SupplierDTO[]>($"{baseUri}/api/suppliers/{appUser.ConsumerId}");
+	// Признак отображения модальной формы Invoice
+	private bool showInvoiceModal = false;
 
+	private SupplierDTOConverter? converterSupplier;
+	private RMSProductDTOConverter? converterProduct;
+	private RMSAccountDTOConverter? converterStorages;
+	private RMSContainerDTOConverter? converterContainer;
 
-        }
-        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-        {
-            Console.WriteLine("Suppliers not found.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred: {ex.Message}");
-        }
-    }
+	private string? uploadMessage;
+	private string? uploadMessageClass;
 
+	private SupplierDTO[]? suppliers;   // Добавлено: Список поставщиков
+	private RMSContainerDTO[]? rmsContainers; // Добавлено: Список контейнеров
 
-    private async Task LoadStoragesAsync() // Добавлено: Метод для загрузки списка cкладов
-    {
-        try
-        {
-            rmsStorages = await Http.GetFromJsonAsync<RMSAccountDTO[]>($"{baseUri}/api/storages/{appUser.ConsumerId}");
-        }
-        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-        {
-            Console.WriteLine("Suppliers not found.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred: {ex.Message}");
-        }
-    }
+	// Storages
+	private RMSAccountDTO[]? rmsStorages;
 
+	// private List<InvoiceProductDTO>? selectedProducts;
+	private AppUser appUser;
+	private string? errorMessage;
+	private bool isInitialized = false;
+	private HubConnection? hubConnection; // Добавлено: HubConnection для SignalR
+	private string baseUri;
 
-    private async Task LoadRMSProductsAsync() // Добавлено: Метод для загрузки списка продуктов
-    {
-        try
-        {
-            rmsProducts = await Http.GetFromJsonAsync<RMSProductDTO[]>($"{baseUri}/api/rmsproducts/{appUser.ConsumerId}");
-        }
-        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-        {
-            Console.WriteLine("RMS Products not found.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred: {ex.Message}");
-        }
-    }
+	private bool selectAll = false;
+	private bool wasModalRendered = false;
 
-
-    private async Task InitializeSignalRAsync()
-    {
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/notificationHub"))
-            .Build();
-
-        hubConnection.On<string>("ReceiveMessage", async (message) =>
-        {
-            uploadMessage = message;
-            uploadMessageClass = "alert-info";
-            await InitializeDataAsync();
-            InvokeAsync(StateHasChanged);
-        });
-
-        await hubConnection.StartAsync();
-    }
-
-
-    private void HandleFileSelected(InputFileChangeEventArgs e)
-    {
-        selectedFile = e.File;
-        Console.WriteLine("File selected: " + selectedFile.Name);
-        UploadFile();
-    }
-
-
-    private async Task UploadFile()
-    {
-        if (appUser?.ConsumerId != null)
-        {
-            if (selectedFile != null)
-            {
-                if (selectedFile.Size > 10 * 1024 * 1024)
-                {
-                    Console.WriteLine("File size exceeds the 10 MB limit.");
-                    uploadMessage = "File size exceeds the 10 MB limit. Please reduce the file size.";
-                    uploadMessageClass = "alert-danger";
-                }
-                else
-                {
-                    Console.WriteLine("Uploading file: " + selectedFile.Name);
-
-                    var content = new MultipartFormDataContent();
-                    content.Add(new StreamContent(selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)), "file", selectedFile.Name);
-                    content.Add(new StringContent(appUser.ConsumerId.ToString()), "consumerId");
-
-                    var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/upload", content);
-                }
-
-            }
-            else
-            {
-                Console.WriteLine("No file selected.");
-                uploadMessage = "No file selected.";
-                uploadMessageClass = "alert-danger";
-            }
-
-            StateHasChanged();
-            // Hide the message after 5 seconds
-            await Task.Delay(5000);
-            uploadMessage = null;
-            uploadMessageClass = null;
-            StateHasChanged();
-        }
-        else
-        {
-            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
-            Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
-        }
-    }
+	private bool showDeleteConfirmationModal = false;
+	private int selectedInvoiceCount = 0;
+	private List<int> selectedInvoiceIds = new();
 
 
 
-    // Метод для отображения модальной формы Invoice
-    private async Task ShowInvoiceAsync(InvoiceDTO invoice) 
-    {
-        selectedInvoice = invoice;
-        InvoiceHelper.CopyInvoice(editInvoice, selectedInvoice);
-        showInvoiceModal = true;
-    }
+	private void ToggleSelectAll()
+	{
+		selectAll = !selectAll;
+		foreach (var invoice in invoices)
+		{
+			invoice.IsSelected = selectAll;
+		}
+	}
 
 
-    //////////////////////////////////////////////////////////////////////////////
-    // Редактирование продукта
+	protected override async Task OnInitializedAsync()
+	{
+		baseUri = Navigation.BaseUri;
+		if (baseUri.EndsWith('/'))
+		{
+			baseUri = baseUri.Substring(0, baseUri.Length - 1);
+		}
 
-    private void CopyProduct(InvoiceProductDTO source, InvoiceProductDTO target)
-    {
-        if (source != null && target != null)
-        {
-            target.Id = source.Id;
-            target.ProductCode = source.ProductCode;
-            target.ProductName = source.ProductName;
-            target.Unit = source.Unit;
+		if (!isInitialized)
+		{
+			isInitialized = true;
+			await InitializeDataAsync();
+			await InitializeSignalRAsync(); // Добавлено: Инициализация SignalR
+		}
+	}
+
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (showInvoiceModal && !wasModalRendered)
+		{
+			await JS.InvokeVoidAsync("alignTotalPriceSum");
+			wasModalRendered = true; // Устанавливаем флаг, чтобы не вызывать повторно
+		}
+		else if (!showInvoiceModal)
+		{
+			wasModalRendered = false; // Сбрасываем флаг при закрытии модального окна
+		}
+	}
+
+
+
+	private async Task InitializeDataAsync()
+	{
+		var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+		var user = authState.User;
+		appUser = await UserManager.GetUserAsync(user);
+
+		if (user.Identity.IsAuthenticated && appUser?.ConsumerId != null)
+		{
+			await LoadInvoicesAsync();
+			await LoadSuppliersAsync(); // Добавлено: Загрузка списка поставщиков
+			await LoadStoragesAsync();
+			await LoadRMSProductsAsync(); // Добавлено: Загрузка списка продуктов
+			await SetTypeConverters(); // Добавлено: Установка конвертеров для SupplierDTO
+
+		}
+		else
+		{
+			var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+			Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+		}
+	}
+
+	private async Task SetTypeConverters()
+	{
+		if (converterSupplier == null)
+			converterSupplier = TypeDescriptor.GetConverter(typeof(SupplierDTO)) as SupplierDTOConverter;
+		converterSupplier.SetSourceList(suppliers);
+
+		if (converterProduct == null)
+			converterProduct = TypeDescriptor.GetConverter(typeof(RMSProductDTO)) as RMSProductDTOConverter;
+		converterProduct.SetSourceList(rmsProducts);
+
+		if (converterStorages == null)
+			converterStorages = TypeDescriptor.GetConverter(typeof(RMSAccountDTO)) as RMSAccountDTOConverter;
+		converterStorages.SetSourceList(rmsStorages);
+
+	}
+
+
+	private async Task LoadInvoicesAsync()
+	{
+		try
+		{
+			invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices/{appUser.ConsumerId}");
+		}
+		catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+		{
+			Console.WriteLine("Invoices not found.");
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"An error occurred: {ex.Message}");
+		}
+	}
+
+
+	private async Task LoadSuppliersAsync() // Добавлено: Метод для загрузки списка поставщиков
+	{
+		try
+		{
+			suppliers = await Http.GetFromJsonAsync<SupplierDTO[]>($"{baseUri}/api/suppliers/{appUser.ConsumerId}");
+
+
+		}
+		catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+		{
+			Console.WriteLine("Suppliers not found.");
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"An error occurred: {ex.Message}");
+		}
+	}
+
+
+	private async Task LoadStoragesAsync() // Добавлено: Метод для загрузки списка cкладов
+	{
+		try
+		{
+			rmsStorages = await Http.GetFromJsonAsync<RMSAccountDTO[]>($"{baseUri}/api/storages/{appUser.ConsumerId}");
+		}
+		catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+		{
+			Console.WriteLine("Suppliers not found.");
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"An error occurred: {ex.Message}");
+		}
+	}
+
+
+	private async Task LoadRMSProductsAsync() // Добавлено: Метод для загрузки списка продуктов
+	{
+		try
+		{
+			rmsProducts = await Http.GetFromJsonAsync<RMSProductDTO[]>($"{baseUri}/api/rmsproducts/{appUser.ConsumerId}");
+		}
+		catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+		{
+			Console.WriteLine("RMS Products not found.");
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"An error occurred: {ex.Message}");
+		}
+	}
+
+	private async Task LoadScannedImageAsync(int invoiceId)
+	{
+		// Проверяем, есть ли изображение в кэше
+		if (scannedImageCache.TryGetValue(invoiceId, out var cachedImage))
+		{
+			scannedImageBase64 = cachedImage;
+			return;
+		}
+
+		try
+		{
+			var response = await Http.GetAsync($"{baseUri}/api/InvoicesFiles/{invoiceId}/scanned-image");
+			if (response.IsSuccessStatusCode)
+			{
+				var imageBytes = await response.Content.ReadAsByteArrayAsync();
+				scannedImageBase64 = Convert.ToBase64String(imageBytes);
+
+				// Сохраняем изображение в кэш
+				scannedImageCache[invoiceId] = scannedImageBase64;
+			}
+			else
+			{
+				Console.WriteLine($"Failed to load scanned image. Status code: {response.StatusCode}");
+			}
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"An error occurred while loading the scanned image: {ex.Message}");
+		}
+	}
+
+	private async Task InitializeSignalRAsync()
+	{
+		hubConnection = new HubConnectionBuilder()
+			.WithUrl(Navigation.ToAbsoluteUri("/notificationHub"))
+			.Build();
+
+		hubConnection.On<string>("ReceiveMessage", async (message) =>
+		{
+			uploadMessage = message;
+			uploadMessageClass = "alert-info";
+			await InitializeDataAsync();
+			InvokeAsync(StateHasChanged);
+		});
+
+		await hubConnection.StartAsync();
+	}
+
+
+	private void HandleFileSelected(InputFileChangeEventArgs e)
+	{
+		selectedFiles = e.GetMultipleFiles().ToList();
+		Console.WriteLine($"Selected {selectedFiles.Count} files:");
+		foreach (var file in selectedFiles)
+		{
+			Console.WriteLine($"- {file.Name} ({file.Size} bytes)");
+		}
+
+		// Если нужно сразу загружать файлы:
+		UploadFiles();
+	}
+
+
+	private async Task UploadFiles()
+	{
+		if (appUser?.ConsumerId != null)
+		{
+			foreach (var selectedFile in selectedFiles)
+			{
+				if (selectedFile.Size > 10 * 1024 * 1024)
+				{
+					Console.WriteLine("File size exceeds the 10 MB limit.");
+					uploadMessage = "File size exceeds the 10 MB limit. Please reduce the file size.";
+					uploadMessageClass = "alert-danger";
+					continue;
+				}
+				
+				Console.WriteLine("Uploading file: " + selectedFile.Name);
+
+				var content = new MultipartFormDataContent();
+				content.Add(new StreamContent(selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)), "file", selectedFile.Name);
+				content.Add(new StringContent(appUser.ConsumerId.ToString()), "consumerId");
+
+				var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/upload", content);
+
+				if (response.IsSuccessStatusCode)
+					Console.WriteLine($"File {selectedFile.Name} uploaded successfully.");
+				else
+					Console.WriteLine($"Failed to upload file {selectedFile.Name}. Status code: {response.StatusCode}");
+			}
+			
+
+			StateHasChanged();
+			await Task.Delay(5000);
+			uploadMessage = null;
+			uploadMessageClass = null;
+			StateHasChanged();
+		}
+		else
+		{
+			var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+			Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+		}
+	}
+
+
+	private async Task ProcessSelectedInvoicesAsync()
+	{
+		var selectedInvoiceIds = invoices
+			.Where(invoice => invoice.IsSelected)
+			.Select(invoice => invoice.Id)
+			.Where(id => id.HasValue)
+			.Select(id => id.Value)
+			.ToList();
+
+		if (!selectedInvoiceIds.Any())
+		{
+			uploadMessage = "No invoices selected for processing.";
+			uploadMessageClass = "alert-warning";
+			StateHasChanged();
+			return;
+		}
+
+		try
+		{
+			var response = await Http.PostAsJsonAsync($"{baseUri}/api/invoices/process/{appUser.ConsumerId}", selectedInvoiceIds);
+
+			if (response.IsSuccessStatusCode)
+			{
+				uploadMessage = "Selected invoices are being processed.";
+				uploadMessageClass = "alert-success";
+			}
+			else
+			{
+				var errorContent = await response.Content.ReadAsStringAsync();
+				uploadMessage = $"Failed to process invoices: {errorContent}";
+				uploadMessageClass = "alert-danger";
+			}
+		}
+		catch (Exception ex)
+		{
+			uploadMessage = $"An error occurred: {ex.Message}";
+			uploadMessageClass = "alert-danger";
+		}
+
+		StateHasChanged();
+		await Task.Delay(5000);
+		uploadMessage = null;
+		uploadMessageClass = null;
+		StateHasChanged();
+	}
+
+
+	private void ShowDeleteConfirmation()
+	{
+		// Фильтруем инвойсы, которые нельзя удалять
+		var invalidInvoices = invoices
+			.Where(i => i.IsSelected && i.Stage == InvoiceStageEnum.SavedToSystem && i.StageStatus == InvoiceStatusEnum.Ok)
+			.ToList();
+
+		// Сбрасываем выделение для инвойсов, которые нельзя удалять
+		foreach (var invoice in invalidInvoices)
+		{
+			invoice.IsSelected = false;
+		}
+		// Если есть инвойсы, которые можно удалить, то продолжаем
+		selectedInvoiceIds = invoices
+			.Where(invoice => invoice.IsSelected)
+			.Select(invoice => invoice.Id)
+			.Where(id => id.HasValue)
+			.Select(id => id.Value)
+			.ToList();
+
+		selectedInvoiceCount = selectedInvoiceIds.Count;
+
+		if (selectedInvoiceCount > 0)
+		{
+			showDeleteConfirmationModal = true;
+		}
+		else
+		{
+			uploadMessage = invalidInvoices.Any()
+				? "Some invoices cannot be deleted due to their status."
+				: "No invoices selected for deletion.";
+			uploadMessageClass = "alert-warning";
+			StateHasChanged();
+		}
+	}
+
+	private void CancelDelete()
+	{
+		showDeleteConfirmationModal = false;
+	}
+
+
+	private async Task ConfirmDelete()
+	{
+		showDeleteConfirmationModal = false;
+
+		try
+		{
+			var response = await Http.PostAsJsonAsync($"{baseUri}/api/invoices/delete", selectedInvoiceIds);
+
+			if (response.IsSuccessStatusCode)
+			{
+				uploadMessage = "Selected invoices deleted successfully.";
+				uploadMessageClass = "alert-success";
+
+				// Обновляем список инвойсов
+				invoices = invoices.Where(invoice => !selectedInvoiceIds.Contains(invoice.Id ?? 0)).ToArray();
+			}
+			else
+			{
+				var errorContent = await response.Content.ReadAsStringAsync();
+				uploadMessage = $"Failed to delete invoices: {errorContent}";
+				uploadMessageClass = "alert-danger";
+			}
+		}
+		catch (Exception ex)
+		{
+			uploadMessage = $"An error occurred: {ex.Message}";
+			uploadMessageClass = "alert-danger";
+		}
+
+		StateHasChanged();
+		await Task.Delay(5000);
+		uploadMessage = null;
+		uploadMessageClass = null;
+		StateHasChanged();
+	}
+
+
+	// Метод для отображения модальной формы Invoice
+	private async Task ShowInvoiceAsync(InvoiceDTO invoice)
+	{
+		selectedInvoice = invoice;
+		InvoiceHelper.CopyInvoice(editInvoice, selectedInvoice);
+		showInvoiceModal = true;
+
+		// Загрузка изображения
+		await LoadScannedImageAsync(invoice.Id ?? 0);
+
+		StateHasChanged();
+	}
+
+
+	//////////////////////////////////////////////////////////////////////////////
+	// Редактирование продукта
+
+	private void CopyProduct(InvoiceProductDTO source, InvoiceProductDTO target)
+	{
+		if (source != null && target != null)
+		{
+			target.Id = source.Id;
+			target.ProductCode = source.ProductCode;
+			target.ProductName = source.ProductName;
+			target.Unit = source.Unit;
 			target.Quantity = source.Quantity;
-            target.Container = source.Container;
+			target.Container = source.Container;
 			target.Count = source.Count;
-            target.ProductTotalValue = source.ProductTotalValue;
-            target.TaxCategory = source.TaxCategory;
-            target.RMSProduct = source.RMSProduct;
-            target.RMSContainer = source.RMSContainer;
-            target.Comments = source.Comments;
-        }
-    }
+			target.ProductTotalValue = source.ProductTotalValue;
+			target.TaxCategory = source.TaxCategory;
+			target.RMSProduct = source.RMSProduct;
+			target.RMSContainer = source.RMSContainer;
+			target.Comments = source.Comments;
+		}
+	}
 
-    private void EditProduct(InvoiceProductDTO product)
-    {
-        if (product != null)
-        {
+	private void EditProduct(InvoiceProductDTO product)
+	{
+		if (product != null)
+		{
 
-            backupProduct = new InvoiceProductDTO();
-            CopyProduct(product, backupProduct);
-            editProduct = product;
-        }
-    }
+			backupProduct = new InvoiceProductDTO();
+			CopyProduct(product, backupProduct);
+			editProduct = product;
+		}
+	}
 
-    private void SaveProduct(InvoiceProductDTO product)
-    {
-        if(editProduct == product)
-        {
-            // Save product logic here
-            editProduct = null;
-            backupProduct = null;
-        }
-    }
+	private void SaveProduct(InvoiceProductDTO product)
+	{
+		if (editProduct == product)
+		{
+			// Save product logic here
+			editProduct = null;
+			backupProduct = null;
+		}
+	}
 
-    private void CancelEditProduct(InvoiceProductDTO product)
-    {
-        if (backupProduct != null && editProduct != null &&
-            product != null && editProduct == product)
-        {
+	private void CancelEditProduct(InvoiceProductDTO product)
+	{
+		if (backupProduct != null && editProduct != null &&
+			product != null && editProduct == product)
+		{
 
-            editProduct.ProductCode = backupProduct.ProductCode;
-            editProduct.ProductName = backupProduct.ProductName;
-            editProduct.Unit = backupProduct.Unit;
+			editProduct.ProductCode = backupProduct.ProductCode;
+			editProduct.ProductName = backupProduct.ProductName;
+			editProduct.Unit = backupProduct.Unit;
 			editProduct.Quantity = backupProduct.Quantity;
-            editProduct.Container = backupProduct.Container;
-            editProduct.Count = backupProduct.Count;
-            editProduct.ProductTotalValue = backupProduct.ProductTotalValue;
-            editProduct.TaxCategory = backupProduct.TaxCategory;
-            editProduct.RMSProduct = backupProduct.RMSProduct;
-            editProduct.RMSContainer = backupProduct.RMSContainer;
-            editProduct.Comments = backupProduct.Comments;
+			editProduct.Container = backupProduct.Container;
+			editProduct.Count = backupProduct.Count;
+			editProduct.ProductTotalValue = backupProduct.ProductTotalValue;
+			editProduct.TaxCategory = backupProduct.TaxCategory;
+			editProduct.RMSProduct = backupProduct.RMSProduct;
+			editProduct.RMSContainer = backupProduct.RMSContainer;
+			editProduct.Comments = backupProduct.Comments;
 
-            backupProduct = null;
-            editProduct = null;
-        }
-    }
+			backupProduct = null;
+			editProduct = null;
+		}
+	}
 
-    private void DeleteProduct(InvoiceProductDTO product)
-    {
-        if (product != null)
-        {
-            editInvoice.Products.Remove(product);
-            editProduct = null;
-            backupProduct = null;
-        }
-    }
+	private void DeleteProduct(InvoiceProductDTO product)
+	{
+		if (product != null)
+		{
+			editInvoice.Products.Remove(product);
+			editProduct = null;
+			backupProduct = null;
+		}
+	}
 
-    private void HandleDropdownOpened(FocusEventArgs e, InvoiceProductDTO product)
-    {
-        if (converterContainer == null)
-            converterContainer = TypeDescriptor.GetConverter(typeof(RMSContainerDTO)) as RMSContainerDTOConverter;
+	private void HandleDropdownOpened(FocusEventArgs e, InvoiceProductDTO product)
+	{
+		if (converterContainer == null)
+			converterContainer = TypeDescriptor.GetConverter(typeof(RMSContainerDTO)) as RMSContainerDTOConverter;
 
-        if (product.RMSProduct != null)
-            converterContainer.SetSourceList(product.RMSProduct.Containers);
-    }
+		if (product.RMSProduct != null)
+			converterContainer.SetSourceList(product.RMSProduct.Containers);
+	}
 
+	private decimal GetTotalPriceSum()
+	{
+		return editInvoice.Products?.Sum(p => p.ProductTotalValue) ?? 0;
+	}
 
-    ////////////////////////////////////////////////////////////////////
-
-
-    /////////////// Добавление нового продукта  ////////////////////////
-
-    private void AddNewProduct()
-    {
-        isAddingNewProduct = true;
-        newProduct = new InvoiceProductDTO();
-    }
-
-    private void SaveNewProduct()
-    {
-        editInvoice.Products.Add(newProduct);
-        isAddingNewProduct = false;
-        newProduct = new InvoiceProductDTO();
-    }
-
-    private void CancelNewProduct()
-    {
-        isAddingNewProduct = false;
-        newProduct = new InvoiceProductDTO();
-    }
-    ////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////
 
 
-    /////////////// Редактирование категории /////////////////////
+	/////////////// Добавление нового продукта  ////////////////////////
 
-    private void EditTaxCategory(TaxesDTO taxCategory)
-    {
-        if (taxCategory != null)
-        {
-            backupTaxCategory = new TaxesDTO
-                {
-					Id = taxCategory.Id,
-                    TaxCategory = taxCategory.TaxCategory,
-                    Base = taxCategory.Base,
-                    IVA = taxCategory.IVA,
-                    Total = taxCategory.Total,
-                };
-            editTaxCategory = taxCategory;
-        }
-    }
+	private void AddNewProduct()
+	{
+		isAddingNewProduct = true;
+		newProduct = new InvoiceProductDTO();
+	}
 
-    private void SaveTaxCategory(TaxesDTO taxCategory)
-    {
-        if (editTaxCategory == taxCategory)
-        {
-            // Save tax category logic here
-            editTaxCategory = null;
-            backupTaxCategory = null;
-        }
-    }
+	private void SaveNewProduct()
+	{
+		editInvoice.Products.Add(newProduct);
+		isAddingNewProduct = false;
+		newProduct = new InvoiceProductDTO();
+	}
 
-    private void CancelEditTaxCategory(TaxesDTO taxCategory)
-    {
-        if (backupTaxCategory != null && editTaxCategory != null &&
-            taxCategory != null && editTaxCategory == taxCategory)
-        {
-            editTaxCategory.TaxCategory = backupTaxCategory.TaxCategory;
-            editTaxCategory.Base = backupTaxCategory.Base;
-            editTaxCategory.IVA = backupTaxCategory.IVA;
-            editTaxCategory.Total = backupTaxCategory.Total;
-
-            backupTaxCategory = null;
-            editTaxCategory = null;
-        }
-        editTaxCategory = null;
-    }
-
-    private void DeleteTaxCategory(TaxesDTO taxCategory)
-    {
-        if (taxCategory != null)
-        {
-            editInvoice.TaxCategories.Remove(taxCategory);
-            editTaxCategory = null;
-            backupTaxCategory = null;
-        }
-    }
-    ////////////////////////////////////////////////////////////////////
+	private void CancelNewProduct()
+	{
+		isAddingNewProduct = false;
+		newProduct = new InvoiceProductDTO();
+	}
+	////////////////////////////////////////////////////////////////////
 
 
-    /////////////// Добавление новой категории /////////////////////////
+	/////////////// Редактирование категории /////////////////////
 
-    private void AddNewTaxCategory()
-    {
-        isAddingNewTaxCategory = true;
-        newTaxCategory = new TaxesDTO();
-    }
+	private void EditTaxCategory(TaxesDTO taxCategory)
+	{
+		if (taxCategory != null)
+		{
+			backupTaxCategory = new TaxesDTO
+			{
+				Id = taxCategory.Id,
+				TaxCategory = taxCategory.TaxCategory,
+				Base = taxCategory.Base,
+				IVA = taxCategory.IVA,
+				Total = taxCategory.Total,
+			};
+			editTaxCategory = taxCategory;
+		}
+	}
 
-    private void SaveNewTaxCategory()
-    {
-        editInvoice.TaxCategories.Add(newTaxCategory);
-        isAddingNewTaxCategory = false;
-        newTaxCategory = new TaxesDTO();
-    }
+	private void SaveTaxCategory(TaxesDTO taxCategory)
+	{
+		if (editTaxCategory == taxCategory)
+		{
+			// Save tax category logic here
+			editTaxCategory = null;
+			backupTaxCategory = null;
+		}
+	}
 
-    private void CancelNewTaxCategory()
-    {
-        isAddingNewTaxCategory = false;
-        newTaxCategory = new TaxesDTO();
-    }
-    ////////////////////////////////////////////////////////////////////
+	private void CancelEditTaxCategory(TaxesDTO taxCategory)
+	{
+		if (backupTaxCategory != null && editTaxCategory != null &&
+			taxCategory != null && editTaxCategory == taxCategory)
+		{
+			editTaxCategory.TaxCategory = backupTaxCategory.TaxCategory;
+			editTaxCategory.Base = backupTaxCategory.Base;
+			editTaxCategory.IVA = backupTaxCategory.IVA;
+			editTaxCategory.Total = backupTaxCategory.Total;
 
+			backupTaxCategory = null;
+			editTaxCategory = null;
+		}
+		editTaxCategory = null;
+	}
 
-    ////////////////////////////////////////////////////////////////////
-    // Метод для закрытия модальной формы Invoice
-
-    private async Task CloseInvoiceModalAsync() 
-    {
-        CancelEditProduct(editProduct);
-        CancelNewProduct();
-        CancelEditTaxCategory(editTaxCategory);
-        CancelNewTaxCategory();
-
-        showInvoiceModal = false;
-        selectedInvoice = null;
-        editInvoice = new InvoiceDTO();
-
-    }
-
-
-    // Метод для сохранения изменений Invoice
-    private async Task SaveInvoiceAsync() 
-    {
-        var response = await Http.PostAsJsonAsync($"{baseUri}/api/invoices/save", editInvoice);
-
-
-        if (response.IsSuccessStatusCode)
-        {
-            Console.WriteLine("Invoice updated successfully.");
-            uploadMessage = "Invoice updated successfully.";
-            uploadMessageClass = "alert-success";
-            InvoiceHelper.CopyInvoice(selectedInvoice, editInvoice);
-        }
-        else
-        {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"Invoice update failed. Status code: {response.StatusCode}, Error: {errorContent}");
-            uploadMessage = "Invoice update failed.";
-            uploadMessageClass = "alert-danger";
-        }
-
-        showInvoiceModal = false;
-        selectedInvoice = null;
-        editInvoice = new InvoiceDTO();
-
-        StateHasChanged();
-    }
-
-    private async Task UploadInvoice()
-    {
-        if (appUser == null || appUser?.ConsumerId == null)
-        {
-            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
-            Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
-        }
-
-        var baseUri = Navigation.BaseUri;
-        if (baseUri.EndsWith('/'))
-        {
-            baseUri = baseUri.Substring(0, baseUri.Length - 1);
-        }
+	private void DeleteTaxCategory(TaxesDTO taxCategory)
+	{
+		if (taxCategory != null)
+		{
+			editInvoice.TaxCategories.Remove(taxCategory);
+			editTaxCategory = null;
+			backupTaxCategory = null;
+		}
+	}
+	////////////////////////////////////////////////////////////////////
 
 
-        try
-        {
-            foreach (var invoice in invoices)
-            {
-                if (invoice.IsSelected && (invoice.Stage == InvoiceStageEnum.ProductsMapped || invoice.Stage == InvoiceStageEnum.SavedToSystem))
-                {
-                    var response = await Http.PostAsJsonAsync($"{baseUri}/api/invoices/upload", invoice);
-                    
-                    invoice.StageStatus = (await response.Content.ReadFromJsonAsync<InvoiceDTO>()).StageStatus;
+	/////////////// Добавление новой категории /////////////////////////
 
-                    if (response.IsSuccessStatusCode)
-                    {
-                        Console.WriteLine("Invoice updated successfully.");
-                        uploadMessage = "Invoice updated successfully.";
-                        uploadMessageClass = "alert-success";
-                    }
-                    else
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        Console.WriteLine($"Invoice upload failed. Status code: {response.StatusCode}, Error: {errorContent}");
-                        uploadMessage = "Invoice upload failed.";
-                        uploadMessageClass = "alert-danger";
-                    }
-                }
-                else
-                {
+	private void AddNewTaxCategory()
+	{
+		isAddingNewTaxCategory = true;
+		newTaxCategory = new TaxesDTO();
+	}
+
+	private void SaveNewTaxCategory()
+	{
+		editInvoice.TaxCategories.Add(newTaxCategory);
+		isAddingNewTaxCategory = false;
+		newTaxCategory = new TaxesDTO();
+	}
+
+	private void CancelNewTaxCategory()
+	{
+		isAddingNewTaxCategory = false;
+		newTaxCategory = new TaxesDTO();
+	}
+	////////////////////////////////////////////////////////////////////
+
+
+	////////////////////////////////////////////////////////////////////
+	// Метод для закрытия модальной формы Invoice
+
+	private async Task CloseInvoiceModalAsync()
+	{
+		CancelEditProduct(editProduct);
+		CancelNewProduct();
+		CancelEditTaxCategory(editTaxCategory);
+		CancelNewTaxCategory();
+
+		showInvoiceModal = false;
+		selectedInvoice = null;
+		editInvoice = new InvoiceDTO();
+
+	}
+
+
+	// Метод для сохранения изменений Invoice
+	private async Task SaveInvoiceAsync()
+	{
+		var response = await Http.PostAsJsonAsync($"{baseUri}/api/invoices/save", editInvoice);
+
+
+		if (response.IsSuccessStatusCode)
+		{
+			Console.WriteLine("Invoice updated successfully.");
+			uploadMessage = "Invoice updated successfully.";
+			uploadMessageClass = "alert-success";
+			InvoiceHelper.CopyInvoice(selectedInvoice, editInvoice);
+		}
+		else
+		{
+			var errorContent = await response.Content.ReadAsStringAsync();
+			Console.WriteLine($"Invoice update failed. Status code: {response.StatusCode}, Error: {errorContent}");
+			uploadMessage = "Invoice update failed.";
+			uploadMessageClass = "alert-danger";
+		}
+
+		showInvoiceModal = false;
+		selectedInvoice = null;
+		editInvoice = new InvoiceDTO();
+
+		StateHasChanged();
+	}
+
+	private async Task UploadInvoice()
+	{
+		if (appUser == null || appUser?.ConsumerId == null)
+		{
+			var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+			Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+		}
+
+		var baseUri = Navigation.BaseUri;
+		if (baseUri.EndsWith('/'))
+		{
+			baseUri = baseUri.Substring(0, baseUri.Length - 1);
+		}
+
+
+		try
+		{
+			foreach (var invoice in invoices)
+			{
+				if (invoice.IsSelected && (invoice.Stage == InvoiceStageEnum.ProductsMapped || invoice.Stage == InvoiceStageEnum.SavedToSystem))
+				{
+					var response = await Http.PostAsJsonAsync($"{baseUri}/api/invoices/upload", invoice);
+
+					invoice.StageStatus = (await response.Content.ReadFromJsonAsync<InvoiceDTO>()).StageStatus;
+
+					if (response.IsSuccessStatusCode)
+					{
+						Console.WriteLine("Invoice updated successfully.");
+						uploadMessage = "Invoice updated successfully.";
+						uploadMessageClass = "alert-success";
+					}
+					else
+					{
+						var errorContent = await response.Content.ReadAsStringAsync();
+						Console.WriteLine($"Invoice upload failed. Status code: {response.StatusCode}, Error: {errorContent}");
+						uploadMessage = "Invoice upload failed.";
+						uploadMessageClass = "alert-danger";
+					}
+				}
+				else
+				{
 					invoice.IsSelected = false;
-                }
-            }
-        }
-        catch (HttpRequestException ex)
-        {
-            Console.WriteLine($"Request error: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An unexpected error occurred: {ex.Message}");
-        }
-    }
+				}
+			}
+		}
+		catch (HttpRequestException ex)
+		{
+			Console.WriteLine($"Request error: {ex.Message}");
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"An unexpected error occurred: {ex.Message}");
+		}
+	}
 
 
-    // Метод для получения CSS-класса статуса
-    private string GetStatusClass(InvoiceStatusEnum status) 
-    {
-        return status switch
-        {
-            InvoiceStatusEnum.Ok => "text-success",
-            InvoiceStatusEnum.Error => "text-danger",
+	// Метод для получения CSS-класса статуса
+	private string GetStatusClass(InvoiceStatusEnum status)
+	{
+		return status switch
+		{
+			InvoiceStatusEnum.Ok => "text-success",
+			InvoiceStatusEnum.Error => "text-danger",
 			InvoiceStatusEnum.Manual => "text-info",
-        };
-    }
+		};
+	}
 
-    // Метод для закрытия соединения SignalR
-    public async ValueTask DisposeAsync() 
-    {
-        if (hubConnection is not null)
-        {
-            await hubConnection.DisposeAsync();
-        }
-    }
+	// Метод для закрытия соединения SignalR
+	public async ValueTask DisposeAsync()
+	{
+		if (hubConnection is not null)
+		{
+			await hubConnection.DisposeAsync();
+		}
+	}
 }
 

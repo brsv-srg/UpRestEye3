@@ -289,19 +289,50 @@ namespace UpRestEye3.Services.BusinessLogic
 
             var coordinatesString = reader.GetString();
             var parts = coordinatesString.Split(new[] { "(", ")", "-", ",", " " }, StringSplitOptions.RemoveEmptyEntries);
+            
+            RectangleCoordinates coord;
 
-            if (parts.Length != 8)
+            if (parts.Length == 8)
             {
-                throw new JsonException("Invalid format for RectangleCoordinates.");
+
+                coord = new RectangleCoordinates
+                {
+                    TopLeft = new TPoint(int.Parse(parts[0]), int.Parse(parts[1])),
+                    TopRight = new TPoint(int.Parse(parts[2]), int.Parse(parts[3])),
+                    BottomRight = new TPoint(int.Parse(parts[4]), int.Parse(parts[5])),
+                    BottomLeft = new TPoint(int.Parse(parts[6]), int.Parse(parts[7]))
+                };
             }
-
-            return new RectangleCoordinates
+            else
             {
-                TopLeft = new TPoint(int.Parse(parts[0]), int.Parse(parts[1])),
-                TopRight = new TPoint(int.Parse(parts[2]), int.Parse(parts[3])),
-                BottomRight = new TPoint(int.Parse(parts[4]), int.Parse(parts[5])),
-                BottomLeft = new TPoint(int.Parse(parts[6]), int.Parse(parts[7]))
-            };
+                if (parts.Length < 8 && parts.Length >= 4)
+                {
+                    // Преобразуем строки в числа  
+                    var coordinates = parts.Select(int.Parse).ToArray();
+
+                    // Находим минимальные и максимальные значения для X и Y  
+                    int minX = coordinates.Where((_, index) => index % 2 == 0).Min(); // Четные индексы - X  
+                    int maxX = coordinates.Where((_, index) => index % 2 == 0).Max();
+                    int minY = coordinates.Where((_, index) => index % 2 != 0).Min(); // Нечетные индексы - Y  
+                    int maxY = coordinates.Where((_, index) => index % 2 != 0).Max();
+
+                    // Создаем прямоугольник с вычисленными координатами  
+                    coord = new RectangleCoordinates
+                    {
+                        TopLeft = new TPoint(minX, minY),
+                        TopRight = new TPoint(maxX, minY),
+                        BottomRight = new TPoint(maxX, maxY),
+                        BottomLeft = new TPoint(minX, maxY)
+                    };
+                }
+                else
+                {
+                    // Если количество координат не соответствует ожидаемому формату, выбрасываем исключение
+                    throw new JsonException("Invalid format for RectangleCoordinates.");
+                }
+                
+            }
+            return coord;
         }
 
         public override void Write(Utf8JsonWriter writer, RectangleCoordinates value, JsonSerializerOptions options)
@@ -615,7 +646,7 @@ namespace UpRestEye3.Services.BusinessLogic
                                     ""Name"": {{ ""type"": ""string"", ""description"": ""The name of the product in the restaurant system"" }},
                                     ""Description"": {{ ""type"": ""string"", ""description"": ""The description of the product in the restaurant system"" }},
                                     ""Num"": {{ ""type"": [""string"",""null""], ""description"": ""Product item in the restaurant system"" }},
-                                    ""Unit"": {{ ""type"": ""string"", ""description"": ""Unit of measurement"" }},
+                                    ""MainUnit"": {{ ""type"": ""string"", ""description"": ""Unit of measurement"" }},
                                     ""Containers"": {{
                                         ""type"": ""array"",
                                         ""description"": ""List of containers for the RMS product"",

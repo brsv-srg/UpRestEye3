@@ -15,7 +15,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
     public interface IProductMappingService
     {
-        Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages);
+        Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages);
     }
 
     // Класс обработки изображения
@@ -28,7 +28,7 @@ namespace UpRestEye3.Services.BusinessLogic
             _gptParser = gptParser;
         }
 
-        public async Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages)
+        public async Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages)
         {
             try
             {
@@ -36,7 +36,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 var currentConsumerId = currentInvoice.Consumer.Id;
                 var currentConsumerTaxId = currentInvoice.Consumer.TaxNumber;
 
-                var mappingResult = await _gptParser.ReceiptMappingByLLM(currentInvoice, rmsProducts, measUnits, storages);
+                var mappingResult = await _gptParser.ReceiptMappingByLLM(currentInvoice, rmsProducts, conParam, measUnits, storages);
 
                 // Если Invoice замеплен и есть новые продукты, то связываем их с Invoice Products
                 if (mappingResult != null)
@@ -47,6 +47,11 @@ namespace UpRestEye3.Services.BusinessLogic
                     // Проходим по всем замапленным продуктам
                     foreach (var mappedProducts in mappingResult)
                     {
+                        // Получаем единицу изменения
+                        Guid measUnitGuid = Guid.TryParse(mappedProducts.RMSProduct.MainUnit, out var parsedGuid) 
+                                            ? parsedGuid
+                                            : measUnits.Where(i => i.Name == mappedProducts.RMSProduct?.MainUnit)?.FirstOrDefault()?.EntityExtGuid ?? Guid.Empty;
+
                         // Создаем замапленный RMSProduct
                         var mappedRmsProduct = new RMSProductDTO()
                         {
@@ -54,7 +59,7 @@ namespace UpRestEye3.Services.BusinessLogic
                             Name = mappedProducts.RMSProduct.Name,
                             Description = mappedProducts.RMSProduct.Description,
                             Num = mappedProducts.RMSProduct.Num,
-                            MainUnit = Guid.NewGuid(),//mappedProducts.RMSProduct.Unit,
+                            MainUnit = measUnitGuid,
                             ConsumerId = currentConsumerId,
                             ConsumerTaxId = currentConsumerTaxId,
 
@@ -93,6 +98,9 @@ namespace UpRestEye3.Services.BusinessLogic
                                 mappedRmsProduct.Containers.Where(c => c.Name == mappedProducts.RMSContainer.Name).Count() == 0)
                             {
                                 mappedRmsProduct.Containers.Add(mappedRMSContainer);
+                                // И добавляем продукт для сохранения в список новых продуктов
+                                newRmsProducts.Add(mappedRmsProduct);
+
                             }
                         }
 

@@ -29,6 +29,13 @@ namespace UpRestEye3.Controllers
             return Ok(products);
         }
 
+        [HttpGet("services/{consumerId}")]
+        public async Task<ActionResult<List<RMSProductDTO>>> GetServicesByConsumerId(int consumerId)
+        {
+            var products = await _productService.GetServicesByConsumerIdAsync(consumerId);
+            return Ok(products);
+        }
+
         [HttpGet("units/{consumerId}")]
         public async Task<ActionResult<List<RMSMeasureUnitDTO>>> GetUnitsByConsumerId(int consumerId)
         {

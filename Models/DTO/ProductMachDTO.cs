@@ -23,7 +23,7 @@ namespace UpRestEye3.Models.DTO
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Num { get; set; } = string.Empty;
-        public string Unit { get; set; } = string.Empty;
+        public string MainUnit { get; set; } = string.Empty;
         public List<RMSContainerMappingDTO> Containers { get; set; } = new List<RMSContainerMappingDTO>();
 
     }

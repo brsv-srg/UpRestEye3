@@ -5,6 +5,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject HttpClient Http
 @inject UserManager<AppUser> UserManager
+
 <PageTitle>API Connection Parameters</PageTitle>
 
 <AuthorizeView>
@@ -37,6 +38,19 @@
                             <label for="apiPassword" class="form-label">API Password Hash:</label>
                             <ValidationMessage For="() => connectionParameterModel.ApiPassword" class="text-danger" />
                         </div>
+
+                        <div class="form-floating mb-3">
+                            <select @bind="connectionParameterModel.DeliveryServiceId" class="form-select" id="deliveryServiceId">
+                                <option value="">Select Delivery Service</option>
+                                @foreach (var product in deliveryServiceOptions)
+                                {
+                                    <option value="@product.Id">@product.Name</option>
+                                }
+                            </select>
+                            <label for="deliveryServiceId" class="form-label">Delivery Service:</label>
+                            <ValidationMessage For="() => connectionParameterModel.DeliveryServiceId" class="text-danger" />
+                        </div>
+
                         <div>
                             <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
                         </div>
@@ -54,8 +68,17 @@
     private ConnectionParameterDTO connectionParameterModel = new ConnectionParameterDTO();
     private AppUser appUser;
     private string? errorMessage;
+    private RMSProductDTO[] deliveryServiceOptions = [];
 
-    protected override async Task OnInitializedAsync()
+
+    
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadConnectionParameters();
+        await LoadDeliveryServices();
+    }
+
+	private async Task LoadConnectionParameters()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
@@ -89,6 +112,36 @@
         {
             var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
             Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+        }
+    }
+
+    protected async Task LoadDeliveryServices()
+    {
+        if (appUser == null || appUser?.ConsumerId == null)
+        {
+            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+            Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+        }
+
+        var baseUri = Navigation.BaseUri;
+        if (baseUri.EndsWith('/'))
+        {
+            baseUri = baseUri.Substring(0, baseUri.Length - 1);
+        }
+
+        try
+        {
+            deliveryServiceOptions = await Http.GetFromJsonAsync<RMSProductDTO[]>($"{baseUri}/api/rmsproducts/services/{appUser.ConsumerId}");
+
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            Console.WriteLine("Products not found.");
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
         }
     }
 

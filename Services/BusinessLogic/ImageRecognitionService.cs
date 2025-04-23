@@ -115,34 +115,33 @@ namespace UpRestEye3.Services.BusinessLogic
 
         public async Task<InvoiceDTO?> DeepTextRecognitionAsync(Bitmap sourceImage, Bitmap enhancedImage, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
-            InvoiceDTO invoice = null;
-
             // Обращение к внешней OCR
             var recognizedText = await _textRecognizer.TextRecognize(sourceImage);
-
             if (recognizedText == null)
             {
                 // Пробуем повторно, с улучшеным изображением
                 recognizedText = await _textRecognizer.TextRecognize(enhancedImage);
                 if(recognizedText == null)
-                return invoice;
+                    throw new Exception($"Text recognition error: Unable to recognize text in the image");
             }
 
             // Сортировка строк
             RecognizedTextProcessor textProcessor = new RecognizedTextProcessor();
             var textByLines = textProcessor.ProcessSimplifiedDocument(recognizedText);
-
             if (textByLines == null)
-                return invoice;
+                throw new Exception($"Text recognition error: String sorting error");
 
             // Определение таблицы продуктов    
             var productTable = await _gptLayout.LayoutParsingByLLM(textByLines, currentInvoice);
             if (productTable == null)
-                return invoice;
+                throw new Exception($"Text recognition error: Invoice text parsing error");
 
             // Парсинг таблицы продуктов
-            return await _gptParser.ReceiptParsingByLLM (productTable, currentInvoice, measUnits);
-            
+            currentInvoice = await _gptParser.ReceiptParsingByLLM (productTable, currentInvoice, measUnits);
+            if (currentInvoice.Products == null || currentInvoice.Products.Count() == 0)
+                throw new Exception($"Text recognition error: Product list text parsing error");
+
+            return currentInvoice;
         }
 
         private bool TryDecodeQRCode(Bitmap sourceImage, out QRCodeData? qrCodeData)

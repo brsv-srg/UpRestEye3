@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Components.Authorization;
+﻿using Google.Api;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -58,6 +59,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 });
 
 builder.Services.AddSingleton<IEmailSender<AppUser>, IdentityNoOpEmailSender>();
+builder.Services.AddSingleton<IProcessingLockService, InMemoryProcessingLockService>();
 
 
 // Сервисы логирования
@@ -74,7 +76,7 @@ builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 // Сервисы приложения
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<ILocalMLService, LocalMLService>();
-builder.Services.AddScoped<IImageFileProcessor, ImageFileProcessor>();
+builder.Services.AddScoped<IInvoiceFileProcessor, InvoiceFileProcessor>();
 builder.Services.AddScoped<IConsumerService, ConsumerService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<IImageRecognitionService, ImageRecognitionService>();

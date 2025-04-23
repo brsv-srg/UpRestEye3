@@ -7,5 +7,8 @@
         public string ApiPassword { get; set; } = string.Empty;
         public int ConsumerId { get; set; } = -1;
         public string ConsumerTaxNumber { get; set; } = string.Empty;
+        public int? DeliveryServiceId { get; set; }
+        public string? DeliveryServiceName { get; set; }
+
     }
 }

@@ -23,6 +23,8 @@ namespace UpRestEye3.Models.DAO
         public DateTime UploadTime { get; set; } = DateTime.Now;
         public string Comments { get; set; } = string.Empty;
 
+        public bool ProductsTaxIncluded { get; set; } = false;
+
         public InvoiceStageEnum Stage { get; set; } = InvoiceStageEnum.New;
         public InvoiceStatusEnum StageStatus { get; set; } = InvoiceStatusEnum.Ok;
 
