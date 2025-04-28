@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UpRestEye3.Data;
 
@@ -10,9 +11,11 @@ using UpRestEye3.Data;
 namespace UpRestEye3.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250425145710_next15")]
+    partial class next15
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.12");
@@ -654,13 +657,11 @@ namespace UpRestEye3.Migrations
                 {
                     b.HasOne("UpRestEye3.Models.DAO.ConsumerDAO", "Consumer")
                         .WithOne("ConnectionParameter")
-                        .HasForeignKey("UpRestEye3.Models.DAO.ConnectionParameterDAO", "ConsumerId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("UpRestEye3.Models.DAO.ConnectionParameterDAO", "ConsumerId");
 
                     b.HasOne("UpRestEye3.Models.DAO.RMSProductDAO", "DeliveryService")
                         .WithOne()
-                        .HasForeignKey("UpRestEye3.Models.DAO.ConnectionParameterDAO", "DeliveryServiceId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("UpRestEye3.Models.DAO.ConnectionParameterDAO", "DeliveryServiceId");
 
                     b.Navigation("Consumer");
 
@@ -689,7 +690,7 @@ namespace UpRestEye3.Migrations
                     b.HasOne("UpRestEye3.Models.DAO.InvoiceDAO", "Invoice")
                         .WithMany("Products")
                         .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("UpRestEye3.Models.DAO.RMSContainerDAO", "RMSContainer")
                         .WithMany()
@@ -759,7 +760,7 @@ namespace UpRestEye3.Migrations
                     b.HasOne("UpRestEye3.Models.DAO.ConsumerDAO", "Consumer")
                         .WithMany("Suppliers")
                         .HasForeignKey("ConsumerId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Consumer");
@@ -770,7 +771,7 @@ namespace UpRestEye3.Migrations
                     b.HasOne("UpRestEye3.Models.DAO.InvoiceDAO", "Invoice")
                         .WithMany("TaxCategories")
                         .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Invoice");
                 });

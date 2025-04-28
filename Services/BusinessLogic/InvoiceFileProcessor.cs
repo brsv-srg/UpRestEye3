@@ -190,6 +190,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
             // Сохранение изменений в базу данных
             await invoiceService.SaveInvoiceAsync(invoice);
+            invoice = await invoiceService.GetInvoiceDTOByIdAsync((int)invoice.Id);
 
             if(invoice.StageStatus == InvoiceStatusEnum.Ok)
                 await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognized successfully.");
@@ -219,6 +220,7 @@ namespace UpRestEye3.Services.BusinessLogic
             validatorText.Validate(invoice, invoice.Consumer.TaxNumber);
 
             await invoiceService.SaveInvoiceAsync(invoice);
+            invoice = await invoiceService.GetInvoiceDTOByIdAsync((int)invoice.Id);
 
             if (invoice.StageStatus == InvoiceStatusEnum.Ok)
                 await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognized successfully.");
@@ -270,6 +272,8 @@ namespace UpRestEye3.Services.BusinessLogic
             validatorMapp.Validate(invoice, invoice.Consumer.TaxNumber);
 
             await invoiceService.SaveInvoiceAsync(invoice);
+            invoice = await invoiceService.GetInvoiceDTOByIdAsync((int)invoice.Id);
+
 
             if (invoice.StageStatus == InvoiceStatusEnum.Ok)
                 await hubContext.Clients.All.SendAsync("ReceiveMessage", "Products mapped successfully.");
@@ -293,6 +297,8 @@ namespace UpRestEye3.Services.BusinessLogic
             }
 
             await invoiceService.SaveInvoiceAsync(prevInvoice);
+            invoice = await invoiceService.GetInvoiceDTOByIdAsync((int)invoice.Id);
+
             await hubContext.Clients.All.SendAsync("ReceiveMessage", "Failed to process invoice: " + ex.Message);
 
             Console.WriteLine(ex.Message);

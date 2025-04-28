@@ -13,6 +13,7 @@
 @using System.Text;
 @using System.ComponentModel;
 
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
 <AuthorizeView>
@@ -137,7 +138,7 @@
 		@if (showInvoiceModal)
 		{
 			<div class="modal-backdrop"></div>
-			<div class="modal show d-block" tabindex="-1" role="dialog">
+			<div id="#invoiceModal" class="modal show d-block" tabindex="-1" role="dialog">
 				<div class="modal-dialog modal-wide" role="document">
 					<div class="modal-content">
 						<div class="modal-header">
@@ -225,13 +226,15 @@
 																	</select>
 																</td>
 																<td class="p-1">
-																	<select class="form-control form-control-sm" @bind="product.RMSProduct">
-																		<option value="">@((RMSProductDTO?)null)</option>
+																	<select id="#rmsProductSelect" class="form-control form-control-sm">
+																		<option value="">@((RMSProductDTO?)null)</option> 
 																		@foreach (var rmsProduct in rmsProducts)
-																		{
-																			<option value="@rmsProduct.Id">@rmsProduct.Name</option>
-																		}
-																	</select>
+																		{ 
+																		<option value="@rmsProduct.Id">@rmsProduct.Name</option> 
+																		} 
+																	</select> 
+
+
 																</td>
 																<td class="p-1">
 																	<select class="form-control form-control-sm" @bind="product.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, product))">
@@ -547,6 +550,72 @@
 	}
 
 </script>
+<script>
+	function initializeSelect2WithLocalData(selector, products, dotNetHelper) {
+
+		console.log("Initializing Select2 for:", selector);
+		console.log("Products data:", products);
+
+		// Преобразуем продукты в формат, понятный Select2
+		const productData = products.map(product => ({
+			id: product.id,
+			text: product.name
+		}));
+
+		console.log("Formatted product data for Select2:", productData);
+
+
+		
+		
+		
+		console.log("Initializing 2 Select2 for:", selector);
+
+		if ($(selector).length > 0) {
+			console.log("Element found:", selector);
+
+			$(selector).select2({
+				placeholder: "Search for a product",
+				allowClear: true,
+				data: productData
+				,dropdownParent: $('#invoiceModal') // Привязываем выпадающий список к текущему модальному окну
+			});
+		
+			console.log("Select2 initialized successfully for:", selector);
+
+			const isSelect2Initialized = $(selector).data('select2') !== undefined;
+			console.log("Is Select2 initialized:", isSelect2Initialized);
+		} 
+		else {
+			console.error("Element not found:", selector);
+		}
+
+		// $('body').on('shown.bs.modal', '.modal', function() {
+		//   $(this).find('select').each(function() {
+		// 	var dropdownParent = $(document.body);
+		// 	if ($(this).parents('.modal.in:first').length !== 0)
+		// 	  dropdownParent = $(this).parents('.modal.in:first');
+		// 	$(this).select2({
+		// 		placeholder: "Search for a product",
+		// 		allowClear: true,
+		// 		data: productData,
+		// 		dropdownParent: dropdownParent
+		// 	});
+		//   });
+		// })
+
+
+		// Обработка события выбора
+		$(selector).on('select2:select', function (e) {
+			const selectedValue = $(this).val();
+			console.log("Selected value:", selectedValue);
+			dotNetHelper.invokeMethodAsync('OnProductSelected', selectedValue);
+		});
+	}
+</script>
+
+
+
+
 
 
 @code {
@@ -646,9 +715,9 @@
 
 		if (!isInitialized)
 		{
-			isInitialized = true;
 			await InitializeDataAsync();
 			await InitializeSignalRAsync(); // Добавлено: Инициализация SignalR
+			isInitialized = true;
 		}
 	}
 
@@ -664,7 +733,28 @@
 		{
 			wasModalRendered = false; // Сбрасываем флаг при закрытии модального окна
 		}
+
+		if (rmsProducts != null && showInvoiceModal )
+		{
+			// Преобразуем данные в формат, понятный JavaScript
+			var productData = rmsProducts.Select(p => new { id = p.Id, name = p.Name }).ToList();
+
+			await JS.InvokeVoidAsync("initializeSelect2WithLocalData", "#rmsProductSelect", productData, DotNetObjectReference.Create(this));
+		}
 	}
+
+
+	[JSInvokable]
+	public void OnProductSelected(string productId)
+	{
+		// Присваиваем выбранный продукт в editProduct.RMSProduct
+		if (editProduct != null)
+		{
+			editProduct.RMSProduct = rmsProducts?.FirstOrDefault(p => p.Id.ToString() == productId);
+			Console.WriteLine($"Selected Product: {editProduct.RMSProduct?.Name}");
+		}
+	}
+
 
 
 
@@ -688,6 +778,8 @@
 			var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
 			Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
 		}
+
+
 	}
 
 	private async Task SetTypeConverters()
@@ -706,6 +798,20 @@
 
 	}
 
+
+
+	private async Task<IEnumerable<RMSProductDTO>> SearchRMSProducts(string searchText)
+	{
+		if (string.IsNullOrWhiteSpace(searchText) || rmsProducts == null)
+		{
+			return Enumerable.Empty<RMSProductDTO>();
+		}
+
+		return await Task.FromResult(rmsProducts
+			.Where(p => p.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+			.ToList());
+	}
+	
 
 	private async Task LoadInvoicesAsync()
 	{

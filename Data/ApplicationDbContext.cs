@@ -95,13 +95,17 @@ namespace UpRestEye3.Data
             modelBuilder.Entity<SupplierDAO>()
                 .HasMany(s => s.Invoices)
                 .WithOne(i => i.Supplier)
-                .HasForeignKey(i => i.SupplierId);
+                .HasForeignKey(i => i.SupplierId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
 
             modelBuilder.Entity<SupplierDAO>()
                 .HasOne(s => s.Consumer)
                 .WithMany(c => c.Suppliers)
-                .HasForeignKey(s => s.ConsumerId);
-        
+                .HasForeignKey(s => s.ConsumerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
 
             ////////////////////////////////////////////////////////////////
             /// Consumer
@@ -122,17 +126,23 @@ namespace UpRestEye3.Data
             modelBuilder.Entity<ConsumerDAO>()
                 .HasMany(c => c.Invoices)
                 .WithOne(i => i.Consumer)
-                .HasForeignKey(i => i.ConsumerId);
+                .HasForeignKey(i => i.ConsumerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
 
             modelBuilder.Entity<ConsumerDAO>()
                 .HasMany(c => c.Suppliers)
                 .WithOne(s => s.Consumer)
-                .HasForeignKey(s => s.ConsumerId);
+                .HasForeignKey(s => s.ConsumerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
 
             modelBuilder.Entity<ConsumerDAO>()
                 .HasOne(c => c.ConnectionParameter)
                 .WithOne(cp => cp.Consumer)
-                .HasForeignKey<ConnectionParameterDAO>(cp => cp.ConsumerId);
+                .HasForeignKey<ConnectionParameterDAO>(cp => cp.ConsumerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
 
             //////////////////////////////////////////////////////////////////
             ///// User
@@ -141,7 +151,7 @@ namespace UpRestEye3.Data
 
             //modelBuilder.Entity<AppUser>()
             //    .HasKey(u => u.Id);
-            
+
             //// Configure auto-generated IDs
             //modelBuilder.Entity<AppUser>()
             //    .Property(u => u.Id)
@@ -156,7 +166,7 @@ namespace UpRestEye3.Data
             ////////////////////////////////////////////////////////////////
             /// Connection Parameters
             ////////////////////////////////////////////////////////////////
-            
+
             modelBuilder.Entity<ConnectionParameterDAO>()
                 .HasKey(cp => cp.Id);   
             
@@ -167,12 +177,16 @@ namespace UpRestEye3.Data
             modelBuilder.Entity<ConnectionParameterDAO>()
                 .HasOne(cp => cp.Consumer)
                 .WithOne(c => c.ConnectionParameter)
-                .HasForeignKey<ConnectionParameterDAO>(cp => cp.ConsumerId);
+                .HasForeignKey<ConnectionParameterDAO>(cp => cp.ConsumerId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<ConnectionParameterDAO>()
                 .HasOne(cp => cp.DeliveryService)
                 .WithOne()
-                .HasForeignKey<ConnectionParameterDAO>(cp => cp.DeliveryServiceId);
+                .HasForeignKey<ConnectionParameterDAO>(cp => cp.DeliveryServiceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
 
 
 
@@ -224,7 +238,7 @@ namespace UpRestEye3.Data
                 .HasOne(i => i.Invoice)
                 .WithMany(p => p.Products)
                 .HasForeignKey(p => p.InvoiceId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Configure Invoice Product vs RMSProduct
             modelBuilder.Entity<InvoiceProductDAO>()
@@ -258,7 +272,7 @@ namespace UpRestEye3.Data
                 .HasOne(c => c.Invoice)
                 .WithMany(i => i.TaxCategories)
                 .HasForeignKey(t => t.InvoiceId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             ////////////////////////////////////////////////////////////////
             /// Measure Unit 
