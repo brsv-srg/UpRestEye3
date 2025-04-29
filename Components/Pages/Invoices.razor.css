@@ -185,3 +185,7 @@
     cursor: grab; /* Указатель мыши для перемещения */
 }
 
+.wider-dropdown {
+    width: 500px !important; /* Укажите желаемую ширину */
+}
+   

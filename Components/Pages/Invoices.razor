@@ -138,7 +138,7 @@
 		@if (showInvoiceModal)
 		{
 			<div class="modal-backdrop"></div>
-			<div id="#invoiceModal" class="modal show d-block" tabindex="-1" role="dialog">
+			<div id="invoiceModal" class="modal show d-block" tabindex="-1" role="dialog">
 				<div class="modal-dialog modal-wide" role="document">
 					<div class="modal-content">
 						<div class="modal-header">
@@ -226,7 +226,7 @@
 																	</select>
 																</td>
 																<td class="p-1">
-																	<select id="#rmsProductSelect" class="form-control form-control-sm">
+																	<select id="rmsProductSelect" class="form-control form-control-sm">
 																		<option value="">@((RMSProductDTO?)null)</option> 
 																		@foreach (var rmsProduct in rmsProducts)
 																		{ 
@@ -551,7 +551,8 @@
 
 </script>
 <script>
-	function initializeSelect2WithLocalData(selector, products, dotNetHelper) {
+	function initializeSelect2WithLocalData(selector, products, initialValue, dotNetHelper) 
+	{
 
 		console.log("Initializing Select2 for:", selector);
 		console.log("Products data:", products);
@@ -570,14 +571,15 @@
 		
 		console.log("Initializing 2 Select2 for:", selector);
 
-		if ($(selector).length > 0) {
+		if ($(selector).length > 0) 
+		{
 			console.log("Element found:", selector);
 
 			$(selector).select2({
-				placeholder: "Search for a product",
-				allowClear: true,
-				data: productData
+				allowClear: false
+				,data: productData
 				,dropdownParent: $('#invoiceModal') // Привязываем выпадающий список к текущему модальному окну
+				,dropdownCssClass: "wider-dropdown"
 			});
 		
 			console.log("Select2 initialized successfully for:", selector);
@@ -589,28 +591,28 @@
 			console.error("Element not found:", selector);
 		}
 
-		// $('body').on('shown.bs.modal', '.modal', function() {
-		//   $(this).find('select').each(function() {
-		// 	var dropdownParent = $(document.body);
-		// 	if ($(this).parents('.modal.in:first').length !== 0)
-		// 	  dropdownParent = $(this).parents('.modal.in:first');
-		// 	$(this).select2({
-		// 		placeholder: "Search for a product",
-		// 		allowClear: true,
-		// 		data: productData,
-		// 		dropdownParent: dropdownParent
-		// 	});
-		//   });
-		// })
-
+		// Устанавливаем начальное значение, если оно задано
+		if (initialValue) 
+		{
+			console.log("Initial value:", initialValue);
+			$(selector).val(initialValue).trigger('change');
+		}
 
 		// Обработка события выбора
-		$(selector).on('select2:select', function (e) {
+		$(selector).on('select2:select', function (e) 
+		{
 			const selectedValue = $(this).val();
 			console.log("Selected value:", selectedValue);
 			dotNetHelper.invokeMethodAsync('OnProductSelected', selectedValue);
 		});
 	}
+	
+	function isElementInDOM(selector) 
+	{
+		return document.querySelector(selector) !== null;
+	}
+
+
 </script>
 
 
@@ -733,14 +735,22 @@
 		{
 			wasModalRendered = false; // Сбрасываем флаг при закрытии модального окна
 		}
-
-		if (rmsProducts != null && showInvoiceModal )
+		
+		
+		bool isElementPresent = await IsElementInDOMAsync("#rmsProductSelect");
+		if (rmsProducts != null && showInvoiceModal && isElementPresent)
 		{
 			// Преобразуем данные в формат, понятный JavaScript
-			var productData = rmsProducts.Select(p => new { id = p.Id, name = p.Name }).ToList();
+			var productData = rmsProducts.Select(p => new { id = p.Id, name = p.Name }).ToList();	
+			var initialValue = editProduct?.RMSProduct?.Id?.ToString() ;
 
-			await JS.InvokeVoidAsync("initializeSelect2WithLocalData", "#rmsProductSelect", productData, DotNetObjectReference.Create(this));
+			await JS.InvokeVoidAsync("initializeSelect2WithLocalData", "#rmsProductSelect", productData, initialValue, DotNetObjectReference.Create(this));
 		}
+	}
+
+	private async Task<bool> IsElementInDOMAsync(string selector)
+	{
+		return await JS.InvokeAsync<bool>("isElementInDOM", selector);
 	}
 
 

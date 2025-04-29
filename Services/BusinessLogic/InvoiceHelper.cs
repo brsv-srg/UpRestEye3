@@ -409,7 +409,7 @@ namespace UpRestEye3.Services.BusinessLogic
             //EmployeePassToAccount = invoiceDTO.EmployeePassToAccount,
             //TransportInvoiceNumber = invoiceDTO.TransportInvoiceNumber,
             //LinkedOutgoingInvoiceId = invoiceDTO.LinkedOutgoingInvoiceId,
-            integrationInvoice.DistributionAlgorithm = DistributionAlgorithmType.DistributionByAmount;
+            integrationInvoice.DistributionAlgorithm = DistributionAlgorithmType.DistributionBySum;
             integrationInvoice.Items = [];
 
             for (int i = 0; i < invoiceDTO.Products.Count(); i++)

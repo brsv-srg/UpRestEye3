@@ -119,7 +119,7 @@ namespace UpRestEye3.Services.BusinessLogic
                         {
                             // Распознвание QR-кода
                             case InvoiceStageEnum.New:
-                                await ProcessQRCodeAsync(workingInvoice, image, scope, hubContext);
+                                workingInvoice = await ProcessQRCodeAsync(workingInvoice, image, scope, hubContext);
                                 if (workingInvoice.StageStatus != InvoiceStatusEnum.Ok)
                                     break;
                                 else
@@ -127,7 +127,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
                             // Распознование текста
                             case InvoiceStageEnum.QRCodeProcessed:
-                                await RecognizeTextAsync(workingInvoice, image, scope, hubContext);
+                                workingInvoice = await RecognizeTextAsync(workingInvoice, image, scope, hubContext);
                                 if (workingInvoice.StageStatus != InvoiceStatusEnum.Ok)
                                     break;
                                 else
@@ -135,7 +135,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
                             // Маппинг продуктов
                             case InvoiceStageEnum.TextProcessed:
-                                await MapProductsAsync(workingInvoice, scope, hubContext);
+                                workingInvoice = await MapProductsAsync(workingInvoice, scope, hubContext);
                                 break;
 
                             default:
@@ -158,7 +158,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 }
             }
         }
-        private async Task ProcessQRCodeAsync(InvoiceDTO invoice, Bitmap image, IServiceScope scope, IHubContext<NotificationHub> hubContext)
+        private async Task<InvoiceDTO> ProcessQRCodeAsync(InvoiceDTO invoice, Bitmap image, IServiceScope scope, IHubContext<NotificationHub> hubContext)
         {
             var imageProcessor = scope.ServiceProvider.GetRequiredService<IImageRecognitionService>();
             var consumerService = scope.ServiceProvider.GetRequiredService<IConsumerService>();
@@ -196,9 +196,11 @@ namespace UpRestEye3.Services.BusinessLogic
                 await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognized successfully.");
             else
                 await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognized with errors.");
+
+            return invoice;
         }
 
-        private async Task RecognizeTextAsync(InvoiceDTO invoice, Bitmap image, IServiceScope scope, IHubContext<NotificationHub> hubContext)
+        private async Task<InvoiceDTO> RecognizeTextAsync(InvoiceDTO invoice, Bitmap image, IServiceScope scope, IHubContext<NotificationHub> hubContext)
         {
             var imageProcessor = scope.ServiceProvider.GetRequiredService<IImageRecognitionService>();
             var rmsMeasureUnitsService = scope.ServiceProvider.GetRequiredService<IRMSMeasureUnitService>();
@@ -226,9 +228,10 @@ namespace UpRestEye3.Services.BusinessLogic
                 await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognized successfully.");
             else
                 await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognized with errors.");
+            return invoice;
         }
 
-        private async Task MapProductsAsync(InvoiceDTO invoice, IServiceScope scope, IHubContext<NotificationHub> hubContext)
+        private async Task<InvoiceDTO> MapProductsAsync(InvoiceDTO invoice, IServiceScope scope, IHubContext<NotificationHub> hubContext)
         {
             var rmsProductService = scope.ServiceProvider.GetRequiredService<IRMSProductService>();
             var measureService = scope.ServiceProvider.GetRequiredService<IRMSMeasureUnitService>();
@@ -279,6 +282,8 @@ namespace UpRestEye3.Services.BusinessLogic
                 await hubContext.Clients.All.SendAsync("ReceiveMessage", "Products mapped successfully.");
             else
                 await hubContext.Clients.All.SendAsync("ReceiveMessage", "Products mapped with errors.");
+
+            return invoice;
         }
 
         private async Task HandleErrorAsync(InvoiceDTO invoice, Exception ex, IInvoiceService invoiceService, IHubContext<NotificationHub> hubContext)
