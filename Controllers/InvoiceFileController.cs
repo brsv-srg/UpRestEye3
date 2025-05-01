@@ -58,7 +58,7 @@ namespace UpRestEye3.Controllers
             if (invoiceId == 0)
                 return BadRequest(new { message = "Failed to save invoice information." });
 
-            _ = _imageProcessor.InvoiceFileProcessAsync((int)invoiceId, consumerId);
+//            _ = _imageProcessor.InvoiceFileProcessAsync((int)invoiceId, consumerId);
 
             return Ok(new { message = "File uploaded successfully, processing started." });
         }
@@ -88,8 +88,12 @@ namespace UpRestEye3.Controllers
 
             try
             {
+                // Проверка, конвертация и загрузка изображения
+                var imageLoader = new ImageLoader();
+                var image = imageLoader.LoadImage(invoice.FilePath);
+
                 // Читаем файл и возвращаем его
-                var fileBytes = await System.IO.File.ReadAllBytesAsync(invoice.FilePath);
+                var fileBytes = imageLoader.ConvertBitmapToByteArray(image); //await System.IO.File.ReadAllBytesAsync(invoice.FilePath);
                 var fileName = Path.GetFileName(invoice.FilePath);
                 var contentType = "application/octet-stream"; // Можно уточнить MIME-тип, если известно
 

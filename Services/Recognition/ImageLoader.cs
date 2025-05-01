@@ -114,6 +114,18 @@ public class ImageLoader
         }
     }
 
+    public byte[] ConvertBitmapToByteArray(Bitmap bitmap)
+    {
+        using (var memoryStream = new MemoryStream())
+        {
+            // Сохраняем Bitmap в поток памяти в формате PNG (или другом формате)
+            bitmap.Save(memoryStream, ImageFormat.Png);
+
+            // Преобразуем поток в массив байтов
+            return memoryStream.ToArray();
+        }
+    }
+
 
     private Bitmap LoadImageFromFile(string filePath)
     {

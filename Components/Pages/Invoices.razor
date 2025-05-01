@@ -282,7 +282,10 @@
 																<td class="p-1">@product.Count</td>
 																<td class="p-1 text-end pe-5">@product.ProductTotalValue</td>
 																<td class="p-1">@product.TaxCategory</td>
-																<td class="p-1">@product.RMSProduct?.Name</td>
+																@* <td class="p-1">@product.RMSProduct?.Name</td> *@
+																<td class="p-1" style="@(product.RMSProduct?.Status != RMSProductStatusEnum.FromRMS ? "color: red;" : "")">
+																	@product.RMSProduct?.Name
+																</td>
 																<td class="p-1">@product.RMSContainer?.Name</td>
 																<td class="p-1">@product.RMSStorage?.Name</td>
 																<td class="p-1">
@@ -935,6 +938,13 @@
 			uploadMessageClass = "alert-info";
 			await InitializeDataAsync();
 			InvokeAsync(StateHasChanged);
+
+			//StateHasChanged();
+			await Task.Delay(5000);
+			uploadMessage = null;
+			uploadMessageClass = null;
+			InvokeAsync(StateHasChanged);
+			//StateHasChanged();
 		});
 
 		await hubConnection.StartAsync();
@@ -1442,6 +1452,8 @@
 			InvoiceStatusEnum.Ok => "text-success",
 			InvoiceStatusEnum.Error => "text-danger",
 			InvoiceStatusEnum.Manual => "text-info",
+			InvoiceStatusEnum.Processed => "text-info",
+
 		};
 	}
 

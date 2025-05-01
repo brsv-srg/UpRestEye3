@@ -35,8 +35,6 @@ namespace UpRestEye3.Services.BusinessLogic
             if (string.IsNullOrEmpty(invoice.FilePath))
             {
                 invoice.StageStatus = InvoiceStatusEnum.Error;
-                if (string.IsNullOrEmpty(invoice.Comments))
-                    invoice.Comments += "; ";
                 invoice.Comments += "Missing file path for invoice.";
             }
            
@@ -58,7 +56,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 !invoice.TaxCategories.Any())
             {
                 invoice.StageStatus = InvoiceStatusEnum.Error;
-                if (string.IsNullOrEmpty(invoice.Comments))
+                if (!string.IsNullOrEmpty(invoice.Comments))
                     invoice.Comments += "; ";
 
                 invoice.Comments += "Missing or invalid QR code data";
@@ -67,7 +65,7 @@ namespace UpRestEye3.Services.BusinessLogic
             if (invoice.Consumer.TaxNumber != customerTaxId)
             {
                 invoice.StageStatus = InvoiceStatusEnum.Error;
-                if (string.IsNullOrEmpty(invoice.Comments))
+                if (!string.IsNullOrEmpty(invoice.Comments))
                     invoice.Comments += "; ";
 
                 invoice.Comments += "Consumer QR code tax number mismatch.=";
@@ -78,7 +76,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 if (tax.Base <= 0 || tax.IVA < 0 || tax.Total <= 0)
                 {
                     invoice.StageStatus = InvoiceStatusEnum.Error;
-                    if (string.IsNullOrEmpty(invoice.Comments))
+                    if (!string.IsNullOrEmpty(invoice.Comments))
                         invoice.Comments += "; ";
                     invoice.Comments += "Invalid QR code tax category data.";
                 }
@@ -102,7 +100,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
             {
                 invoice.StageStatus = InvoiceStatusEnum.Manual;
-                if(string.IsNullOrEmpty(invoice.Comments))
+                if(!string.IsNullOrEmpty(invoice.Comments))
                     invoice.Comments += "; ";
                 
                 invoice.Comments += "Missing or invalid product data.";
@@ -120,7 +118,7 @@ namespace UpRestEye3.Services.BusinessLogic
             else
             {
                 invoice.StageStatus = InvoiceStatusEnum.Manual;
-                if (string.IsNullOrEmpty(invoice.Comments))
+                if (!string.IsNullOrEmpty(invoice.Comments))
                     invoice.Comments += "; ";
                 invoice.Comments += "Total product price mismatch.";
             }
@@ -129,7 +127,7 @@ namespace UpRestEye3.Services.BusinessLogic
             if (!productTaxCategories.All(tc => invoice.TaxCategories.Any(t => t.TaxCategory == tc)))
             {
                 invoice.StageStatus = InvoiceStatusEnum.Manual;
-                if (string.IsNullOrEmpty(invoice.Comments))
+                if (!string.IsNullOrEmpty(invoice.Comments))
                     invoice.Comments += "; ";
                 invoice.Comments += "Tax category mismatch.";
             }
@@ -152,6 +150,17 @@ namespace UpRestEye3.Services.BusinessLogic
                     invoice.Comments += "; ";
                 invoice.Comments += "Missing RMS data for products.";
             }
+
+            if (invoice.Products.Any(p => p.RMSProduct?.Status != RMSProductStatusEnum.FromRMS))
+            {
+                invoice.StageStatus = InvoiceStatusEnum.Manual;
+                if (!string.IsNullOrEmpty(invoice.Comments))
+                    invoice.Comments += "; ";
+                invoice.Comments += "There are some new RMSProducts in the Invoice.";
+            }
+
+
+
         }
     }
 

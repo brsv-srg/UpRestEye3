@@ -79,15 +79,15 @@ namespace UpRestEye3.Services.BusinessLogic
                 var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<NotificationHub>>();
                 var processingLockService = scope.ServiceProvider.GetRequiredService<IProcessingLockService>();
 
-                // Prevent concurrent processing of the same invoice
-                if (!await processingLockService.TryLockAsync(invoiceId))
-                {
-                    await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice is already being processed.");
-                    return false;
-                }
+                //// Prevent concurrent processing of the same invoice
+                //if (!await processingLockService.TryLockAsync(invoiceId))
+                //{
+                //    await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice is already being processed.");
+                //    return false;
+                //}
 
-                try
-                {
+                //try
+                //{
 
                     var workingInvoice = await invoiceService.GetInvoiceDTOByIdAsync(invoiceId);
                     if (workingInvoice == null)
@@ -150,12 +150,12 @@ namespace UpRestEye3.Services.BusinessLogic
                         await HandleErrorAsync(workingInvoice, ex, invoiceService, hubContext);
                         return false;
                     }
-                }
-                finally
-                {
-                    // Release the lock after processing
-                    await processingLockService.ReleaseLockAsync(invoiceId);
-                }
+                //}
+                //finally
+                //{
+                //    // Release the lock after processing
+                //    await processingLockService.ReleaseLockAsync(invoiceId);
+                //}
             }
         }
         private async Task<InvoiceDTO> ProcessQRCodeAsync(InvoiceDTO invoice, Bitmap image, IServiceScope scope, IHubContext<NotificationHub> hubContext)
@@ -165,8 +165,11 @@ namespace UpRestEye3.Services.BusinessLogic
             var invoiceService = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
 
             invoice.Stage = InvoiceStageEnum.QRCodeProcessed;
-            invoice.StageStatus = InvoiceStatusEnum.Ok;
-            
+            invoice.StageStatus = InvoiceStatusEnum.Processed;
+            await invoiceService.SaveInvoiceAsync(invoice);
+            await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognizing started..");
+
+
             var (basicQRCode, basicProcessedImage) = await imageProcessor.BasicQRRecognitionAsync(image, invoice.FilePath);
 
             if (basicQRCode == null)
@@ -207,16 +210,17 @@ namespace UpRestEye3.Services.BusinessLogic
             var invoiceService = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
 
             invoice.Stage = InvoiceStageEnum.TextProcessed;
-            invoice.StageStatus = InvoiceStatusEnum.Ok;
-            
+            invoice.StageStatus = InvoiceStatusEnum.Processed;
+            await invoiceService.SaveInvoiceAsync(invoice);
+            await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognizing started..");
+
+
             var measUnits = await rmsMeasureUnitsService.GetUnitsByConsumerIdAsync((int)invoice.Consumer.Id);
             if (measUnits == null)
                 throw new Exception("Failed to get measure units.");
 
 
             invoice = await imageProcessor.DeepTextRecognitionAsync(image, null, invoice, measUnits);
-            if (invoice.StageStatus != InvoiceStatusEnum.Ok)
-                throw new Exception("Failed to recognize text.");
 
             var validatorText = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.TextProcessed);
             validatorText.Validate(invoice, invoice.Consumer.TaxNumber);
@@ -225,9 +229,9 @@ namespace UpRestEye3.Services.BusinessLogic
             invoice = await invoiceService.GetInvoiceDTOByIdAsync((int)invoice.Id);
 
             if (invoice.StageStatus == InvoiceStatusEnum.Ok)
-                await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognized successfully.");
+                await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognized successfully!");
             else
-                await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognized with errors.");
+                await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognized with errors!");
             return invoice;
         }
 
@@ -241,7 +245,9 @@ namespace UpRestEye3.Services.BusinessLogic
             var conParamService = scope.ServiceProvider.GetRequiredService<IConnectionParameterService>();
 
             invoice.Stage = InvoiceStageEnum.ProductsMapped;
-            invoice.StageStatus = InvoiceStatusEnum.Ok;
+            invoice.StageStatus = InvoiceStatusEnum.Processed;
+            await invoiceService.SaveInvoiceAsync(invoice);
+            await hubContext.Clients.All.SendAsync("ReceiveMessage", "Products mapping started..");
 
             var rmsProducts = await rmsProductService.GetProductsByConsumerIdAsync((int)invoice.Consumer.Id);
             var measureUnits = await measureService.GetUnitsByConsumerIdAsync((int)invoice.Consumer.Id);

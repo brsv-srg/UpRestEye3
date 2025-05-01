@@ -1,14 +1,17 @@
 ﻿using Google.Api;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using System.Net;
 using UpRestEye3.Components;
 using UpRestEye3.Components.Account;
 using UpRestEye3.Controllers;
 using UpRestEye3.Data;
 using UpRestEye3.Models.Account;
+using UpRestEye3.Models.BLO;
 using UpRestEye3.Services;
 using UpRestEye3.Services.Account;
 using UpRestEye3.Services.BusinessLogic;
@@ -157,7 +160,7 @@ app.MapHub<NotificationHub>("/notificationHub");
 
 app.MapAdditionalIdentityEndpoints();
 
-
+/*
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -177,8 +180,109 @@ using (var scope = app.Services.CreateScope())
     var testInvoiceService = new TestInvoiceService(services);
     await testInvoiceService.RunTests();
 }
+*/
 
 
+
+// Запуск очереди обработки инвойсов
+StartInvoiceProcessingQueue(app.Services);
 
 app.Run();
-//app.Run($"https://{appConfig.IpAddress}:{appConfig.HttpsPort}");
+
+
+
+void StartInvoiceProcessingQueue(IServiceProvider services)
+{
+    int threadCount = 5; // Количество потоков
+    var queue = new BlockingCollection<Tuple<int, int>>(); // Очередь для хранения ID накладных и consumerId
+
+    // Запуск потоков
+    for (int i = 0; i < threadCount; i++)
+    {
+        Task.Run(async () =>
+        {
+            using var scope = services.CreateScope();
+            var invoiceProcessor = scope.ServiceProvider.GetRequiredService<IInvoiceFileProcessor>();
+            var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<NotificationHub>>();
+            var processingLockService = scope.ServiceProvider.GetRequiredService<IProcessingLockService>();
+
+
+            foreach (var (invoiceId, consumerId) in queue.GetConsumingEnumerable())
+            {
+                try
+                {
+                    try
+                    {
+                        await hubContext.Clients.All.SendAsync("ReceiveMessage", $"[Thread {i}] Начата обработка накладной {invoiceId} для consumerId {consumerId}");
+                        Console.WriteLine($"[Thread {i}] Начата обработка накладной {invoiceId} для consumerId {consumerId}");
+                        // Обработка накладной
+                        await invoiceProcessor.InvoiceFileProcessAsync(invoiceId, consumerId);
+
+
+                        await hubContext.Clients.All.SendAsync("ReceiveMessage", $"[Thread {i}] Завершена обработка накладной {invoiceId}");
+                        Console.WriteLine($"[Thread {i}] Завершена обработка накладной {invoiceId}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Ошибка при обработке накладной {invoiceId}: {ex.Message}");
+                        await hubContext.Clients.All.SendAsync("ReceiveMessage", $"[Thread {i}] Ошибка при обработке накладной {invoiceId}: {ex.Message}");
+                    }
+                }
+                finally
+                {
+                    await processingLockService.ReleaseLockAsync(invoiceId);
+                }
+            }
+        });
+    }
+
+    // Запуск задачи для выборки накладных из БД
+    Task.Run(async () =>
+    {
+        while (true)
+        {
+            using var scope = services.CreateScope();
+            var invoiceService = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
+            var processingLockService = scope.ServiceProvider.GetRequiredService<IProcessingLockService>();
+
+
+            // Стратегия выборки: порциями по 10 записей
+            var invoices = await invoiceService.GetInvoicesDAOAsync(null);
+            var filteredInvoices = invoices
+                .Where(i => (i.Stage == InvoiceStageEnum.New ||
+                             i.Stage == InvoiceStageEnum.QRCodeProcessed ||
+                             i.Stage == InvoiceStageEnum.TextProcessed) &&
+                            (i.StageStatus == InvoiceStatusEnum.Ok ||
+                             i.StageStatus == InvoiceStatusEnum.Processed))
+                .Take(10) // Порция записей
+                .ToList();
+
+            Console.WriteLine($"There were added {filteredInvoices.Count} Invoices to queue");
+
+            foreach (var invoice in filteredInvoices)
+            {
+                if (invoice.Id.HasValue && invoice.ConsumerId.HasValue)
+                {
+                    // Проверяем, не заблокирована ли накладная
+                    if (await processingLockService.TryLockAsync(invoice.Id.Value))
+                    {
+                        queue.Add(new Tuple<int, int>(invoice.Id.Value, invoice.ConsumerId.Value)); // Добавляем ID накладной и consumerId в очередь
+                    }
+                }
+            }
+
+            await Task.Delay(5000); // Задержка перед следующей выборкой
+        }
+    });
+
+
+    // Периодический вывод состояния очереди
+    Task.Run(async () =>
+    {
+        while (true)
+        {
+            Console.WriteLine($"Текущее количество элементов в очереди: {queue.Count}");
+            await Task.Delay(2000); // Проверяем каждые 2 секунды
+        }
+    });
+}

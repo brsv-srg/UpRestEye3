@@ -88,7 +88,7 @@ namespace UpRestEye3.Services.DataLayer
 
                 .Include(i => i.Supplier)
                 .Include(i => i.Consumer)
-                .Where(i => i.ConsumerId == consumerId)
+                .Where(i => consumerId != null && i.ConsumerId == consumerId || consumerId == null)
                 .ToListAsync();
             return invoices;
         }

@@ -123,6 +123,9 @@ namespace UpRestEye3.Data
                 {
                     _invoiceService.SaveInvoiceAsync(invoice);
                 }
+
+                var invoiceIds = invoices.Select(i => (int)i.Id).ToList();
+                    _invoiceService.DeleteInvoicesAsync(invoiceIds);
             }
         }
         public void InitializeRMSProducts(IServiceProvider serviceProvider)
@@ -189,6 +192,10 @@ namespace UpRestEye3.Data
                 {
                     _productService.SaveProductAsync(product);
                 }
+
+                var productIds = products.Select(p => (int)p.Id).ToList();
+                _invoiceService.DeleteInvoicesAsync(productIds);
+
             }
 
         }

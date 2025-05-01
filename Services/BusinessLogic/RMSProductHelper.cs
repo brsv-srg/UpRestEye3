@@ -1,9 +1,10 @@
-﻿using System.Text.Json;
-using System.Text.Json.Serialization;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Globalization;
-using System.ComponentModel.DataAnnotations;
-using UpRestEye3.Models.DAO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using UpRestEye3.Components.Pages;
 using UpRestEye3.Models.BLO;
+using UpRestEye3.Models.DAO;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Models.RMSDTO;
 
@@ -52,35 +53,43 @@ namespace UpRestEye3.Services.BusinessLogic
             if (rmsProductDTO == null)
                 return null;
 
-            var rmsProductDAO = new RMSProductDAO
-            {
-                Id = rmsProductDTO.Id,
-                ConsumerId = (int)rmsProductDTO.ConsumerId,
-                Consumer = new ConsumerDAO
-                {
-                    Id = rmsProductDTO.ConsumerId,
-                    TaxNumber = rmsProductDTO.ConsumerTaxId
-                },
-                Name = rmsProductDTO.Name,
-                Description = rmsProductDTO.Description ?? string.Empty,
-                RMSProductExtGuid = rmsProductDTO.RMSProductExtGuid,
-                Num = rmsProductDTO.Num,
-                MainUnit = rmsProductDTO.MainUnit,
-                Type = GetDAOItemType(rmsProductDTO.Type),
-                Status = rmsProductDTO.Status,
-                Containers = rmsProductDTO.Containers.Select(c => new RMSContainerDAO
-                {
-                    Id = c.Id,
-                    RMSProductId = (int)rmsProductDTO.ConsumerId,
-                    Num = c.Num,
-                    Name = c.Name,
-                    RMSContainerExtGuid = c.RMSContainerExtGuid,
-                    Count = c.Count,
-                    ContainerWeight = c.ContainerWeight,
-                    FullContainerWeight = c.FullContainerWeight
-                }).ToList()
-            };
+            var rmsProductDAO = new RMSProductDAO();
 
+            rmsProductDAO.Id = rmsProductDTO.Id;
+            rmsProductDAO.ConsumerId = (int)rmsProductDTO.ConsumerId;
+            
+            rmsProductDAO.Consumer = new ConsumerDAO();
+            rmsProductDAO.Consumer.Id = rmsProductDTO.ConsumerId;
+            rmsProductDAO.Consumer.TaxNumber = rmsProductDTO.ConsumerTaxId;
+
+            rmsProductDAO.Name = rmsProductDTO.Name;
+            rmsProductDAO.Description = rmsProductDTO.Description ?? string.Empty;
+            rmsProductDAO.RMSProductExtGuid = rmsProductDTO.RMSProductExtGuid;
+            rmsProductDAO.Num = rmsProductDTO.Num;
+            rmsProductDAO.MainUnit = rmsProductDTO.MainUnit;
+            rmsProductDAO.Type = GetDAOItemType(rmsProductDTO.Type);
+            rmsProductDAO.Status = rmsProductDTO.Status;
+
+            rmsProductDAO.Containers = new List<RMSContainerDAO>();
+
+            foreach (var containerDTO in rmsProductDTO.Containers)
+            {
+                var containerDAO = new RMSContainerDAO();
+                containerDAO.Id = containerDTO.Id;
+                
+                if (rmsProductDTO.Id != null)
+                    containerDAO.RMSProductId = (int) rmsProductDTO.Id;
+
+                containerDAO.Num = containerDTO.Num;
+                containerDAO.Name = containerDTO.Name;
+                containerDAO.RMSContainerExtGuid = containerDTO.RMSContainerExtGuid;
+                containerDAO.Count = containerDTO.Count;
+                containerDAO.ContainerWeight = containerDTO.ContainerWeight;
+                containerDAO.FullContainerWeight = containerDTO.FullContainerWeight;
+                rmsProductDAO.Containers.Add(containerDAO);
+
+            }
+            
             return rmsProductDAO;
         }        
 

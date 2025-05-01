@@ -17,13 +17,14 @@ namespace UpRestEye3.Services.BusinessLogic
 
         public async Task RunTests()
         {
-            await TestCreateInvoiceAsync();
-            await TestUpdateInvoiceAsync();
-            await TestUpdateSupplierAsync();
-            await TestUpdateConsumerAsync();
+            int? Id = await TestCreateInvoiceAsync();
+            await TestUpdateInvoiceAsync(Id);
+            await TestUpdateSupplierAsync(Id);
+            await TestUpdateConsumerAsync(Id);
+            await TestDeleteAsync(Id);
         }
 
-        private async Task TestCreateInvoiceAsync()
+        private async Task<int?> TestCreateInvoiceAsync()
         {
             using (var scope = _serviceProvider.CreateScope())
             {
@@ -74,13 +75,14 @@ namespace UpRestEye3.Services.BusinessLogic
                 };
 
                 // Save Invoice
-                await invoiceService.SaveInvoiceAsync(invoice);
+                int? id = await invoiceService.SaveInvoiceAsync(invoice);
 
                 Console.WriteLine($"Invoice Created: {invoice.InvoiceNumber}");
+                return id;
             }
         }
 
-        private async Task TestUpdateInvoiceAsync()
+        private async Task TestUpdateInvoiceAsync(int? Id)
         {
             using (var scope = _serviceProvider.CreateScope())
             {
@@ -94,7 +96,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     .Include(i => i.Consumer)
                     .Include(i => i.TaxCategories)
                     .Include(i => i.Products)
-                    .FirstOrDefaultAsync(i => i.InvoiceNumber == "INV-003");
+                    .FirstOrDefaultAsync(i => Id != null && Id == i.Id || Id == null && i.InvoiceNumber == "INV-003");
 
                 if (invoice != null)
                 {
@@ -110,7 +112,7 @@ namespace UpRestEye3.Services.BusinessLogic
             }
         }
 
-        private async Task TestUpdateSupplierAsync()
+        private async Task TestUpdateSupplierAsync(int? Id)
         {
             using (var scope = _serviceProvider.CreateScope())
             {
@@ -124,7 +126,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     .Include(i => i.Consumer)
                     .Include(i => i.TaxCategories)
                     .Include(i => i.Products)
-                    .FirstOrDefaultAsync(i => i.InvoiceNumber == "INV-003");
+                    .FirstOrDefaultAsync(i => Id != null && Id == i.Id || Id == null && i.InvoiceNumber == "INV-003");
 
                 if (invoice != null)
                 {
@@ -140,7 +142,7 @@ namespace UpRestEye3.Services.BusinessLogic
             }
         }
 
-        private async Task TestUpdateConsumerAsync()
+        private async Task TestUpdateConsumerAsync(int? Id)
         {
             using (var scope = _serviceProvider.CreateScope())
             {
@@ -154,7 +156,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     .Include(i => i.Consumer)
                     .Include(i => i.TaxCategories)
                     .Include(i => i.Products)
-                    .FirstOrDefaultAsync(i => i.InvoiceNumber == "INV-003");
+                    .FirstOrDefaultAsync(i => Id != null && Id == i.Id || Id == null && i.InvoiceNumber == "INV-003");
 
                 if (invoice != null)
                 {
@@ -166,6 +168,22 @@ namespace UpRestEye3.Services.BusinessLogic
 
                     Console.WriteLine($"Consumer Updated: {invoice.Consumer.Name}");
                 }
+            }
+        }
+   
+        private async Task TestDeleteAsync(int? Id)
+        {
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+                var invoiceService = services.GetRequiredService<IInvoiceService>();
+                var context = services.GetRequiredService<ApplicationDbContext>();
+
+                var listId = new List<int> { Id ?? 0 };
+                await invoiceService.DeleteInvoicesAsync(listId);
+
+                Console.WriteLine($"Invoice delete: {Id}");
+                
             }
         }
     }

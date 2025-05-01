@@ -379,7 +379,7 @@ namespace UpRestEye3.Services.BusinessLogic
             //Id = invoiceDTO.Id?.ToString(),
             //Conception = invoiceDTO.Conception,
             //ConceptionCode = invoiceDTO.ConceptionCode,
-            integrationInvoice.Comment = invoiceDTO.Comments;
+            //integrationInvoice.Comment = invoiceDTO.Comments;
             //DocumentNumber = invoiceDTO.InvoiceNumber,
 
             integrationInvoice.DateIncoming = invoiceDTO.InvoiceDate.ToString("yyyy-MM-ddTHH:mm:ss");

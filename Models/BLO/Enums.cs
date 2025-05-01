@@ -5,7 +5,8 @@
     {
         Ok,
         Error,
-        Manual
+        Manual,
+        Processed
     }
 
     public enum InvoiceStageEnum
