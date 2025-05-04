@@ -1,10 +1,10 @@
+﻿using Google.Cloud.Vision.V1;
 using Microsoft.EntityFrameworkCore;
+using UpRestEye3.Components.Pages;
+using UpRestEye3.Data;
+using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DAO;
 using UpRestEye3.Models.DTO;
-using UpRestEye3.Models.BLO;
-
-using UpRestEye3.Data;
-using UpRestEye3.Components.Pages;
 using UpRestEye3.Services.BusinessLogic;
 
 namespace UpRestEye3.Services.DataLayer
@@ -15,6 +15,7 @@ namespace UpRestEye3.Services.DataLayer
         Task<List<RMSProductDTO>> GetServicesByConsumerIdAsync(int consumerId);
         Task<RMSProductDTO> GetProductByIdAsync(int productId);
         Task<int?> SaveProductAsync(RMSProductDTO productDTO);
+        Task<bool> DeleteProductAsync(int productId);
     }
 
     public class RMSProductService : IRMSProductService
@@ -32,11 +33,37 @@ namespace UpRestEye3.Services.DataLayer
             var products = await _context.RMSProducts
                 .AsNoTracking()
                 .Include(p => p.Containers)
-                .Include(p => p.Consumer)   
+                .Include(p => p.Consumer)
                 .Where(p => p.ConsumerId == consumerId)
                 .ToListAsync();
 
-            return products.Select(p => RMSProductHelper.BuildRMSProductDTO(p)).ToList();
+            var invoices = await _context.Invoices
+                .AsNoTracking()
+                .Include(i => i.Products)
+                .ToListAsync();
+
+            // Создаем словарь для быстрого поиска инвойсов по RMSProductId
+            var productToInvoicesMap = invoices
+                .SelectMany(i => i.Products, (invoice, invoiceProduct) => new { invoice, invoiceProduct })
+                .Where(x => x.invoiceProduct.RMSProductId.HasValue)
+                .GroupBy(x => x.invoiceProduct.RMSProductId.Value)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => x.invoice).ToList()
+                );
+
+            // Преобразуем продукты в DTO и добавляем связанные инвойсы
+            var productDTOs = products.Select(p =>
+            {
+                var dto = RMSProductHelper.BuildRMSProductDTO(p);
+                if (dto != null)
+                {
+                    dto.HasInvoices = productToInvoicesMap.ContainsKey(p.Id ?? 0);
+                }
+                return dto;
+            }).ToList();
+
+            return productDTOs;
         }
 
         public async Task<List<RMSProductDTO>> GetServicesByConsumerIdAsync(int consumerId)
@@ -44,22 +71,61 @@ namespace UpRestEye3.Services.DataLayer
             var products = await _context.RMSProducts
                 .AsNoTracking()
                 .Include(p => p.Containers)
-                .Include(p => p.Consumer)   
+                .Include(p => p.Consumer)
                 .Where(p => p.ConsumerId == consumerId && p.Type == ItemTypeEnum.SERVICE)
                 .ToListAsync();
 
-            return products.Select(p => RMSProductHelper.BuildRMSProductDTO(p)).ToList();
+            var invoices = await _context.Invoices
+                .AsNoTracking()
+                .Include(i => i.Products)
+                .ToListAsync();
+
+            // Создаем словарь для быстрого поиска инвойсов по RMSProductId
+            var productToInvoicesMap = invoices
+                .SelectMany(i => i.Products, (invoice, invoiceProduct) => new { invoice, invoiceProduct })
+                .Where(x => x.invoiceProduct.RMSProductId.HasValue)
+                .GroupBy(x => x.invoiceProduct.RMSProductId.Value)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => x.invoice).ToList()
+                );
+
+            // Преобразуем продукты в DTO и добавляем связанные инвойсы
+            var productDTOs = products.Select(p =>
+            {
+                var dto = RMSProductHelper.BuildRMSProductDTO(p);
+                if (dto != null)
+                {
+                    dto.HasInvoices = productToInvoicesMap.ContainsKey(p.Id ?? 0);
+                }
+                return dto;
+            }).ToList();
+
+            return productDTOs;
+
         }
         public async Task<RMSProductDTO> GetProductByIdAsync(int productId)
         {
             var product = await _context.RMSProducts
                 .AsNoTracking()
                 .Include(p => p.Containers)
-                .Include(p => p.Consumer)   
+                .Include(p => p.Consumer)
+                //.Include(p => p.Invoices)
+                //.ThenInclude(i => i.Products)
                 .Where(p => p.Id == productId)
                 .FirstOrDefaultAsync();
 
-            return RMSProductHelper.BuildRMSProductDTO(product);
+            var rmsProductDTO = RMSProductHelper.BuildRMSProductDTO(product);
+
+            var invoices = await _context.Invoices
+                .AsNoTracking()
+                .Include(i => i.Products) // Включаем связанные InvoiceProduct
+                .Where(i => i.Products.Any(p => p.RMSProductId == productId)) // Фильтруем по RMSProductId
+                .ToListAsync();
+
+            rmsProductDTO.HasInvoices = invoices.Count() > 0;
+
+            return rmsProductDTO;
         }
 
 
@@ -91,13 +157,13 @@ namespace UpRestEye3.Services.DataLayer
                 var existingProduct = await _context.RMSProducts
                     .AsNoTracking()
                     .Include(p => p.Containers)
-                    .FirstOrDefaultAsync(p => p.ConsumerId == newProductDao.ConsumerId && 
-                                            
+                    .FirstOrDefaultAsync(p => p.ConsumerId == newProductDao.ConsumerId &&
+
                                             ((newProductDao.Id != null && p.Id == newProductDao.Id) ||
 
-                                            (newProductDao.Id == null && 
-                                                newProductDao.RMSProductExtGuid != null && 
-                                                newProductDao.RMSProductExtGuid != Guid.Empty && 
+                                            (newProductDao.Id == null &&
+                                                newProductDao.RMSProductExtGuid != null &&
+                                                newProductDao.RMSProductExtGuid != Guid.Empty &&
                                                 p.RMSProductExtGuid == newProductDao.RMSProductExtGuid) ||
 
                                             (newProductDao.Id == null &&
@@ -112,7 +178,7 @@ namespace UpRestEye3.Services.DataLayer
 
                 if (existingProduct == null)
                 {
-                    
+
                     await _context.RMSProducts.AddAsync(newProductDao);
                     _context.Entry(newProductDao.Consumer).State = EntityState.Unchanged;
 
@@ -133,8 +199,8 @@ namespace UpRestEye3.Services.DataLayer
                     {
                         var existingContainer = existingContainers
                             .FirstOrDefault(c => (newContainer.Id != null && c.Id == newContainer.Id) ||
-                                                    
-                                                    (newContainer.Id == null && 
+
+                                                    (newContainer.Id == null &&
                                                         newContainer.RMSContainerExtGuid != null && newContainer.RMSContainerExtGuid != Guid.Empty &&
                                                         c.RMSContainerExtGuid != null && c.RMSContainerExtGuid != Guid.Empty &&
                                                         c.RMSContainerExtGuid == newContainer.RMSContainerExtGuid) ||
@@ -161,12 +227,12 @@ namespace UpRestEye3.Services.DataLayer
                     foreach (var existingContainer in existingContainers)
                     {
                         if (!newContainers.Any(c => (c.Id != null && c.Id == existingContainer.Id) ||
-                                                    
+
                                                     (c.Id == null &&
                                                         c.RMSContainerExtGuid != null && c.RMSContainerExtGuid != Guid.Empty &&
                                                         existingContainer.RMSContainerExtGuid != null && existingContainer.RMSContainerExtGuid != Guid.Empty &&
                                                         c.RMSContainerExtGuid == existingContainer.RMSContainerExtGuid) ||
-                                                    
+
                                                     (c.Id == null &&
                                                         (c.RMSContainerExtGuid == null || c.RMSContainerExtGuid != Guid.Empty ||
                                                         existingContainer.RMSContainerExtGuid == null || existingContainer.RMSContainerExtGuid == Guid.Empty) &&
@@ -186,6 +252,54 @@ namespace UpRestEye3.Services.DataLayer
                     await transaction.CommitAsync();
                     return newProductDao.Id;
                 }
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+
+
+        public async Task<bool> DeleteProductAsync(int productId)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Получаем продукт с его связанными данными
+                var product = await _context.RMSProducts
+                    .Include(p => p.Containers)
+                    .FirstOrDefaultAsync(p => p.Id == productId);
+
+                if (product == null)
+                {
+                    return false; // Продукт не найден
+                }
+
+                // Проверяем, есть ли связанные инвойсы
+                var hasInvoices = await _context.Invoices
+                    .AnyAsync(i => i.Products.Any(p => p.RMSProductId == productId));
+
+                if (hasInvoices)
+                {
+                    throw new InvalidOperationException("Cannot delete product because it is associated with invoices.");
+                }
+
+                // Удаляем связанные контейнеры
+                if (product.Containers != null && product.Containers.Any())
+                {
+                    _context.Containers.RemoveRange(product.Containers);
+                }
+
+                // Удаляем сам продукт
+                _context.RMSProducts.Remove(product);
+
+                // Сохраняем изменения
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return true;
             }
             catch (Exception)
             {

@@ -19,14 +19,25 @@
 
         <div class="d-flex justify-content-between align-items-center">
             <h1 class="flex-grow-1 text-nowrap">Products in RMS</h1>
+            <div class="input-group" style="max-width: 300px;">
+                <input type="text" class="form-control  me-5" placeholder="Filter by Name..." @bind="filterText" @bind:event="oninput" />
+            </div>
+            <label class="form-check-label  me-3">
+                <input type="checkbox" class="form-check-input" @bind="showNotFromRMS" @bind:event="onchange" />
+
+                    Show NOT FromRMS
+            </label>
             <button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await ReadRMSProducts()" title="Read Products from DB">
                 <i class="fa fa-arrows-rotate"></i>
             </button>
             <button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await DownloadRMSData()" title="Download Products from RMS">
                 <i class="fa fa-download"></i>
             </button>
-            <button class="btn btn-outline-primary ml-auto" style="width: auto; margin-left: auto;" @onclick="async () => await UploadRMSData()" title="Upload Products into RMS">
+            <button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await UploadRMSData()" title="Upload Products into RMS">
                 <i class="fa fa-upload"></i>
+            </button>
+            <button class="btn btn-outline-primary ml-auto" style="width: auto; margin-left: auto;" @onclick="async () => await DeleteSelectedProductsAsync()" title="Delete RMS Products localy">
+                <i class="fa fa-trash"></i>
             </button>
         </div>
 
@@ -45,18 +56,21 @@
                 <table class="table" style="background-color: white; ">
                     <thead style="position: sticky; top: 0; background-color: lightgray; z-index: 1;">
                         <tr>
+                            <th><input type="checkbox" @onclick="ToggleSelectAll" /></th>
                             <th>Num</th>
                             <th>Name</th>
                             <th>Description</th>
                             <th>Unit</th>
                             <th>Status</th>
                             <th style="text-align: center;">Actions</th>
+                            <th>Invoices</th> <!-- Новая колонка -->
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var product in products)
+                        @foreach (var product in filteredProducts)
                         {
                             <tr>
+                                <td><input type="checkbox" @bind="product.IsSelected" /></td>
                                 <td>@product.Num</td>
                                 <td>@product.Name</td>
                                 <td>@product.Description</td>
@@ -72,6 +86,14 @@
                                     <button class="custom-btn" @onclick="async () => await ShowProductDetailsAsync(product)">
                                         <i class="fa fa-pencil" aria-hidden="true"></i>
                                     </button>
+                                </td>
+                                <td>
+                                    @if (product.HasInvoices)
+                                    {
+                                        <a href="javascript:void(0)" @onclick="() => NavigateToInvoices(product.Id)">
+                                            >>
+                                        </a>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -229,6 +251,14 @@
 @code {
     // Cписок продуктов
     private RMSProductDTO[]? products;
+
+    // Фмльтрованный список продуктов
+    private string filterText = string.Empty; // Текст фильтра
+    private IEnumerable<RMSProductDTO> filteredProducts =>
+        string.IsNullOrWhiteSpace(filterText)
+            ? products
+            : products.Where(p => p.Name.Contains(filterText, StringComparison.OrdinalIgnoreCase));
+
     // Редактируемый продукт (выбранный в списке)
     private RMSProductDTO? selectedProduct;
     // Временная модель для редактирования, чтобы не менять объект из списка напрямую
@@ -254,7 +284,22 @@
     // Список MeasureUnitDTO
     private RMSMeasureUnitDTO[] measureUnits = [];
 
+    private bool showNotFromRMS = false;
+    private bool selectAll = false;
 
+    private void ToggleSelectAll()
+    {
+        selectAll = !selectAll;
+        foreach (var product in products)
+        {
+            product.IsSelected = selectAll;
+        }
+    }
+
+    protected async Task ApplyFilter()
+    {
+        await ReadRMSProducts();
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -275,6 +320,14 @@
 
     }
 
+    private void NavigateToInvoices(int? productId)
+    {
+        if (productId.HasValue)
+        {
+            Navigation.NavigateTo($"/invoices?productId={productId.Value}");
+        }
+    }
+
 
     protected async Task ReadRMSProducts()
     {
@@ -292,7 +345,9 @@
 
         try
         {
-            products = await Http.GetFromJsonAsync<RMSProductDTO[]>($"{baseUri}/api/rmsproducts/{appUser.ConsumerId}");
+            var filterQuery = showNotFromRMS ? "?statusFilter=NotFromRMS" : string.Empty;
+            products = await Http.GetFromJsonAsync<RMSProductDTO[]>($"{baseUri}/api/rmsproducts/{appUser.ConsumerId}{filterQuery}");
+            // products = await Http.GetFromJsonAsync<RMSProductDTO[]>($"{baseUri}/api/rmsproducts/{appUser.ConsumerId}");
 
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -469,7 +524,7 @@
             }
 
             var response = await Http.PostAsJsonAsync($"{baseUri}/api/RMSProducts/save", editProduct);
-                                                                      
+
             if (response.IsSuccessStatusCode)
             {
                 Console.WriteLine("Product updated successfully.");
@@ -555,19 +610,25 @@
 
         try
         {
+            var selectedProducts = products
+            .Where(invoice => invoice.IsSelected)
+            .ToList();
 
-            var response = await Http.PostAsync($"{baseUri}/api/rmsproducts/upload?consumerId={appUser.ConsumerId}", null);
+            foreach (var productToUpload in selectedProducts)
+            {
+                var response = await Http.PostAsJsonAsync($"{baseUri}/api/rmsproducts/upload?consumerId={appUser.ConsumerId}", productToUpload.Id);
 
-            if (response.IsSuccessStatusCode)
-            {
-                Console.WriteLine("Parameters saved successfully.");
-                await ReadRMSProducts();
-            }
-            else
-            {
-                Console.WriteLine($"Parameters save failed. Status code: {response.StatusCode}");
-                var errorContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Error content: {errorContent}");
+                if (response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine("Parameters saved successfully.");
+                    await ReadRMSProducts();
+                }
+                else
+                {
+                    Console.WriteLine($"Parameters save failed. Status code: {response.StatusCode}");
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Error content: {errorContent}");
+                }
             }
         }
         catch (HttpRequestException ex)
@@ -579,6 +640,64 @@
             Console.WriteLine($"An unexpected error occurred: {ex.Message}");
         }
     }
+
+    private async Task DeleteSelectedProductsAsync()
+    {
+        if (appUser == null || appUser?.ConsumerId == null)
+        {
+            var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+            Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+            return;
+        }
+
+        var baseUri = Navigation.BaseUri;
+        if (baseUri.EndsWith('/'))
+        {
+            baseUri = baseUri.Substring(0, baseUri.Length - 1);
+        }
+
+        try
+        {
+            // Получаем список выделенных продуктов
+            var selectedProductIds = products
+                .Where(product => product.IsSelected)
+                .Select(product => product.Id)
+                .Where(id => id.HasValue)
+                .Select(id => id.Value)
+                .ToList();
+
+            if (!selectedProductIds.Any())
+            {
+                uploadMessage = "No products selected for deletion.";
+                uploadMessageClass = "alert-warning";
+                return;
+            }
+
+            // Отправляем запрос на удаление
+            var response = await Http.PostAsJsonAsync($"{baseUri}/api/rmsproducts/delete", selectedProductIds);
+
+            if (response.IsSuccessStatusCode)
+            {
+                uploadMessage = "Selected products deleted successfully.";
+                uploadMessageClass = "alert-success";
+
+                // Обновляем список продуктов
+                await ReadRMSProducts();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                uploadMessage = $"Failed to delete products. Error: {errorContent}";
+                uploadMessageClass = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            uploadMessage = $"An unexpected error occurred: {ex.Message}";
+            uploadMessageClass = "alert-danger";
+        }
+    }
+
 
 
     private string GetStatusClass(RMSProductStatusEnum status) // Изменено: Метод для получения CSS-класса статуса

@@ -19,6 +19,9 @@ namespace UpRestEye3.Models.DTO
         public string? Num { get; set; } 
         public Guid MainUnit { get; set; } = Guid.Empty;
         public string Type { get; set; } = "GOODS";
+        public bool IsSelected { get; set; } = false;
+        public bool HasInvoices { get; set; } = false;
+
         public List<RMSContainerDTO> Containers { get; set; } = new List<RMSContainerDTO>();
         public RMSProductStatusEnum Status { get; set; } = RMSProductStatusEnum.NewProduct;
     }

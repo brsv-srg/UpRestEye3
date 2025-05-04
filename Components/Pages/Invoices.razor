@@ -1,4 +1,6 @@
 ﻿@page "/invoices"
+@* @page "/invoices?productId={productId:int}" *@
+
 @rendermode InteractiveServer
 @* TODO разобраться с рендерингом *@
 
@@ -24,7 +26,7 @@
 
 		<div class="d-flex justify-content-between align-items-center">
 			<h1 class="flex-grow-1 text-nowrap">Invoices</h1>
-			<button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await InitializeDataAsync()" title="Read Invoices from DB">
+			<button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await InitializeDataAsync(null)" title="Read Invoices from DB">
 				<i class="fa fa-arrows-rotate"></i>
 			</button>
 
@@ -316,13 +318,15 @@
 																</select>
 															</td>
 															<td class="p-1">
-																<select class="form-control form-control-sm" @bind="newProduct.RMSProduct">
+																<select id="rmsProductSelectNew" class="form-control form-control-sm">
 																	<option value="">@((RMSProductDTO?)null)</option>
 																	@foreach (var rmsProduct in rmsProducts)
 																	{
 																		<option value="@rmsProduct.Id">@rmsProduct.Name</option>
 																	}
 																</select>
+
+
 															</td>
 															<td class="p-1">
 																<select class="form-control form-control-sm" @bind="newProduct.RMSContainer" @onfocus="@(e => HandleDropdownOpened(e, newProduct))">
@@ -606,7 +610,7 @@
 		{
 			const selectedValue = $(this).val();
 			console.log("Selected value:", selectedValue);
-			dotNetHelper.invokeMethodAsync('OnProductSelected', selectedValue);
+            dotNetHelper.invokeMethodAsync('OnProductSelected', selectedValue, selector);
 		});
 	}
 	
@@ -639,6 +643,9 @@
 	private InvoiceDTO? selectedInvoice;
 	// Временная модель для редактирования, чтобы не менять объект из списка напрямую
 	private InvoiceDTO editInvoice = new InvoiceDTO();
+
+	[Parameter]
+	public int? rmsProductId { get; set; }
 
 
 
@@ -720,7 +727,16 @@
 
 		if (!isInitialized)
 		{
-			await InitializeDataAsync();
+			// Извлечение параметра из QueryString
+			var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+			if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("productId", out var productIdValue))
+			{
+				if (int.TryParse(productIdValue, out var productId))
+				{
+					rmsProductId = productId;
+				}
+			}
+			await InitializeDataAsync(rmsProductId);
 			await InitializeSignalRAsync(); // Добавлено: Инициализация SignalR
 			isInitialized = true;
 		}
@@ -738,8 +754,8 @@
 		{
 			wasModalRendered = false; // Сбрасываем флаг при закрытии модального окна
 		}
-		
-		
+
+
 		bool isElementPresent = await IsElementInDOMAsync("#rmsProductSelect");
 		if (rmsProducts != null && showInvoiceModal && isElementPresent)
 		{
@@ -748,6 +764,16 @@
 			var initialValue = editProduct?.RMSProduct?.Id?.ToString() ;
 
 			await JS.InvokeVoidAsync("initializeSelect2WithLocalData", "#rmsProductSelect", productData, initialValue, DotNetObjectReference.Create(this));
+		}
+
+		bool isElementPresentNew = await IsElementInDOMAsync("#rmsProductSelectNew");
+		if (rmsProducts != null && showInvoiceModal && isElementPresentNew)
+		{
+			// Преобразуем данные в формат, понятный JavaScript
+			var productData = rmsProducts.Select(p => new { id = p.Id, name = p.Name }).ToList();
+			var initialValue = editProduct?.RMSProduct?.Id?.ToString();
+
+			await JS.InvokeVoidAsync("initializeSelect2WithLocalData", "#rmsProductSelectNew", productData, initialValue, DotNetObjectReference.Create(this));
 		}
 	}
 
@@ -758,21 +784,40 @@
 
 
 	[JSInvokable]
-	public void OnProductSelected(string productId)
+	public void OnProductSelected(string productId, string selector)
 	{
-		// Присваиваем выбранный продукт в editProduct.RMSProduct
-		if (editProduct != null)
+		if (selector == "#rmsProductSelect")
 		{
-			editProduct.RMSProduct = rmsProducts?.FirstOrDefault(p => p.Id.ToString() == productId);
-			Console.WriteLine($"Selected Product: {editProduct.RMSProduct?.Name}");
+			Console.WriteLine($"Selected Product ID: {productId}");
+
+			// Присваиваем выбранный продукт в editProduct.RMSProduct
+			if (editProduct != null)
+			{
+				editProduct.RMSProduct = rmsProducts?.FirstOrDefault(p => p.Id.ToString() == productId);
+				Console.WriteLine($"Selected Product: {editProduct.RMSProduct?.Name}");
+			}
+		}
+		else
+		if (selector == "#rmsProductSelectNew")
+		{
+			Console.WriteLine($"Selected Product ID: {productId}");
+
+			// Присваиваем выбранный продукт в editProduct.RMSProduct
+			if (newProduct != null)
+			{
+				newProduct.RMSProduct = rmsProducts?.FirstOrDefault(p => p.Id.ToString() == productId);
+				Console.WriteLine($"Selected Product: {newProduct.RMSProduct?.Name}");
+			}
 		}
 	}
 
 
 
 
-	private async Task InitializeDataAsync()
+	private async Task InitializeDataAsync(int? _rmsProductId = null)
 	{
+		rmsProductId = _rmsProductId;
+
 		var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
 		var user = authState.User;
 		appUser = await UserManager.GetUserAsync(user);
@@ -830,7 +875,8 @@
 	{
 		try
 		{
-			invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices/{appUser.ConsumerId}");
+			var filterQuery = (rmsProductId != null && rmsProductId.HasValue) ? $"?rmsProductId={rmsProductId}" : string.Empty;
+			invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices/{appUser.ConsumerId}{filterQuery}");
 		}
 		catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
 		{
@@ -847,7 +893,8 @@
 	{
 		try
 		{
-			suppliers = await Http.GetFromJsonAsync<SupplierDTO[]>($"{baseUri}/api/suppliers/{appUser.ConsumerId}");
+			var filterQuery = rmsProductId != null ? "?statusFilter=NotFromRMS" : string.Empty;
+			suppliers = await Http.GetFromJsonAsync<SupplierDTO[]>($"{baseUri}/api/suppliers/{appUser.ConsumerId}{filterQuery}");
 
 
 		}

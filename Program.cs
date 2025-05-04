@@ -213,19 +213,19 @@ void StartInvoiceProcessingQueue(IServiceProvider services)
                 {
                     try
                     {
-                        await hubContext.Clients.All.SendAsync("ReceiveMessage", $"[Thread {i}] Начата обработка накладной {invoiceId} для consumerId {consumerId}");
-                        Console.WriteLine($"[Thread {i}] Начата обработка накладной {invoiceId} для consumerId {consumerId}");
+                        await hubContext.Clients.All.SendAsync("ReceiveMessage", $"[Thread {i}] Invoice processing started {invoiceId} for consumerId {consumerId}");
+                        Console.WriteLine($"[Thread {i}] Invoice processing started {invoiceId} for consumerId {consumerId}");
                         // Обработка накладной
                         await invoiceProcessor.InvoiceFileProcessAsync(invoiceId, consumerId);
 
 
-                        await hubContext.Clients.All.SendAsync("ReceiveMessage", $"[Thread {i}] Завершена обработка накладной {invoiceId}");
-                        Console.WriteLine($"[Thread {i}] Завершена обработка накладной {invoiceId}");
+                        await hubContext.Clients.All.SendAsync("ReceiveMessage", $"[Thread {i}] Invoice processing completed {invoiceId}");
+                        Console.WriteLine($"[Thread {i}] Invoice processing completed {invoiceId}");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Ошибка при обработке накладной {invoiceId}: {ex.Message}");
-                        await hubContext.Clients.All.SendAsync("ReceiveMessage", $"[Thread {i}] Ошибка при обработке накладной {invoiceId}: {ex.Message}");
+                        Console.WriteLine($"Invoice processing error {invoiceId}: {ex.Message}");
+                        await hubContext.Clients.All.SendAsync("ReceiveMessage", $"[Thread {i}] Invoice processing error {invoiceId}: {ex.Message}");
                     }
                 }
                 finally
@@ -247,7 +247,7 @@ void StartInvoiceProcessingQueue(IServiceProvider services)
 
 
             // Стратегия выборки: порциями по 10 записей
-            var invoices = await invoiceService.GetInvoicesDAOAsync(null);
+            var invoices = await invoiceService.GetInvoicesDAOAsync(null,null);
             var filteredInvoices = invoices
                 .Where(i => (i.Stage == InvoiceStageEnum.New ||
                              i.Stage == InvoiceStageEnum.QRCodeProcessed ||
@@ -271,7 +271,7 @@ void StartInvoiceProcessingQueue(IServiceProvider services)
                 }
             }
 
-            await Task.Delay(5000); // Задержка перед следующей выборкой
+            await Task.Delay(10000); // Задержка перед следующей выборкой
         }
     });
 
@@ -281,8 +281,8 @@ void StartInvoiceProcessingQueue(IServiceProvider services)
     {
         while (true)
         {
-            Console.WriteLine($"Текущее количество элементов в очереди: {queue.Count}");
-            await Task.Delay(2000); // Проверяем каждые 2 секунды
+            Console.WriteLine($"The current number of items in the queue: {queue.Count}");
+            await Task.Delay(5000); // Проверяем каждые 2 секунды
         }
     });
 }

@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
-    <PackageReference Include="Blazored.Typeahead" Version="4.7.0" />
     <PackageReference Include="Google.Cloud.DocumentAI.V1" Version="3.19.0" />
     <PackageReference Include="Google.Cloud.Vision.V1" Version="3.7.0" />
     <PackageReference Include="iTextSharp" Version="5.5.13.4" />

@@ -13,7 +13,7 @@ namespace UpRestEye3.Services.Integration
     public interface IIntegrationRMSProductsService
     {
         Task<bool> GetProductsAsync(int consumerId);
-        Task<bool> PostProductsAsync(int consumerId);
+        Task<bool> PostProductsAsync(int consumerId, int? productId);
     }
 
     public class IntegrationRMSProductsService : IIntegrationRMSProductsService
@@ -64,7 +64,7 @@ namespace UpRestEye3.Services.Integration
             }
         }
 
-        public async Task<bool> PostProductsAsync(int consumerId)
+        public async Task<bool> PostProductsAsync(int consumerId, int? productId)
         {
             try
             {
@@ -73,8 +73,18 @@ namespace UpRestEye3.Services.Integration
 
                 var products = _productService.GetProductsByConsumerIdAsync(consumerId)
                                     .Result.Where(
-                                     p => p.Status == RMSProductStatusEnum.NewProduct ||
-                                            p.Status == RMSProductStatusEnum.NewContainer);
+                                     p => (productId != null && p.Id == productId) || 
+                                            (productId == null && (p.Status == RMSProductStatusEnum.NewProduct ||
+                                            p.Status == RMSProductStatusEnum.NewContainer)));
+                
+
+
+                if(productId != null && products.Any(p => (p.Status != RMSProductStatusEnum.NewProduct &&
+                                                            p.Status != RMSProductStatusEnum.NewContainer)))
+                {
+                    throw new Exception($"RMSProduct {productId} doesn't contain new information for sending to RMS");
+                }
+
 
                 foreach (var product in products)
                 {

@@ -15,8 +15,8 @@ namespace UpRestEye3.Services.DataLayer
         Task<InvoiceDAO?> GetInvoiceDAOByIdAsync(int id);
         Task<InvoiceDTO?> GetInvoiceDTOByIdAsync(int id);
 
-        Task<IEnumerable<InvoiceDAO>> GetInvoicesDAOAsync(int? consumerId);
-        Task<IEnumerable<InvoiceDTO>> GetInvoicesDTOAsync(int? consumerId);
+        Task<IEnumerable<InvoiceDAO>> GetInvoicesDAOAsync(int? consumerId, int? rmsProductId);
+        Task<IEnumerable<InvoiceDTO>> GetInvoicesDTOAsync(int? consumerId, int? rmsProductId);
 
         Task<int?> SaveInvoiceAsync(InvoiceDTO invoice);
         Task<int?> SaveInvoiceAsync(InvoiceDAO invoice);
@@ -67,7 +67,7 @@ namespace UpRestEye3.Services.DataLayer
             return InvoiceHelper.BuildInvoiceDTO(await GetInvoiceDAOByIdAsync(id));
         }
 
-        public async Task<IEnumerable<InvoiceDAO>> GetInvoicesDAOAsync(int? consumerId)
+        public async Task<IEnumerable<InvoiceDAO>> GetInvoicesDAOAsync(int? consumerId, int? rmsProductId)
         {
             var invoices = await _context.Invoices
                 .AsNoTracking()
@@ -88,14 +88,18 @@ namespace UpRestEye3.Services.DataLayer
 
                 .Include(i => i.Supplier)
                 .Include(i => i.Consumer)
-                .Where(i => consumerId != null && i.ConsumerId == consumerId || consumerId == null)
+                //.Where(i => consumerId != null && i.ConsumerId == consumerId || consumerId == null)
+                .Where(i =>
+                    (consumerId == null || i.ConsumerId == consumerId) && // Условие по ConsumerId
+                    (rmsProductId == null || rmsProductId == 0 || i.Products.Any(p => p.RMSProductId == rmsProductId)) // Условие по RMSProductId
+                )
                 .ToListAsync();
             return invoices;
         }
 
-        public async Task<IEnumerable<InvoiceDTO>> GetInvoicesDTOAsync(int? consumerId)
+        public async Task<IEnumerable<InvoiceDTO>> GetInvoicesDTOAsync(int? consumerId, int? rmsProductId)
         {
-            var invoices = await GetInvoicesDAOAsync(consumerId);
+            var invoices = await GetInvoicesDAOAsync(consumerId, rmsProductId);
             if (invoices == null)
             {
                 return new List<InvoiceDTO>();
