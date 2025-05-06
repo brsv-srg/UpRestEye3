@@ -17,9 +17,9 @@ namespace UpRestEye3.Services.BusinessLogic
             return status switch
             {
                 InvoiceStageEnum.New => new NewInvoiceValidatorBase(),
-                InvoiceStageEnum.QRCodeProcessed => new QRCodeProcessedValidator(),
-                InvoiceStageEnum.TextProcessed => new TextProcessedValidator(),
-                InvoiceStageEnum.ProductsMapped => new ProductsMappedValidator(),
+                InvoiceStageEnum.QRCodeRecognition => new QRCodeProcessedValidator(),
+                InvoiceStageEnum.TextRecognition => new TextProcessedValidator(),
+                InvoiceStageEnum.ProductsMapping => new ProductsMappedValidator(),
 
                 _ => throw new NotSupportedException($"Status {status} is not supported for validation")
             };
@@ -151,7 +151,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 invoice.Comments += "Missing RMS data for products.";
             }
 
-            if (invoice.Products.Any(p => p.RMSProduct?.Status != RMSProductStatusEnum.FromRMS))
+            if (invoice.Products.Any(p => p.RMSProduct != null && p.RMSProduct.Status != RMSProductStatusEnum.FromRMS))
             {
                 invoice.StageStatus = InvoiceStatusEnum.Manual;
                 if (!string.IsNullOrEmpty(invoice.Comments))

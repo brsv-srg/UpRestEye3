@@ -233,10 +233,10 @@ namespace UpRestEye3.Services.BusinessLogic
                 return stringValue switch
                 {
                     var s when s.Contains("New") => InvoiceStageEnum.New,
-                    var s when s.Contains("QRCodeProcessed") => InvoiceStageEnum.QRCodeProcessed,
-                    var s when s.Contains("TextProcessed") => InvoiceStageEnum.TextProcessed,
-                    var s when s.Contains("ProductsMapped") => InvoiceStageEnum.ProductsMapped,
-                    var s when s.Contains("SavedToSystem") => InvoiceStageEnum.SavedToSystem,
+                    var s when s.Contains("QRCodeRecognition") => InvoiceStageEnum.QRCodeRecognition,
+                    var s when s.Contains("TextRecognition") => InvoiceStageEnum.TextRecognition,
+                    var s when s.Contains("ProductsMapping") => InvoiceStageEnum.ProductsMapping,
+                    var s when s.Contains("SavingToSystem") => InvoiceStageEnum.SavingToSystem,
                     _ => throw new JsonException("Invalid token type for Invoice Stage.")
                 };
             }
@@ -391,7 +391,7 @@ namespace UpRestEye3.Services.BusinessLogic
             {
 
                 InvoiceDTO invoice = new InvoiceDTO();
-                invoice.Stage = InvoiceStageEnum.ProductsMapped;
+                invoice.Stage = InvoiceStageEnum.ProductsMapping;
                 invoice.StageStatus = InvoiceStatusEnum.Ok;
 
 

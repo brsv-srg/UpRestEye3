@@ -87,7 +87,7 @@ namespace UpRestEye3.Services.Integration
                     var responseValue = (DocumentValidationResult)deserializer.Deserialize(reader);
                     if (responseValue != null)
                     {
-                        invoiceDTO.Stage = InvoiceStageEnum.SavedToSystem;
+                        invoiceDTO.Stage = InvoiceStageEnum.SavingToSystem;
                         invoiceDTO.StageStatus = InvoiceStatusEnum.Ok;
                         return invoiceDTO;
                     }

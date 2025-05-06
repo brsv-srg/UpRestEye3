@@ -250,10 +250,10 @@ void StartInvoiceProcessingQueue(IServiceProvider services)
             var invoices = await invoiceService.GetInvoicesDAOAsync(null,null);
             var filteredInvoices = invoices
                 .Where(i => (i.Stage == InvoiceStageEnum.New ||
-                             i.Stage == InvoiceStageEnum.QRCodeProcessed ||
-                             i.Stage == InvoiceStageEnum.TextProcessed) &&
+                             i.Stage == InvoiceStageEnum.QRCodeRecognition ||
+                             i.Stage == InvoiceStageEnum.TextRecognition) &&
                             (i.StageStatus == InvoiceStatusEnum.Ok ||
-                             i.StageStatus == InvoiceStatusEnum.Processed))
+                             i.StageStatus == InvoiceStatusEnum.Processing))
                 .Take(10) // Порция записей
                 .ToList();
 

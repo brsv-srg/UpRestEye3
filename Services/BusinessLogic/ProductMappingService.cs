@@ -41,7 +41,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 // Если Invoice замеплен и есть новые продукты, то связываем их с Invoice Products
                 if (mappingResult != null)
                 {
-                    currentInvoice.Stage = InvoiceStageEnum.ProductsMapped;
+                    currentInvoice.Stage = InvoiceStageEnum.ProductsMapping;
                     currentInvoice.StageStatus = InvoiceStatusEnum.Ok;
 
                     // Проходим по всем замапленным продуктам
@@ -52,30 +52,35 @@ namespace UpRestEye3.Services.BusinessLogic
                                             ? parsedGuid
                                             : measUnits.Where(i => i.Name == mappedProducts.RMSProduct?.MainUnit)?.FirstOrDefault()?.EntityExtGuid ?? Guid.Empty;
 
-                        // Создаем замапленный RMSProduct
-                        var mappedRmsProduct = new RMSProductDTO()
-                        {
-                            Id = mappedProducts.RMSProduct.Id,
-                            Name = mappedProducts.RMSProduct.Name,
-                            Description = mappedProducts.RMSProduct.Description,
-                            Num = mappedProducts.RMSProduct.Num,
-                            MainUnit = measUnitGuid,
-                            ConsumerId = currentConsumerId,
-                            ConsumerTaxId = currentConsumerTaxId,
-
-                            Containers = new List<RMSContainerDTO>(mappedProducts.RMSProduct.Containers.Select(c => new RMSContainerDTO()
-                            {
-                                Id = c.Id,
-                                Num = c.Num,
-                                Name = c.Name,
-                                Count = c.Count
-                            }))
-                        };
+                        RMSProductDTO mappedRmsProduct = null;
 
                         // Если RMSProduct новый, добавляем его в список новых продуктов 
                         if (mappedProducts.NewRMSProduct)
                         {
+                            // Создаем замапленный RMSProduct
+                            mappedRmsProduct = new RMSProductDTO()
+                            {
+                                Id = mappedProducts.RMSProduct.Id,
+                                Name = mappedProducts.RMSProduct.Name,
+                                Description = mappedProducts.RMSProduct.Description,
+                                Num = mappedProducts.RMSProduct.Num,
+                                MainUnit = measUnitGuid,
+                                ConsumerId = currentConsumerId,
+                                ConsumerTaxId = currentConsumerTaxId,
+
+                                Containers = new List<RMSContainerDTO>(mappedProducts.RMSProduct.Containers.Select(c => new RMSContainerDTO()
+                                {
+                                    Id = c.Id,
+                                    Num = c.Num,
+                                    Name = c.Name,
+                                    Count = c.Count
+                                }))
+                            };
                             newRmsProducts.Add(mappedRmsProduct);
+                        }
+                        else
+                        {
+                            mappedRmsProduct = rmsProducts.Where(p => p.Id == mappedProducts.RMSProduct.Id).FirstOrDefault();
                         }
 
                         RMSContainerDTO mappedRMSContainer = null;
@@ -83,24 +88,27 @@ namespace UpRestEye3.Services.BusinessLogic
                         if (mappedProducts.RMSContainer != null)
                         {
 
-                            // Создаем новый замапленный контейнер
-                            mappedRMSContainer = new RMSContainerDTO()
-                            {
-                                Id = mappedProducts.RMSContainer.Id,
-                                Num = mappedProducts.RMSContainer.Num,
-                                Name = mappedProducts.RMSContainer.Name,
-                                Count = mappedProducts.RMSContainer.Count
-                            };
-
-
                             // Если контейнер новый и его еще нет в RMSProduct, то добавляем его в RMSProduct
                             if (mappedProducts.NewRMSContainer &&
                                 mappedRmsProduct.Containers.Where(c => c.Name == mappedProducts.RMSContainer.Name).Count() == 0)
                             {
+                                // Создаем новый замапленный контейнер
+                                mappedRMSContainer = new RMSContainerDTO()
+                                {
+                                    Id = mappedProducts.RMSContainer.Id,
+                                    Num = mappedProducts.RMSContainer.Num,
+                                    Name = mappedProducts.RMSContainer.Name,
+                                    Count = mappedProducts.RMSContainer.Count
+                                };
                                 mappedRmsProduct.Containers.Add(mappedRMSContainer);
                                 // И добавляем продукт для сохранения в список новых продуктов
                                 newRmsProducts.Add(mappedRmsProduct);
 
+                            }
+                            else
+                            {
+                                // Ищем контейнер в списке контейнеров продукта
+                                mappedRMSContainer = mappedRmsProduct.Containers.Where(c => c.Name == mappedProducts.RMSContainer.Name).FirstOrDefault();
                             }
                         }
 

@@ -72,13 +72,13 @@ namespace UpRestEye3.Services.BusinessLogic
                 if (qrCode.Base23 > 0)
                     invoice.TaxCategories.Add(new TaxesDTO { TaxCategory = GetTaxCategory("23%"), Base = qrCode.Base23, IVA = qrCode.IVA23, Total = qrCode.Base23 + qrCode.IVA23 });
 
-                invoice.Stage = InvoiceStageEnum.QRCodeProcessed;
+                invoice.Stage = InvoiceStageEnum.QRCodeRecognition;
                 invoice.StageStatus = InvoiceStatusEnum.Ok;
                 invoice.FilePath = filePath;
             }
             else
             {
-                invoice.Stage = InvoiceStageEnum.QRCodeProcessed;
+                invoice.Stage = InvoiceStageEnum.QRCodeRecognition;
                 invoice.StageStatus = InvoiceStatusEnum.Error;
                 throw new ArgumentException("QRCodeData are null");
             }

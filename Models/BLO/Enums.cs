@@ -6,16 +6,16 @@
         Ok,
         Error,
         Manual,
-        Processed
+        Processing
     }
 
     public enum InvoiceStageEnum
     {
         New,
-        QRCodeProcessed,
-        TextProcessed,
-        ProductsMapped,
-        SavedToSystem
+        QRCodeRecognition,
+        TextRecognition,
+        ProductsMapping,
+        SavingToSystem
     }
 
     public enum TaxCategoryEnum

@@ -123,18 +123,18 @@ namespace UpRestEye3.Services.BusinessLogic
                                 if (workingInvoice.StageStatus != InvoiceStatusEnum.Ok)
                                     break;
                                 else
-                                    goto case InvoiceStageEnum.QRCodeProcessed;
+                                    goto case InvoiceStageEnum.QRCodeRecognition;
 
                             // Распознование текста
-                            case InvoiceStageEnum.QRCodeProcessed:
+                            case InvoiceStageEnum.QRCodeRecognition:
                                 workingInvoice = await RecognizeTextAsync(workingInvoice, image, scope, hubContext);
                                 if (workingInvoice.StageStatus != InvoiceStatusEnum.Ok)
                                     break;
                                 else
-                                    goto case InvoiceStageEnum.TextProcessed;
+                                    goto case InvoiceStageEnum.TextRecognition;
 
                             // Маппинг продуктов
-                            case InvoiceStageEnum.TextProcessed:
+                            case InvoiceStageEnum.TextRecognition:
                                 workingInvoice = await MapProductsAsync(workingInvoice, scope, hubContext);
                                 break;
 
@@ -164,8 +164,8 @@ namespace UpRestEye3.Services.BusinessLogic
             var consumerService = scope.ServiceProvider.GetRequiredService<IConsumerService>();
             var invoiceService = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
 
-            invoice.Stage = InvoiceStageEnum.QRCodeProcessed;
-            invoice.StageStatus = InvoiceStatusEnum.Processed;
+            invoice.Stage = InvoiceStageEnum.QRCodeRecognition;
+            invoice.StageStatus = InvoiceStatusEnum.Processing;
             await invoiceService.SaveInvoiceAsync(invoice);
             await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognizing started..");
 
@@ -188,7 +188,7 @@ namespace UpRestEye3.Services.BusinessLogic
             InvoiceHelper.UpdateInvoiceByQR(invoice, basicQRCode, invoice.FilePath);
 
             // Валидация накладной после QR
-            var validatorQR = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.QRCodeProcessed);
+            var validatorQR = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.QRCodeRecognition);
             validatorQR.Validate(invoice, consumer.TaxNumber);
 
             // Сохранение изменений в базу данных
@@ -209,8 +209,8 @@ namespace UpRestEye3.Services.BusinessLogic
             var rmsMeasureUnitsService = scope.ServiceProvider.GetRequiredService<IRMSMeasureUnitService>();
             var invoiceService = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
 
-            invoice.Stage = InvoiceStageEnum.TextProcessed;
-            invoice.StageStatus = InvoiceStatusEnum.Processed;
+            invoice.Stage = InvoiceStageEnum.TextRecognition;
+            invoice.StageStatus = InvoiceStatusEnum.Processing;
             await invoiceService.SaveInvoiceAsync(invoice);
             await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognizing started..");
 
@@ -222,7 +222,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
             invoice = await imageProcessor.DeepTextRecognitionAsync(image, null, invoice, measUnits);
 
-            var validatorText = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.TextProcessed);
+            var validatorText = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.TextRecognition);
             validatorText.Validate(invoice, invoice.Consumer.TaxNumber);
 
             await invoiceService.SaveInvoiceAsync(invoice);
@@ -244,8 +244,8 @@ namespace UpRestEye3.Services.BusinessLogic
             var invoiceService = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
             var conParamService = scope.ServiceProvider.GetRequiredService<IConnectionParameterService>();
 
-            invoice.Stage = InvoiceStageEnum.ProductsMapped;
-            invoice.StageStatus = InvoiceStatusEnum.Processed;
+            invoice.Stage = InvoiceStageEnum.ProductsMapping;
+            invoice.StageStatus = InvoiceStatusEnum.Processing;
             await invoiceService.SaveInvoiceAsync(invoice);
             await hubContext.Clients.All.SendAsync("ReceiveMessage", "Products mapping started..");
 
@@ -277,7 +277,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
             InvoiceHelper.CopyInvoice(invoice, mappedInvoice);
 
-            var validatorMapp = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.ProductsMapped);
+            var validatorMapp = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.ProductsMapping);
             validatorMapp.Validate(invoice, invoice.Consumer.TaxNumber);
 
             await invoiceService.SaveInvoiceAsync(invoice);

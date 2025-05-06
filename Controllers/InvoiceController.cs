@@ -76,7 +76,7 @@ namespace UpRestEye3.Controllers
             try
             {
                 var result = await _integrationService.PostInvoiceAsync(invoiceToUpload);
-                if (result != null && result.Stage == InvoiceStageEnum.SavedToSystem && result.StageStatus != InvoiceStatusEnum.Error)
+                if (result != null && result.Stage == InvoiceStageEnum.SavingToSystem && result.StageStatus != InvoiceStatusEnum.Error)
                 {
                     await _invoiceService.SaveInvoiceAsync(invoiceToUpload);
                     return Ok(invoiceToUpload);
@@ -137,7 +137,7 @@ namespace UpRestEye3.Controllers
 
         private void CheckQR(InvoiceDTO invoice)
         {
-         if (invoice.Stage == InvoiceStageEnum.QRCodeProcessed && invoice.StageStatus != InvoiceStatusEnum.Ok)
+         if (invoice.Stage == InvoiceStageEnum.QRCodeRecognition && invoice.StageStatus != InvoiceStatusEnum.Ok)
          {
             if (!string.IsNullOrEmpty(invoice.Comments) && QRCodeData.IsMatchingATQRCode(invoice.Comments))
             {

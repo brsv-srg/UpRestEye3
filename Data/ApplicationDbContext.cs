@@ -56,20 +56,20 @@ namespace UpRestEye3.Data
                 .HasForeignKey(i => i.SupplierId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Configure owned types for Products collection
-            modelBuilder.Entity<InvoiceDAO>()
-                .HasMany(i => i.Products)
-                .WithOne(p => p.Invoice)
-                .HasForeignKey(p => p.InvoiceId)
-                .OnDelete(DeleteBehavior.Cascade);
+            //// Configure owned types for Products collection
+            //modelBuilder.Entity<InvoiceDAO>()
+            //    .HasMany(i => i.Products)
+            //    .WithOne(p => p.Invoice)
+            //    .HasForeignKey(p => p.InvoiceId)
+            //    .OnDelete(DeleteBehavior.Cascade);
 
 
-            // Configure owned types for Taxes collection
-            modelBuilder.Entity<InvoiceDAO>()
-                .HasMany(i => i.TaxCategories)
-                .WithOne(t => t.Invoice)
-                .HasForeignKey(t => t.InvoiceId)
-                .OnDelete(DeleteBehavior.Cascade);
+            //// Configure owned types for Taxes collection
+            //modelBuilder.Entity<InvoiceDAO>()
+            //    .HasMany(i => i.TaxCategories)
+            //    .WithOne(t => t.Invoice)
+            //    .HasForeignKey(t => t.InvoiceId)
+            //    .OnDelete(DeleteBehavior.Cascade);
 
             ////////////////////////////////////////////////////////////////
 

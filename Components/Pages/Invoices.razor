@@ -973,6 +973,19 @@
 		}
 	}
 
+	private async Task ShowMessage(string message, string cssClass)
+	{
+		uploadMessage = message;
+		uploadMessageClass = cssClass;
+		StateHasChanged();
+
+		await Task.Delay(5000); // Сообщение пропадает через 5 секунд
+		uploadMessage = null;
+		uploadMessageClass = null;
+		StateHasChanged();
+	}
+
+
 	private async Task InitializeSignalRAsync()
 	{
 		hubConnection = new HubConnectionBuilder()
@@ -1066,9 +1079,7 @@
 
 		if (!selectedInvoiceIds.Any())
 		{
-			uploadMessage = "No invoices selected for processing.";
-			uploadMessageClass = "alert-warning";
-			StateHasChanged();
+			await ShowMessage("No invoices selected for processing.", "alert-warning");
 			return;
 		}
 
@@ -1078,35 +1089,27 @@
 
 			if (response.IsSuccessStatusCode)
 			{
-				uploadMessage = "Selected invoices are being processed.";
-				uploadMessageClass = "alert-success";
+				await ShowMessage("Selected invoices are being processed.", "alert-success");
 			}
 			else
 			{
 				var errorContent = await response.Content.ReadAsStringAsync();
-				uploadMessage = $"Failed to process invoices: {errorContent}";
-				uploadMessageClass = "alert-danger";
+				await ShowMessage($"Failed to process invoices: {errorContent}", "alert-danger");
 			}
 		}
 		catch (Exception ex)
 		{
-			uploadMessage = $"An error occurred: {ex.Message}";
-			uploadMessageClass = "alert-danger";
-		}
+			await ShowMessage($"An error occurred: {ex.Message}", "alert-danger");
 
-		StateHasChanged();
-		await Task.Delay(5000);
-		uploadMessage = null;
-		uploadMessageClass = null;
-		StateHasChanged();
+		}
 	}
 
 
-	private void ShowDeleteConfirmation()
+	private async Task ShowDeleteConfirmation()
 	{
 		// Фильтруем инвойсы, которые нельзя удалять
 		var invalidInvoices = invoices
-			.Where(i => i.IsSelected && i.Stage == InvoiceStageEnum.SavedToSystem && i.StageStatus == InvoiceStatusEnum.Ok)
+			.Where(i => i.IsSelected && i.Stage == InvoiceStageEnum.SavingToSystem && i.StageStatus == InvoiceStatusEnum.Ok)
 			.ToList();
 
 		// Сбрасываем выделение для инвойсов, которые нельзя удалять
@@ -1130,11 +1133,9 @@
 		}
 		else
 		{
-			uploadMessage = invalidInvoices.Any()
+			await ShowMessage(invalidInvoices.Any()
 				? "Some invoices cannot be deleted due to their status."
-				: "No invoices selected for deletion.";
-			uploadMessageClass = "alert-warning";
-			StateHasChanged();
+				: "No invoices selected for deletion.", "alert-warning");
 		}
 	}
 
@@ -1154,8 +1155,7 @@
 
 			if (response.IsSuccessStatusCode)
 			{
-				uploadMessage = "Selected invoices deleted successfully.";
-				uploadMessageClass = "alert-success";
+				await ShowMessage("Selected invoices deleted successfully.", "alert-success");
 
 				// Обновляем список инвойсов
 				invoices = invoices.Where(invoice => !selectedInvoiceIds.Contains(invoice.Id ?? 0)).ToArray();
@@ -1163,21 +1163,13 @@
 			else
 			{
 				var errorContent = await response.Content.ReadAsStringAsync();
-				uploadMessage = $"Failed to delete invoices: {errorContent}";
-				uploadMessageClass = "alert-danger";
+				await ShowMessage($"Failed to delete invoices: {errorContent}", "alert-danger");
 			}
 		}
 		catch (Exception ex)
 		{
-			uploadMessage = $"An error occurred: {ex.Message}";
-			uploadMessageClass = "alert-danger";
+			await ShowMessage($"An error occurred: {ex.Message}", "alert-danger");
 		}
-
-		StateHasChanged();
-		await Task.Delay(5000);
-		uploadMessage = null;
-		uploadMessageClass = null;
-		StateHasChanged();
 	}
 
 
@@ -1187,6 +1179,9 @@
 		selectedInvoice = invoice;
 		InvoiceHelper.CopyInvoice(editInvoice, selectedInvoice);
 		showInvoiceModal = true;
+
+		// Сбрасываем изображение перед загрузкой нового
+		scannedImageBase64 = null;
 
 		// Загрузка изображения
 		await LoadScannedImageAsync(invoice.Id ?? 0);
@@ -1454,7 +1449,7 @@
 		{
 			foreach (var invoice in invoices)
 			{
-				if (invoice.IsSelected && (invoice.Stage == InvoiceStageEnum.ProductsMapped || invoice.Stage == InvoiceStageEnum.SavedToSystem))
+				if (invoice.IsSelected && (invoice.Stage == InvoiceStageEnum.ProductsMapping || invoice.Stage == InvoiceStageEnum.SavingToSystem))
 				{
 					var response = await Http.PostAsJsonAsync($"{baseUri}/api/invoices/upload", invoice);
 
@@ -1499,7 +1494,7 @@
 			InvoiceStatusEnum.Ok => "text-success",
 			InvoiceStatusEnum.Error => "text-danger",
 			InvoiceStatusEnum.Manual => "text-info",
-			InvoiceStatusEnum.Processed => "text-info",
+			InvoiceStatusEnum.Processing => "text-info",
 
 		};
 	}

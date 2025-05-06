@@ -298,24 +298,54 @@ namespace UpRestEye3.Services.DataLayer
 
         public async Task DeleteInvoiceAsync(int invoiceId)
         {
+            // Проверяем, существует ли инвойс с указанным ID
             var invoice = await _context.Invoices.FindAsync(invoiceId);
-            if (invoice != null)
-            {
+            if (invoice == null)
+                return;
+            _context.ChangeTracker.Clear();
 
-                _context.Invoices.Remove(invoice);
-                await _context.SaveChangesAsync();
-            }
+            // Удаляем связанные TaxCategories
+            var taxCategoriesToDelete = _context.TaxCategories
+                .Where(tc => tc.InvoiceId == invoiceId);
+            _context.TaxCategories.RemoveRange(taxCategoriesToDelete);
+
+            // Удаляем связанные InvoiceProducts
+            var invoiceProductsToDelete = _context.InvoiceProducts
+                .Where(ip => ip.InvoiceId == invoiceId);
+            _context.InvoiceProducts.RemoveRange(invoiceProductsToDelete);
+
+            // Удаляем сам инвойс
+            _context.Invoices.Remove(invoice);
+
+            // Сохраняем изменения
+            await _context.SaveChangesAsync();
         }
 
         public async Task DeleteInvoicesAsync(List<int> invoiceIds)
         {
-            var invoicesToDelete = _context.Invoices.Where(i => invoiceIds.Contains((int)i.Id)).ToList();
+            
+            // Проверяем, есть ли инвойсы для удаления
+            if (invoiceIds == null || !invoiceIds.Any())
+                return;
 
-            if (invoicesToDelete.Any())
-            {
-                _context.Invoices.RemoveRange(invoicesToDelete);
-                await _context.SaveChangesAsync();
-            }
+            _context.ChangeTracker.Clear();
+            // Удаляем связанные TaxCategories
+            var taxCategoriesToDelete = _context.TaxCategories
+                .Where(tc => invoiceIds.Contains(tc.InvoiceId ?? 0));
+            _context.TaxCategories.RemoveRange(taxCategoriesToDelete);
+
+            // Удаляем связанные InvoiceProducts
+            var invoiceProductsToDelete = _context.InvoiceProducts
+                .Where(ip => invoiceIds.Contains(ip.InvoiceId ?? 0));
+            _context.InvoiceProducts.RemoveRange(invoiceProductsToDelete);
+
+            // Удаляем сами инвойсы
+            var invoicesToDelete = _context.Invoices
+                .Where(i => invoiceIds.Contains(i.Id ?? 0));
+            _context.Invoices.RemoveRange(invoicesToDelete);
+
+            // Сохраняем изменения
+            await _context.SaveChangesAsync();
         }
     }
 }
