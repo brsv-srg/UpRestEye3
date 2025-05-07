@@ -27,9 +27,9 @@
     }
     public enum RMSProductStatusEnum
     {
-        FromRMS,
         NewProduct,
-        NewContainer
+        NewContainer,
+        Synchronized
     }
     public enum ItemTypeEnum
     {

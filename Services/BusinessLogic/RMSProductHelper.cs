@@ -330,7 +330,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 Num = dto.num,
                 MainUnit = dto.mainUnit,
                 Type = dto.type,
-                Status = RMSProductStatusEnum.FromRMS,
+                Status = RMSProductStatusEnum.Synchronized,
                 Containers = dto.containers.Select(c => new RMSContainerDTO
                 {
                     RMSContainerExtGuid = c.id,

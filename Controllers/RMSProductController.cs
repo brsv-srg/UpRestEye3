@@ -32,7 +32,7 @@ namespace UpRestEye3.Controllers
             {
                 if (statusFilter == "NotFromRMS")
                 {
-                    products = products.Where(p => p.Status != RMSProductStatusEnum.FromRMS).ToList();
+                    products = products.Where(p => p.Status != RMSProductStatusEnum.Synchronized).ToList();
                 }
                 else if (Enum.TryParse<RMSProductStatusEnum>(statusFilter, out var status))
                 {

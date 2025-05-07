@@ -285,7 +285,7 @@
 																<td class="p-1 text-end pe-5">@product.ProductTotalValue</td>
 																<td class="p-1">@product.TaxCategory</td>
 																@* <td class="p-1">@product.RMSProduct?.Name</td> *@
-																<td class="p-1" style="@(product.RMSProduct?.Status != RMSProductStatusEnum.FromRMS ? "color: red;" : "")">
+																<td class="p-1" style="@(product.RMSProduct?.Status != RMSProductStatusEnum.Synchronized ? "color: red;" : "")">
 																	@product.RMSProduct?.Name
 																</td>
 																<td class="p-1">@product.RMSContainer?.Name</td>

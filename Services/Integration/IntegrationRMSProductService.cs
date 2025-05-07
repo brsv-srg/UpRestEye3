@@ -52,7 +52,7 @@ namespace UpRestEye3.Services.Integration
                 {
                     var rmsProductDTO = RMSProductHelper.BuildRMSProductDTO(product);
                     rmsProductDTO.ConsumerId = consumerId;
-                    rmsProductDTO.Status = RMSProductStatusEnum.FromRMS;
+                    rmsProductDTO.Status = RMSProductStatusEnum.Synchronized;
                     await _productService.SaveProductAsync(rmsProductDTO);
                 }
                 return true;
@@ -94,7 +94,7 @@ namespace UpRestEye3.Services.Integration
                     var resultProduct = await PostProductAsync(intProduct);
                     if (resultProduct != null)
                     {
-                        product.Status = RMSProductStatusEnum.FromRMS;
+                        product.Status = RMSProductStatusEnum.Synchronized;
                         product.Num = resultProduct.num;
                         product.RMSProductExtGuid = resultProduct.id;
                         foreach (var container in product.Containers)

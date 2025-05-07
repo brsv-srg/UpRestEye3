@@ -142,7 +142,7 @@ namespace UpRestEye3.Services.BusinessLogic
             base.Validate(invoice, customerTaxId);
 
             if (invoice.Products.Any(p => p.RMSProduct == null ||
-                                           (!string.IsNullOrEmpty(p.Container) && p.RMSContainer == null) ||
+                                           //(!string.IsNullOrEmpty(p.Container) && p.RMSContainer == null) ||
                                            p.RMSStorage == null))
             {
                 invoice.StageStatus = InvoiceStatusEnum.Manual;
@@ -151,7 +151,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 invoice.Comments += "Missing RMS data for products.";
             }
 
-            if (invoice.Products.Any(p => p.RMSProduct != null && p.RMSProduct.Status != RMSProductStatusEnum.FromRMS))
+            if (invoice.Products.Any(p => p.RMSProduct != null && p.RMSProduct.Status != RMSProductStatusEnum.Synchronized))
             {
                 invoice.StageStatus = InvoiceStatusEnum.Manual;
                 if (!string.IsNullOrEmpty(invoice.Comments))

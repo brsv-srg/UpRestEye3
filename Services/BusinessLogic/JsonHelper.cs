@@ -187,7 +187,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 }
                 else if (stringValue.Contains("RMS"))
                 {
-                    return RMSProductStatusEnum.FromRMS;
+                    return RMSProductStatusEnum.Synchronized;
                 }
             }
             throw new JsonException("Invalid token type for TaxCategory.");
@@ -588,7 +588,7 @@ namespace UpRestEye3.Services.BusinessLogic
                                                 }}
                                             }}
                                         }},
-                                        ""Status"": {{ ""type"": ""string"", ""enum"": [""FromRMS"", ""NewProduct"", ""NewContainer""] }}
+                                        ""Status"": {{ ""type"": ""string"", ""enum"": [""Synchronized"", ""NewProduct"", ""NewContainer""] }}
                                     }}
                                 }},
                                 ""RMSContainer"": {{
