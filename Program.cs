@@ -160,13 +160,13 @@ app.MapHub<NotificationHub>("/notificationHub");
 
 app.MapAdditionalIdentityEndpoints();
 
-/*
+
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<ApplicationDbContext>();
     context.Database.Migrate();
-   
+    /*
     var seedData = new SeedData(services.GetRequiredService<IInvoiceService>(), services.GetRequiredService<IRMSProductService>());
     seedData.InitializeInvoices(services);
     seedData.InitializeRMSProducts(services);
@@ -179,8 +179,9 @@ using (var scope = app.Services.CreateScope())
 
     var testInvoiceService = new TestInvoiceService(services);
     await testInvoiceService.RunTests();
+    */
 }
-*/
+
 
 
 

@@ -101,6 +101,7 @@ namespace UpRestEye3.Services.BusinessLogic
                                     Count = mappedProducts.RMSContainer.Count
                                 };
                                 mappedRmsProduct.Containers.Add(mappedRMSContainer);
+                                mappedRmsProduct.Status = RMSProductStatusEnum.NewContainer;
                                 // И добавляем продукт для сохранения в список новых продуктов
                                 newRmsProducts.Add(mappedRmsProduct);
 

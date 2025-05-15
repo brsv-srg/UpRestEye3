@@ -17,6 +17,7 @@ namespace UpRestEye3.Models.DTO
         public string Description { get; set; } = string.Empty;
         public Guid? RMSProductExtGuid { get; set; }
         public string? Num { get; set; } 
+        public Guid? Parent { get; set; }
         public Guid MainUnit { get; set; } = Guid.Empty;
         public string Type { get; set; } = "GOODS";
         public bool IsSelected { get; set; } = false;

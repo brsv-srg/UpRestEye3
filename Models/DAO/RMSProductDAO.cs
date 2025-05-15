@@ -12,6 +12,7 @@ namespace UpRestEye3.Models.DAO
         public string Name { get; set; } = string.Empty; //Имя
         public string Description { get; set; } = string.Empty; // Описание
         public string? Num { get; set; } // Артикул, используется при печати документов (тех. карт и т.д.)
+        public Guid? Parent { get; set; }
         public Guid MainUnit { get; set; } = Guid.NewGuid(); // UUID основной единицы измерения продукта
         public ItemTypeEnum Type { get; set; } = ItemTypeEnum.GOODS; // Тип элемента номенклатуры
         public List<RMSContainerDAO> Containers { get; set; } = new List<RMSContainerDAO>(); // Фасовки

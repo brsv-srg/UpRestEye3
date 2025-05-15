@@ -200,9 +200,12 @@
                                                             <td class="p-1">@container.ContainerWeight</td>
                                                             <td class="p-1">@container.FullContainerWeight</td>
                                                             <td class="p-1">
+                                                            @if(@container.RMSContainerExtGuid == null)
+                                                            {
                                                                 <button class="custom-btn" @onclick="async () => EditContainer(container)">
                                                                     <i class="fa fa-pencil" aria-hidden="true"></i>
                                                                 </button>
+                                                            }
                                                             </td>
                                                         }
                                                     </tr>
@@ -404,7 +407,10 @@
         target.Name = source.Name;
         target.Description = source.Description;
         target.Num = source.Num;
+        target.RMSProductExtGuid = source.RMSProductExtGuid;
+        target.Parent = source.Parent;
         target.MainUnit = source.MainUnit;
+        target.Status = source.Status;
         target.Containers = source.Containers?.Select(c => new RMSContainerDTO
             {
                 Id = c.Id,
@@ -412,7 +418,9 @@
                 Name = c.Name,
                 Count = c.Count,
                 ContainerWeight = c.ContainerWeight,
-                FullContainerWeight = c.FullContainerWeight
+                FullContainerWeight = c.FullContainerWeight,
+                RMSContainerExtGuid = c.RMSContainerExtGuid
+                
             })?.ToList();
     }
 
@@ -438,7 +446,8 @@
 					Name = container.Name,
 					Count = container.Count,
 					ContainerWeight = container.ContainerWeight,
-					FullContainerWeight = container.FullContainerWeight
+					FullContainerWeight = container.FullContainerWeight,
+                    RMSContainerExtGuid = container.RMSContainerExtGuid
 				};
             editContainer = container;
         }
@@ -448,6 +457,7 @@
     {
         if (editContainer == container)
         {
+            editProduct.Status = RMSProductStatusEnum.NewContainer;
             editContainer = null;
             backupContainer = null;
         }
@@ -463,6 +473,7 @@
             editContainer.Count = backupContainer.Count;
             editContainer.ContainerWeight = backupContainer.ContainerWeight;
             editContainer.FullContainerWeight = backupContainer.FullContainerWeight;
+            editContainer.RMSContainerExtGuid = backupContainer.RMSContainerExtGuid;
 
             editContainer = null;
             backupContainer = null;
@@ -493,6 +504,7 @@
     private void SaveNewContainer()
     {
         editProduct.Containers.Add(newContainer);
+        editProduct.Status = RMSProductStatusEnum.NewContainer;
         isAddingNewContainer = false;
         newContainer = new RMSContainerDTO();
     }

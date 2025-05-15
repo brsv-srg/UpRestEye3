@@ -14,7 +14,7 @@ namespace UpRestEye3.Services.DataLayer
         Task<List<RMSProductDTO>> GetProductsByConsumerIdAsync(int consumerId);
         Task<List<RMSProductDTO>> GetServicesByConsumerIdAsync(int consumerId);
         Task<RMSProductDTO> GetProductByIdAsync(int productId);
-        Task<int?> SaveProductAsync(RMSProductDTO productDTO);
+        Task<RMSProductDTO> SaveProductAsync(RMSProductDTO productDTO);
         Task<bool> DeleteProductAsync(int productId);
     }
 
@@ -131,7 +131,7 @@ namespace UpRestEye3.Services.DataLayer
 
 
 
-        public async Task<int?> SaveProductAsync(RMSProductDTO productDto)
+        public async Task<RMSProductDTO> SaveProductAsync(RMSProductDTO productDto)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
@@ -184,7 +184,7 @@ namespace UpRestEye3.Services.DataLayer
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
-                    return newProductDao.Id;
+                    return RMSProductHelper.BuildRMSProductDTO(newProductDao);
                 }
                 else
                 {
@@ -250,7 +250,7 @@ namespace UpRestEye3.Services.DataLayer
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
-                    return newProductDao.Id;
+                    return RMSProductHelper.BuildRMSProductDTO(newProductDao);
                 }
             }
             catch (Exception)

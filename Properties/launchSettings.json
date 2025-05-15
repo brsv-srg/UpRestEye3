@@ -13,7 +13,7 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
-      "applicationUrl": "http://192.168.1.124:5127",
+      "applicationUrl": "http://localhost:5127",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
@@ -22,7 +22,7 @@
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
-      "applicationUrl": "https://13.36.141.162:7124",
+      "applicationUrl": "https://localhost:7124",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
@@ -34,19 +34,19 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     }
-  },
-
-  {
-    "Kestrel": {
-      "Endpoints": {
-        "Https": {
-          "Url": "https://13.36.141.162:7124",
-          "Certificate": {
-            "Path": "path/to/your/certificate.pfx",
-            "Password": "your_certificate_password"
-          }
-        }
-      }
-    }
   }
+
+  //,{
+  //  "Kestrel": {
+  //    "Endpoints": {
+  //      "Https": {
+  //        "Url": "https://13.36.141.162:7124",
+  //        "Certificate": {
+  //          "Path": "path/to/your/certificate.pfx",
+  //          "Password": "your_certificate_password"
+  //        }
+  //      }
+  //    }
+  //  }
+  //}
 }

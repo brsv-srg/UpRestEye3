@@ -91,7 +91,8 @@ namespace UpRestEye3.Services.Integration
 
                     var intProduct = RMSProductHelper.BuildSaveProductDTO(product);
                     intProduct.type = "GOODS";
-                    var resultProduct = await PostProductAsync(intProduct);
+
+                    var resultProduct = await SaveProductAsync(intProduct, product.Status == RMSProductStatusEnum.NewProduct);
                     if (resultProduct != null)
                     {
                         product.Status = RMSProductStatusEnum.Synchronized;
@@ -160,23 +161,27 @@ namespace UpRestEye3.Services.Integration
 
 
 
-        private async Task<GetProductDTO?> PostProductAsync(SaveProductDTO product)
+        private async Task<GetProductDTO?> SaveProductAsync(SaveProductDTO product, bool isNew)
         {
+            var saveProductUrl = string.Empty;
+            if (isNew)
+                saveProductUrl = $"{_apiUrl}api/v2/entities/products/save?generateNomenclatureCode=true&generateFastCode=false&key={_token}";
+            else
+                saveProductUrl = $"{_apiUrl}api/v2/entities/products/update?overrideFastCode=false&overrideNomenclatureCode=false&key={_token}";
 
-            var saveProductUrl = $"{_apiUrl}api/v2/entities/products/save?generateNomenclatureCode=true&generateFastCode=false&key={_token}";
 
             var productJson = JsonSerializer.Serialize(product);
             var content = new StringContent(productJson, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync(saveProductUrl, content);
 
-            if (!response.IsSuccessStatusCode)
-            {
-                // Логирование ошибки
-                var errorContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Failed to save product. Status code: {response.StatusCode}, Error: {errorContent}");
-                return null;
-            }
+            //if (!response.IsSuccessStatusCode)
+            //{
+            //    // Логирование ошибки
+            //    var errorContent = await response.Content.ReadAsStringAsync();
+            //    Console.WriteLine($"Failed to save product. Status code: {response.StatusCode}, Error: {errorContent}");
+            //    return null;
+            //}
 
             var responseJson = await response.Content.ReadAsStringAsync();
             var saveProductResponse = JsonSerializer.Deserialize<SaveProductResponse>(responseJson, new JsonSerializerOptions
@@ -195,7 +200,7 @@ namespace UpRestEye3.Services.Integration
                 {
                     Console.WriteLine($"Error: {error.code}: {error.value}");
                 }
-                return null;
+                return saveProductResponse.response;
             }
         }
 

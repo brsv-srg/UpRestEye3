@@ -93,13 +93,14 @@ namespace UpRestEye3.Services.Integration
                     }
                     else
                     {
-                        throw new Exception("Error uploading invoice to RMS");
+                        throw new Exception($"Error uploading invoice to RMS:{responseValue.ErrorMessage}");
                     }
                 }
 
             }
             catch (Exception ex)
             {
+                invoiceDTO.Stage = InvoiceStageEnum.SavingToSystem;
                 invoiceDTO.StageStatus = InvoiceStatusEnum.Error;
                 invoiceDTO.Comments = ex.Message;
                 Console.WriteLine($"Error writing Invoice to RMS: {ex.Message}");

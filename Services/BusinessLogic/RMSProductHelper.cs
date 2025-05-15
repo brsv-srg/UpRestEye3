@@ -29,6 +29,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 Description = rmsProductDAO.Description,
                 RMSProductExtGuid = rmsProductDAO.RMSProductExtGuid,
                 Num = rmsProductDAO.Num,
+                Parent = rmsProductDAO.Parent,
                 MainUnit = rmsProductDAO.MainUnit,
                 Type = GetDTOItemType(rmsProductDAO.Type),
                 Status = rmsProductDAO.Status,
@@ -66,6 +67,7 @@ namespace UpRestEye3.Services.BusinessLogic
             rmsProductDAO.Description = rmsProductDTO.Description ?? string.Empty;
             rmsProductDAO.RMSProductExtGuid = rmsProductDTO.RMSProductExtGuid;
             rmsProductDAO.Num = rmsProductDTO.Num;
+            rmsProductDAO.Parent = rmsProductDTO.Parent;
             rmsProductDAO.MainUnit = rmsProductDTO.MainUnit;
             rmsProductDAO.Type = GetDAOItemType(rmsProductDTO.Type);
             rmsProductDAO.Status = rmsProductDTO.Status;
@@ -107,6 +109,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 Description = rmsProductDTO.Description,
                 RMSProductExtGuid = rmsProductDTO.RMSProductExtGuid,
                 Num = rmsProductDTO.Num,
+                Parent = rmsProductDTO.Parent,
                 MainUnit = rmsProductDTO.MainUnit,
                 Type = rmsProductDTO.Type,
                 Status = rmsProductDTO.Status,
@@ -138,6 +141,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 Description = rmsProductDAO.Description,
                 RMSProductExtGuid = rmsProductDAO.RMSProductExtGuid,
                 Num = rmsProductDAO.Num,
+                Parent = rmsProductDAO.Parent,
                 MainUnit = rmsProductDAO.MainUnit,
                 Type = rmsProductDAO.Type,
                 Status = rmsProductDAO.Status,
@@ -328,6 +332,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 Name = dto.name,
                 Description = dto.description,
                 Num = dto.num,
+                Parent = dto.parent,
                 MainUnit = dto.mainUnit,
                 Type = dto.type,
                 Status = RMSProductStatusEnum.Synchronized,
@@ -359,6 +364,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 name = dto.Name,
                 description = dto.Description,
                 num = string.IsNullOrEmpty(dto.Num) ? null : dto.Num,
+                parent = dto.Parent,
                 mainUnit = dto.MainUnit,
                 type = dto.Type,
                 containers = dto.Containers.Select(c => new GetContainerDTO
@@ -385,18 +391,21 @@ namespace UpRestEye3.Services.BusinessLogic
             int counter = 1;
             var integrationProduct = new SaveProductDTO
             {
+                id = dto.RMSProductExtGuid,
                 name = dto.Name,
                 description = dto.Description,
                 num = string.IsNullOrEmpty(dto.Num) ? null : dto.Num,
+                parent = dto.Parent,
                 mainUnit = dto.MainUnit,
                 type = dto.Type,
                 containers = dto.Containers.Select(c => new SaveContainerDTO
                 {
+                    id = c.RMSContainerExtGuid,
                     num = string.IsNullOrEmpty(c.Num) ? counter++.ToString("D3") : c.Num,
                     name = c.Name,
                     count = c.Count,
-                    containerWeight = c.ContainerWeight,
-                    fullContainerWeight = c.FullContainerWeight
+                    //containerWeight = c.ContainerWeight,
+                    //fullContainerWeight = c.FullContainerWeight
                 }).ToList()
             };
 

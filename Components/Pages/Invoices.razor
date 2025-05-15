@@ -663,6 +663,8 @@
 	// Флаг для добавления нового продукта
 	private bool isAddingNewProduct = false;
 
+	// Признак отображения модальной формы Invoice
+	private bool _isUpdating1 = false;
 
 	// Редактируемая категория
 	private TaxesDTO? editTaxCategory;
@@ -723,6 +725,13 @@
 		if (baseUri.EndsWith('/'))
 		{
 			baseUri = baseUri.Substring(0, baseUri.Length - 1);
+		}
+
+		var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+		var user = authState.User;
+		if(user != null && user.Identity.IsAuthenticated)
+		{
+			appUser = await UserManager.GetUserAsync(user);
 		}
 
 		if (!isInitialized)
@@ -817,26 +826,17 @@
 	private async Task InitializeDataAsync(int? _rmsProductId = null)
 	{
 		rmsProductId = _rmsProductId;
-
-		var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-		var user = authState.User;
-		appUser = await UserManager.GetUserAsync(user);
-
-		if (user.Identity.IsAuthenticated && appUser?.ConsumerId != null)
-		{
-			await LoadInvoicesAsync();
-			await LoadSuppliersAsync(); // Добавлено: Загрузка списка поставщиков
-			await LoadStoragesAsync();
-			await LoadRMSProductsAsync(); // Добавлено: Загрузка списка продуктов
-			await SetTypeConverters(); // Добавлено: Установка конвертеров для SupplierDTO
-
-		}
-		else
+		if (appUser?.ConsumerId == null)
 		{
 			var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
 			Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
 		}
 
+		await LoadInvoicesAsync();
+		await LoadRMSProductsAsync(); // Добавлено: Загрузка списка продуктов
+		await LoadSuppliersAsync(); // Добавлено: Загрузка списка поставщиков
+		await LoadStoragesAsync();
+		await SetTypeConverters(); // Добавлено: Установка конвертеров для SupplierDTO
 
 	}
 
@@ -869,7 +869,7 @@
 			.Where(p => p.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase))
 			.ToList());
 	}
-	
+
 
 	private async Task LoadInvoicesAsync()
 	{
@@ -979,7 +979,7 @@
 		uploadMessageClass = cssClass;
 		StateHasChanged();
 
-		await Task.Delay(5000); // Сообщение пропадает через 5 секунд
+		await Task.Delay(3000); // Сообщение пропадает через 5 секунд
 		uploadMessage = null;
 		uploadMessageClass = null;
 		StateHasChanged();
@@ -996,15 +996,28 @@
 		{
 			uploadMessage = message;
 			uploadMessageClass = "alert-info";
-			await InitializeDataAsync();
+
+			// Если обновление уже выполняется, помечаем, что есть пропущенное сообщение
+			if (!_isUpdating1)
+			{
+				try
+				{
+					_isUpdating1 = true; // Устанавливаем флаг, чтобы предотвратить одновременные обновления
+					await LoadInvoicesAsync();
+					await LoadRMSProductsAsync(); 
+					//await InitializeDataAsync();
+				}
+				finally
+				{
+					_isUpdating1 = false; // Сбрасываем флаг
+				}
+			}
 			InvokeAsync(StateHasChanged);
 
-			//StateHasChanged();
-			await Task.Delay(5000);
+			await Task.Delay(3000);
 			uploadMessage = null;
 			uploadMessageClass = null;
 			InvokeAsync(StateHasChanged);
-			//StateHasChanged();
 		});
 
 		await hubConnection.StartAsync();
@@ -1033,9 +1046,7 @@
 			{
 				if (selectedFile.Size > 10 * 1024 * 1024)
 				{
-					Console.WriteLine("File size exceeds the 10 MB limit.");
-					uploadMessage = "File size exceeds the 10 MB limit. Please reduce the file size.";
-					uploadMessageClass = "alert-danger";
+					await ShowMessage("File size exceeds the 10 MB limit. Please reduce the file size.", "alert-danger");
 					continue;
 				}
 				
@@ -1048,17 +1059,11 @@
 				var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/upload", content);
 
 				if (response.IsSuccessStatusCode)
-					Console.WriteLine($"File {selectedFile.Name} uploaded successfully.");
+					await ShowMessage($"File {selectedFile.Name} uploaded successfully.", "alert-success");
 				else
-					Console.WriteLine($"Failed to upload file {selectedFile.Name}. Status code: {response.StatusCode}");
-			}
-			
+					await ShowMessage($"Failed to upload file {selectedFile.Name}. Status code: {response.StatusCode}", "alert-danger");
 
-			StateHasChanged();
-			await Task.Delay(5000);
-			uploadMessage = null;
-			uploadMessageClass = null;
-			StateHasChanged();
+			}
 		}
 		else
 		{
@@ -1155,10 +1160,10 @@
 
 			if (response.IsSuccessStatusCode)
 			{
-				await ShowMessage("Selected invoices deleted successfully.", "alert-success");
-
 				// Обновляем список инвойсов
 				invoices = invoices.Where(invoice => !selectedInvoiceIds.Contains(invoice.Id ?? 0)).ToArray();
+				await ShowMessage("Selected invoices deleted successfully.", "alert-success");
+
 			}
 			else
 			{
@@ -1410,24 +1415,17 @@
 
 		if (response.IsSuccessStatusCode)
 		{
-			Console.WriteLine("Invoice updated successfully.");
-			uploadMessage = "Invoice updated successfully.";
-			uploadMessageClass = "alert-success";
+			await ShowMessage("Invoice updated successfully", "alert-success");
 			InvoiceHelper.CopyInvoice(selectedInvoice, editInvoice);
 		}
 		else
 		{
 			var errorContent = await response.Content.ReadAsStringAsync();
-			Console.WriteLine($"Invoice update failed. Status code: {response.StatusCode}, Error: {errorContent}");
-			uploadMessage = "Invoice update failed.";
-			uploadMessageClass = "alert-danger";
+			await ShowMessage($"Invoice update failed. Status code: {response.StatusCode}, Error: {errorContent}", "alert-danger");
 		}
-
 		showInvoiceModal = false;
 		selectedInvoice = null;
 		editInvoice = new InvoiceDTO();
-
-		StateHasChanged();
 	}
 
 	private async Task UploadInvoice()
@@ -1457,16 +1455,12 @@
 
 					if (response.IsSuccessStatusCode)
 					{
-						Console.WriteLine("Invoice updated successfully.");
-						uploadMessage = "Invoice updated successfully.";
-						uploadMessageClass = "alert-success";
+						await ShowMessage("Invoice uploaded successfully", "alert-success");
 					}
 					else
 					{
 						var errorContent = await response.Content.ReadAsStringAsync();
-						Console.WriteLine($"Invoice upload failed. Status code: {response.StatusCode}, Error: {errorContent}");
-						uploadMessage = "Invoice upload failed.";
-						uploadMessageClass = "alert-danger";
+						await ShowMessage($"Invoice upload failed. Status code: {response.StatusCode}, Error: {errorContent}", "alert-danger");
 					}
 				}
 				else

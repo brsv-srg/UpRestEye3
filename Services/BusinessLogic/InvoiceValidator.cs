@@ -5,12 +5,12 @@ namespace UpRestEye3.Services.BusinessLogic
 {
     public interface IInvoiceValidator
     {
-        void Validate(InvoiceDTO invoice, string customerTaxId);
+        void Validate(InvoiceDTO invoice, string customerTaxId, bool manually = false);
     }
 
     public abstract class InvoiceValidatorBase : IInvoiceValidator
     {
-        public abstract void Validate(InvoiceDTO invoice, string customerTaxId);
+        public abstract void Validate(InvoiceDTO invoice, string customerTaxId, bool manually = false);
 
         public static IInvoiceValidator CreateValidator(InvoiceStageEnum status)
         {
@@ -27,7 +27,7 @@ namespace UpRestEye3.Services.BusinessLogic
     }
     public class NewInvoiceValidatorBase : InvoiceValidatorBase
     {
-        public override void Validate(InvoiceDTO invoice, string customerTaxId)
+        public override void Validate(InvoiceDTO invoice, string customerTaxId, bool manually = false)
         {
             invoice.StageStatus = InvoiceStatusEnum.Ok;
             invoice.Comments = string.Empty;
@@ -43,7 +43,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
     public class QRCodeProcessedValidator : NewInvoiceValidatorBase
     {
-        public override void Validate(InvoiceDTO invoice, string customerTaxId)
+        public override void Validate(InvoiceDTO invoice, string customerTaxId, bool manually = false)
         {
             base.Validate(invoice, customerTaxId);
 
@@ -86,7 +86,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
     public class TextProcessedValidator : QRCodeProcessedValidator
     {
-        public override void Validate(InvoiceDTO invoice, string customerTaxId)
+        public override void Validate(InvoiceDTO invoice, string customerTaxId, bool manually = false)
         {
             base.Validate(invoice, customerTaxId);
 
@@ -137,18 +137,25 @@ namespace UpRestEye3.Services.BusinessLogic
 
     public class ProductsMappedValidator : TextProcessedValidator
     {
-        public override void Validate(InvoiceDTO invoice, string customerTaxId)
+        public override void Validate(InvoiceDTO invoice, string customerTaxId, bool manually = false)
         {
             base.Validate(invoice, customerTaxId);
 
             if (invoice.Products.Any(p => p.RMSProduct == null ||
-                                           //(!string.IsNullOrEmpty(p.Container) && p.RMSContainer == null) ||
                                            p.RMSStorage == null))
             {
                 invoice.StageStatus = InvoiceStatusEnum.Manual;
                 if (!string.IsNullOrEmpty(invoice.Comments))
                     invoice.Comments += "; ";
-                invoice.Comments += "Missing RMS data for products.";
+                invoice.Comments += "Missing RMS product or storage for products.";
+            }
+
+            if (manually == false && invoice.Products.Any(p => p.RMSProduct != null && !string.IsNullOrEmpty(p.Container) && p.RMSContainer == null))
+            {
+                invoice.StageStatus = InvoiceStatusEnum.Manual;
+                if (!string.IsNullOrEmpty(invoice.Comments))
+                    invoice.Comments += "; ";
+                invoice.Comments += "Missing RMS container for products.";
             }
 
             if (invoice.Products.Any(p => p.RMSProduct != null && p.RMSProduct.Status != RMSProductStatusEnum.Synchronized))

@@ -48,7 +48,7 @@ namespace UpRestEye3.Controllers
 
                 // Валидация накладной после QR
                 var validator = InvoiceValidatorBase.CreateValidator(invoice.Stage);
-                validator.Validate(invoice, invoice.Consumer.TaxNumber);
+                validator.Validate(invoice, invoice.Consumer.TaxNumber, true);
 
                 var invoiceId = await _invoiceService.SaveInvoiceAsync(invoice);
                 var updatedInvoice = await _invoiceService.GetInvoiceDTOByIdAsync((int)invoiceId);
@@ -73,28 +73,17 @@ namespace UpRestEye3.Controllers
         [HttpPost("upload")]
         public async Task<ActionResult<InvoiceDTO>> UploadInvoice(InvoiceDTO invoiceToUpload)
         {
-            try
+            var result = await _integrationService.PostInvoiceAsync(invoiceToUpload);
+            await _invoiceService.SaveInvoiceAsync(invoiceToUpload);
+            if (result != null && result.Stage == InvoiceStageEnum.SavingToSystem && result.StageStatus != InvoiceStatusEnum.Error)
             {
-                var result = await _integrationService.PostInvoiceAsync(invoiceToUpload);
-                if (result != null && result.Stage == InvoiceStageEnum.SavingToSystem && result.StageStatus != InvoiceStatusEnum.Error)
-                {
-                    await _invoiceService.SaveInvoiceAsync(invoiceToUpload);
-                    return Ok(invoiceToUpload);
-                }
-                else
-                    throw new Exception("Error uploading invoice to RMS");
+                return Ok(invoiceToUpload);
             }
-            catch (Exception e)
+            else
             {
-                invoiceToUpload.StageStatus = InvoiceStatusEnum.Error;
-                if (!string.IsNullOrWhiteSpace(invoiceToUpload.Comments))
-                    invoiceToUpload.Comments += "; ";
-                invoiceToUpload.Comments += e.Message;
-                await _invoiceService.SaveInvoiceAsync(invoiceToUpload);
-                Console.WriteLine(e);
+                Console.WriteLine(invoiceToUpload.Comments);
                 return BadRequest(invoiceToUpload);
             }
-            
         }
 
         

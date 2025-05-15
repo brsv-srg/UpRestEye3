@@ -263,15 +263,36 @@ namespace UpRestEye3.Services.BusinessLogic
 
             foreach (var newRMSProduct in newRmsProducts)
             {
-                newRMSProduct.Id = await rmsProductService.SaveProductAsync(newRMSProduct);
-                if (newRMSProduct.Id == null)
+                var updatedRMSProduct = await rmsProductService.SaveProductAsync(newRMSProduct);
+                if (updatedRMSProduct == null)
                     throw new Exception("Failed to save product.");
 
-                var rmsToSaveId = mappedInvoice.Products
-                    .Where(p => p.RMSProduct?.Name == newRMSProduct.Name && p.RMSProduct?.Id == null)
-                    .FirstOrDefault();
-                if (rmsToSaveId != null)
-                    rmsToSaveId.Id = (int)newRMSProduct.Id;
+                if (newRMSProduct.Status == RMSProductStatusEnum.NewProduct)
+                {
+
+                    var rmsToSaveId = mappedInvoice.Products
+                        .Where(p => p.RMSProduct?.Name == updatedRMSProduct.Name && p.RMSProduct?.Id == null)
+                        .FirstOrDefault();
+                    if (rmsToSaveId != null)
+                        rmsToSaveId.Id = (int)updatedRMSProduct.Id;
+                }
+
+                if (newRMSProduct.Status == RMSProductStatusEnum.NewContainer)
+                {
+                    // Сохраняем все новые контейнеры
+                    // Сперва надо отобрать все продукты по ID (один продукт может быть несолько раз в накладной)
+                    var mappedProducts = mappedInvoice.Products
+                        .Where(p => p.RMSProduct?.Id == updatedRMSProduct.Id)
+                        .ToList();
+
+                    // Проходим по всем продуктам и обновляем контейнеры
+                    foreach (var mappedProduct in mappedProducts)
+                    {
+                        mappedProduct.RMSContainer.Id = updatedRMSProduct.Containers.FirstOrDefault(c => c.Name == mappedProduct.RMSContainer?.Name).Id;
+
+                    }
+                
+                }
 
             }
 

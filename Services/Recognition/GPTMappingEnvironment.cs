@@ -227,7 +227,7 @@ Its 'Count' must always reflect total weight or volume in the 'MainUnit' of the 
      - 'Name': descriptive (e.g. 'Pack 4kg', 'Box 6x1L')  
      - 'Count': calculated in RMSProduct.MainUnit  
      - 'Id', 'Num': null  
-     - Set 'NewRMSContainer = true'
+     - Set **'NewRMSContainer = true'**
 
 5. **Avoid duplication**  
    - Never create container if one with same 'Count' in same unit already exists  
