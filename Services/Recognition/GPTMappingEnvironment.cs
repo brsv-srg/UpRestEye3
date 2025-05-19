@@ -182,7 +182,8 @@ Your goal is to return a stable and structured JSON response that preserves the 
    - The valid base unit is always defined by the `MainUnit` of the matched `RMSProduct`.
    - If 'InvoiceProduct.Unit' is compound or irregular, normalize it **via a container**:  
      - Find or create a container that accurately translates the invoice quantity into the RMSProduct's `MainUnit`.
-     - For detailed logic, refer to the **📦 Container (Packaging) Matching Logic** section below.
+   - ⚠️ If `RMSProduct.MainUnit = pcs`, avoid creating containers that define only volume/weight per item — treat them as attributes, not packaging.
+   - For detailed logic, refer to the **📦 Container (Packaging) Matching Logic** section below.
 
 4. **If no match is found — Create new RMSProduct**  
    - Fill:
@@ -196,42 +197,59 @@ Your goal is to return a stable and structured JSON response that preserves the 
    - 'NewRMSProduct = true'
 
 ---
-
 ## 📦 Container (Packaging) Matching Logic
 
 A **container** defines standard packaging (e.g. 'Box 6KG', '24x0.33L') and connects invoice packaging to the RMSProduct's base unit.  
 Its 'Count' must always reflect total weight or volume in the 'MainUnit' of the RMSProduct.
 
+> 🔁 **Important:** Rules 1,2,3 are mutually exclusive —  
+> if one rule matches and is applied, the following rules must be skipped.
+
 ### 🔹 Rules:
 
-1. **No packaging info**  
-   - If 'InvoiceProduct.Unit' is base ('kg', 'l', 'pcs') and no container is defined:  
+1. **If no packaging info**  
+   - If 'InvoiceProduct.Unit' is base ('kg', 'l', 'pcs'), matches `RMSProduct.MainUnit`, and no container is defined:  
      - Set 'RMSContainer = null'  
      - Set 'NewRMSContainer = false'
 
-2. **If packaging/multipack is indicated**  
-   - Derive container info from 'InvoiceProduct.Container' or 'ProductName'  
-   - Compute total content in 'MainUnit':  
-     - e.g. '8 x 0.5kg' → 'Count = 4.0'  
-   - 'Name' is optional and can differ from invoice if readable and descriptive
+2. **If unit characteristic, not true packaging**  
+   - If `RMSProduct.MainUnit = pcs` and:
+     - the container value `InvoiceProduct.Count' equals **1 unit worth of volume/weight** (e.g., `0.25L`, `100g`)
+   - Then treat it as a product attribute, not as a packaging:
+     - Set `RMSContainer = null`  
+     - Set `NewRMSContainer = false`  
+     - Normalize invoice:
+       - `InvoiceProduct.Container = ""`  
+       - `InvoiceProduct.Count = null`
 
-3. **Match existing container**  
-   - Search 'RMSProduct.Containers' for container with **same 'Count'** and compatible unit  
-   - Container name may differ — must represent same meaning or be neutral (e.g. 'Box 4kg', '6x0.75L')  
-   - If match is found:  
-     - Reuse container  
-     - Set 'NewRMSContainer = false'
+3. **If packaging/multipack is indicated**  
+    
+    3.1. **Define container info**
+         - Derive container info from 'InvoiceProduct.Container' or 'InvoiceProduct.ProductName'  
+         - Compute total content in 'RMSProduct.MainUnit':  
+            - e.g. '8 x 0.5kg' → 'Count = 4.0'  
+            - e.g. 'Btl 0.75l' → 'Count = 0.75'
 
-4. **Create new container if needed**  
-   - If no matching container exists:
-     - 'Name': descriptive (e.g. 'Pack 4kg', 'Box 6x1L')  
-     - 'Count': calculated in RMSProduct.MainUnit  
-     - 'Id', 'Num': null  
-     - Set **'NewRMSContainer = true'**
+    3.2 **Match existing container**  
+         - Search `RMSProduct.Containers` for container with **same 'Count'** and compatible unit  
+            - Container name may differ — must represent same meaning or be neutral (e.g., `Box 4kg`, `6x0.75L`)  
+         - If match is found:  
+            - Reuse container  
+         - Set `NewRMSContainer = false`
 
-5. **Avoid duplication**  
-   - Never create container if one with same 'Count' in same unit already exists  
-   - Prefer existing containers with neutral names
+    3.3. **Create new container if needed**  
+         - If no matching container exists:
+             - `Name`: descriptive (e.g., `Pack 4kg`, `Box 6x1L`)  
+             - `Count`: calculated in `RMSProduct.MainUnit`  
+             - `Id`, `Num`: null  
+             - Set `NewRMSContainer = true`
+
+    3.4. **Avoid duplication**  
+        - Never create container if one with same `Count` in same unit already exists  
+        - Prefer existing containers with neutral names
+
+✅ **Final validation**:  
+Always check that the total quantity implied by the `RMSContainer.Count × InvoiceProduct.QuantityOfContainers` matches the total amount in the original `InvoiceProduct` (based on unit and container logic).
 
 ---
 

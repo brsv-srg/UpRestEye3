@@ -261,18 +261,19 @@ Your task is to extract only the list of **Grocery Products** from the provided 
 ### **Packaging Identification Rules**
 
 1. **Direct sale without packaging**  
-   If only base quantity and unit is specified (e.g., `1.820 KG`, `3 L`, `15 pcs`) and **no packaging is mentioned**:
+   If only base quantity and unit is specified (e.g., `1.820 KG`, `3 L`, `15 pcs`) and **no packaging is mentioned**
+   or product is a **drink**, especially **beer or soft drink**, **sold and served per piece** in its original packaging (e.g., bottle, can):
    - `Unit = kg`, `l`, `pcs`, etc. (base unit)
    - `Quantity` = base quantity
    - `Container = """"`
    - `Count = null`
 
 2. **pcs/unit + packaging info in product name**  
-   If unit is `pcs` or `unit`, and product name contains packaging info (e.g., `50g`, `250g`, `0.33L`, `1l`, `330ml`):
+   If unit is `pcs` or `unit`, and product name contains packaging info (e.g., `50g`, `0.75l`, `1l`):
    - `Unit` = `pcs`, `unit`, etc. (base unit)
    - `Quantity` = `1` or other quantity from OCR invoice text 
-   - `Container` = formatted as `Pack 250g`, `Btl 0.33l`, `Cup 200ml`, etc.
-   - `Count` = weight or volume in normalized units (in kg for weighed products and in l for liquids, e.g., `50g` → `0.05`, `330ml` → `0.33`)
+   - `Container` = formatted as `Pack 250g`, `Btl 0.75l`, etc.
+   - `Count` = weight or volume in normalized units (in kg for weighed products and in l for liquids, e.g., `250g` → `0.25`, '0,75l' → `0.75` )
 
 3. **Explicit packaging and multi-packs**  
    If packaging is present (e.g., `Box6kg`, `24x0.33l`, `Emb12x200g`, `Pack 4x1l`):
