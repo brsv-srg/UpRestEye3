@@ -47,15 +47,23 @@ namespace UpRestEye3.Services.Integration
                 await InitConnectionParams(consumerId);
                 await AuthenticateAsync();
                 var products = await GetProductsAsync();
+                bool result = true;
 
                 foreach (var product in products)
                 {
-                    var rmsProductDTO = RMSProductHelper.BuildRMSProductDTO(product);
-                    rmsProductDTO.ConsumerId = consumerId;
-                    rmsProductDTO.Status = RMSProductStatusEnum.Synchronized;
-                    await _productService.SaveProductAsync(rmsProductDTO);
+                    try
+                    {
+                        var rmsProductDTO = RMSProductHelper.BuildRMSProductDTO(product);
+                        rmsProductDTO.ConsumerId = consumerId;
+                        rmsProductDTO.Status = RMSProductStatusEnum.Synchronized;
+                        await _productService.SaveProductAsync(rmsProductDTO);
+                    }
+                    catch (Exception ex)
+                    {
+                        result = false;
+                    }
                 }
-                return true;
+                return result;
             }
             catch (Exception ex)
             {
@@ -90,7 +98,7 @@ namespace UpRestEye3.Services.Integration
                 {
 
                     var intProduct = RMSProductHelper.BuildSaveProductDTO(product);
-                    intProduct.type = "GOODS";
+                    // intProduct.type = "GOODS";
 
                     var resultProduct = await SaveProductAsync(intProduct, product.Status == RMSProductStatusEnum.NewProduct);
                     if (resultProduct != null)
@@ -98,6 +106,7 @@ namespace UpRestEye3.Services.Integration
                         product.Status = RMSProductStatusEnum.Synchronized;
                         product.Num = resultProduct.num;
                         product.RMSProductExtGuid = resultProduct.id;
+                        product.Parent = resultProduct.parent;
                         foreach (var container in product.Containers)
                         {
                             container.Num = resultProduct.containers.FirstOrDefault(c => c.name == container.Name)?.num;

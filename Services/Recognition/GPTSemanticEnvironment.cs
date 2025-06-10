@@ -266,13 +266,16 @@ Your task is to extract only the list of **Grocery Products** from the provided 
    - `Quantity` = base quantity
    - `Container = """"`
    - `Count = null`
+   - ⚠️ Do not create a container if none is clearly specified in the invoice text.
 
 2. **pcs/unit + packaging info in product name**  
-   If unit is `pcs` or `unit`, and product name contains packaging info (e.g., `50g`, `250g`, `0.33L`, `1l`, `330ml`):
-   - `Unit` = `pcs`, `unit`, etc. (base unit)
-   - `Quantity` = `1` or other quantity from OCR invoice text 
-   - `Container` = formatted as `Pack 250g`, `Btl 0.33l`, `Cup 200ml`, etc.
-   - `Count` = weight or volume in normalized units (in kg for weighed products and in l for liquids, e.g., `50g` → `0.05`, `330ml` → `0.33`)
+   If unit is `pcs` or `unit`, and the **product name includes packaging info** (e.g., `50g`, `250g`, `0.33L`, `1L`, `330ml`) **but no container is explicitly mentioned**:  
+   - `Unit = pcs`, `unit`, etc.  
+   - `Quantity = 1` or as found in the invoice  
+   - `Container = """"`  
+   - `Count = null`  
+   - ✅ Keep the packaging info (e.g., weight/volume) **in the product name** — do not remove or abbreviate it.  
+   - ⚠️ Do not fabricate a container — such packaging info is treated as **a characteristic of the unit**, not a separate container.
 
 3. **Explicit packaging and multi-packs**  
    If packaging is present (e.g., `Box6kg`, `24x0.33l`, `Emb12x200g`, `Pack 4x1l`):

@@ -71,5 +71,14 @@ namespace UpRestEye3.Models.DTO
         public string Comments { get; set; } = string.Empty;
     }
 
+
+    public class SetInvoicesStatusRequest
+    {
+        public List<int?> invoiceIds { get; set; } = [];
+        public InvoiceStageEnum stage { get; set; }
+        public InvoiceStatusEnum stageStatus { get; set; }
+    }
+
+
 }
 

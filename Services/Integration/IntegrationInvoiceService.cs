@@ -42,6 +42,17 @@ namespace UpRestEye3.Services.Integration
 
         public async Task<InvoiceDTO> PostInvoiceAsync(InvoiceDTO invoiceDTO)
         {
+            if (!(invoiceDTO.Stage == InvoiceStageEnum.ProductsMapping && 
+                    (invoiceDTO.StageStatus == InvoiceStatusEnum.Manual || 
+                        invoiceDTO.StageStatus == InvoiceStatusEnum.Ok ) ||
+                invoiceDTO.Stage == InvoiceStageEnum.SavingToSystem &&
+                    (invoiceDTO.StageStatus != InvoiceStatusEnum.Manual ||
+                        invoiceDTO.StageStatus != InvoiceStatusEnum.Error)
+                ))
+            {
+                throw new Exception($"Invoice stage {invoiceDTO.Stage} is not supported for RMS integration");
+            }
+
             try
             {
                 await InitConnectionParams((int)invoiceDTO.Consumer.Id);

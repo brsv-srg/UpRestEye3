@@ -29,6 +29,7 @@
     {
         NewProduct,
         NewContainer,
+        Changed,
         Synchronized
     }
     public enum ItemTypeEnum

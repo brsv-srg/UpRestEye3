@@ -53,7 +53,7 @@ namespace UpRestEye3.Services.BusinessLogic
                     InvoiceNumber = filePath,
                     FilePath = filePath,
                     Stage = InvoiceStageEnum.New,
-                    StageStatus = InvoiceStatusEnum.Ok
+                    StageStatus = InvoiceStatusEnum.Processing
                 };
                 invoice.Consumer = new ConsumerDTO
                 {

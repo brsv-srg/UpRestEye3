@@ -188,4 +188,13 @@
 .wider-dropdown {
     width: 500px !important; /* Укажите желаемую ширину */
 }
-   
+
+.nospin::-webkit-inner-spin-button,
+.nospin::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.nospin {
+    -moz-appearance: textfield;
+}

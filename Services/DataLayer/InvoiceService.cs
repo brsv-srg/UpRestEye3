@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UpRestEye3.Data;
+using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DAO;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.BusinessLogic;
@@ -22,6 +23,10 @@ namespace UpRestEye3.Services.DataLayer
         Task<int?> SaveInvoiceAsync(InvoiceDAO invoice);
 
         Task DeleteInvoicesAsync(List<int> invoiceIds);
+        Task<bool> SetInvoicesStatusAsync(List<int> invoiceIds, InvoiceStageEnum stage, InvoiceStatusEnum stageStatus);
+
+
+
 
     }
 
@@ -36,6 +41,30 @@ namespace UpRestEye3.Services.DataLayer
             _context = context;
             _consumerService = consumerService;
             _supplierService = supplierService;
+        }
+
+        public async Task<bool> SetInvoicesStatusAsync(List<int> invoiceIds, InvoiceStageEnum stage, InvoiceStatusEnum stageStatus)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var invoices = _context.Invoices.Where(i => invoiceIds.Contains(i.Id.Value)).ToList();
+
+                foreach (var invoice in invoices)
+                {
+                    invoice.Stage = stage;
+                    invoice.StageStatus = stageStatus;
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                return false;
+            }
         }
 
         public async Task<InvoiceDAO?> GetInvoiceDAOByIdAsync(int id)

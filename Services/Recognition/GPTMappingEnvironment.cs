@@ -195,43 +195,73 @@ Your goal is to return a stable and structured JSON response that preserves the 
    - 'Id' and 'Num': null  
    - 'NewRMSProduct = true'
 
+
 ---
 
 ## 📦 Container (Packaging) Matching Logic
 
-A **container** defines standard packaging (e.g. 'Box 6KG', '24x0.33L') and connects invoice packaging to the RMSProduct's base unit.  
-Its 'Count' must always reflect total weight or volume in the 'MainUnit' of the RMSProduct.
+A **container** represents a standard packaging unit (e.g., 'Box 6KG', '24x0.33L') and connects the invoice packaging format to the base unit of the RMSProduct (`MainUnit`).  
+The container's `Count` must always reflect total **weight**, **volume**, or **piece count** in the `MainUnit` of the RMSProduct.
 
-### 🔹 Rules:
+---
 
-1. **No packaging info**  
-   - If 'InvoiceProduct.Unit' is base ('kg', 'l', 'pcs') and no container is defined:  
-     - Set 'RMSContainer = null'  
-     - Set 'NewRMSContainer = false'
+### 📦 Packaging Cases
 
-2. **If packaging/multipack is indicated**  
-   - Derive container info from 'InvoiceProduct.Container' or 'ProductName'  
-   - Compute total content in 'MainUnit':  
-     - e.g. '8 x 0.5kg' → 'Count = 4.0'  
-   - 'Name' is optional and can differ from invoice if readable and descriptive
+1. **No packaging required or present**  
+   - If the invoice product clearly uses a base unit (`kg`, `l`, `pcs`) and:
+     - `InvoiceProduct.Container` is empty or not defined,
+     - `InvoiceProduct.Unit` matches the `RMSProduct.MainUnit`,  
+   - Then the product is mapped **without container**:
+     - Set `RMSContainer = null`  
+     - Set `NewRMSContainer = false`
 
-3. **Match existing container**  
-   - Search 'RMSProduct.Containers' for container with **same 'Count'** and compatible unit  
-   - Container name may differ — must represent same meaning or be neutral (e.g. 'Box 4kg', '6x0.75L')  
-   - If match is found:  
-     - Reuse container  
-     - Set 'NewRMSContainer = false'
+2. **Implied packaging from product name only**  
+   - If packaging is not explicitly stated but inferred from `ProductName` (e.g., 'Mint 50G', 'Wine 0.75'), and:
+     - `InvoiceProduct.Unit` is `pcs` or `unit`
+     - `RMSProduct.MainUnit` differs from invoice unit (e.g., `kg`, `l`)
+   - Then:
+     - Extract packaging unit/value from name (e.g., `50g` → `0.05kg`, `0.75l`)
+     - Convert to RMSProduct's `MainUnit` (e.g., `50g` → `0.05kg`)
+     - Find or create container with matching `Count`
 
-4. **Create new container if needed**  
+3. **Multi-pack or explicit packaging is indicated**  
+   - If packaging is stated (e.g., '8x0.5kg', 'Box 6kg', '24x0.33L') and:
+     - `InvoiceProduct.Unit` refers to container (e.g., boxes, crates)
+     - `RMSProduct.MainUnit` is base unit (`kg`, `l`, `pcs`)
+   - Then:
+     - Derive container info from `InvoiceProduct.Container` or `ProductName`
+     - Calculate total count per container in `MainUnit` (e.g., `8 x 0.5kg = 4.0kg`, `24 x 0.33L = 24pcs`)
+     - Find or create matching container
+
+---
+
+### 🧠 Container Matching and Creation Rules
+
+1. **Match existing container**  
+   - Search `RMSProduct.Containers` for container with:
+     - The **same 'Count'**
+     - Compatible unit with `RMSProduct.MainUnit`
+   - Name may differ — must represent same meaning or be neutral (e.g., 'Box 4kg', '6x0.75L')
+   - If match is found:
+     - Reuse it  
+     - Set `NewRMSContainer = false`
+
+2. **Create new container if needed**  
    - If no matching container exists:
-     - 'Name': descriptive (e.g. 'Pack 4kg', 'Box 6x1L')  
-     - 'Count': calculated in RMSProduct.MainUnit  
-     - 'Id', 'Num': null  
-     - Set **'NewRMSContainer = true'**
+     - `Name`: descriptive (e.g., 'Box 6x1L', 'Pack 250g')  
+     - `Count`: computed in `RMSProduct.MainUnit`  
+     - `Id`, `Num`: null  
+     - Set `NewRMSContainer = true`
 
-5. **Avoid duplication**  
-   - Never create container if one with same 'Count' in same unit already exists  
-   - Prefer existing containers with neutral names
+3. **Avoid duplication and invalid containers**  
+   - Never create a container if one with same `Count` and unit already exists  
+   - Prefer using containers with neutral names  
+
+---
+
+### ✅ Final validation
+- Ensure that `UnitsCount × QuantityOfContainers` equals total RMSProduct quantity in base units (e.g., 8 × 0.5kg = 4.0kg).
+
 
 ---
 

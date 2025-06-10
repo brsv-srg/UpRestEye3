@@ -20,6 +20,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 InvoiceStageEnum.QRCodeRecognition => new QRCodeProcessedValidator(),
                 InvoiceStageEnum.TextRecognition => new TextProcessedValidator(),
                 InvoiceStageEnum.ProductsMapping => new ProductsMappedValidator(),
+                InvoiceStageEnum.SavingToSystem => new ProductsSavingValidator(),
 
                 _ => throw new NotSupportedException($"Status {status} is not supported for validation")
             };
@@ -167,6 +168,21 @@ namespace UpRestEye3.Services.BusinessLogic
             }
 
 
+
+        }
+    }
+
+    public class ProductsSavingValidator : TextProcessedValidator
+    {
+        public override void Validate(InvoiceDTO invoice, string customerTaxId, bool manually = false)
+        {
+            if (invoice.StageStatus == InvoiceStatusEnum.Ok)
+                return; // No need to validate if already OK
+
+            base.Validate(invoice, customerTaxId);
+
+            if (invoice.StageStatus == InvoiceStatusEnum.Ok)
+                invoice.StageStatus = InvoiceStatusEnum.Manual;
 
         }
     }

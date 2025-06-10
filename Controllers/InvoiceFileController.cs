@@ -1,10 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using UpRestEye3.Services.BusinessLogic;
-using UpRestEye3.Services.DataLayer;
 using System.IO;
 using System.Threading.Tasks;
+using UpRestEye3.Models.BLO;
+using UpRestEye3.Services.BusinessLogic;
+using UpRestEye3.Services.DataLayer;
 
 
 namespace UpRestEye3.Controllers
@@ -60,7 +61,7 @@ namespace UpRestEye3.Controllers
 
 //            _ = _imageProcessor.InvoiceFileProcessAsync((int)invoiceId, consumerId);
 
-            return Ok(new { message = "File uploaded successfully, processing started." });
+            return Ok(new { message = "File uploaded successfully, processing started.", invoiceId });
         }
 
         
@@ -106,6 +107,28 @@ namespace UpRestEye3.Controllers
                 return StatusCode(500, new { message = "An error occurred while reading the file." });
             }
         }
+
+        [HttpPost("set-status")]
+        public async Task<IActionResult> SetInvoicesStatus([FromBody] SetInvoicesStatusRequest request)
+        {
+            if (request == null || request.invoiceIds == null || !request.invoiceIds.Any())
+                return BadRequest("No invoice ids provided.");
+
+            var result = await _invoiceService.SetInvoicesStatusAsync(request.invoiceIds, request.stage, request.stageStatus);
+
+            if (result)
+                return Ok(new { message = "Statuses updated successfully." });
+            else
+                return StatusCode(500, new { message = "Failed to update statuses." });
+        }
+
+        public class SetInvoicesStatusRequest
+        {
+            public List<int> invoiceIds { get; set; }
+            public InvoiceStageEnum stage { get; set; }
+            public InvoiceStatusEnum stageStatus { get; set; }
+        }
+
 
         private bool IsFileLocked(string filePath)
         {

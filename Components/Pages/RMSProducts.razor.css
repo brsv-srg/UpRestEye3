@@ -130,3 +130,13 @@
 .text-darker {
     color: darken(#dc3545, 20%); /* Пример для text-danger */
 }
+
+.nospin::-webkit-inner-spin-button,
+.nospin::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.nospin {
+    -moz-appearance: textfield;
+}

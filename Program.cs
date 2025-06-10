@@ -194,7 +194,7 @@ app.Run();
 
 void StartInvoiceProcessingQueue(IServiceProvider services)
 {
-    int threadCount = 5; // Количество потоков
+    int threadCount = 3; // Количество потоков
     var queue = new BlockingCollection<Tuple<int, int>>(); // Очередь для хранения ID накладных и consumerId
 
     // Запуск потоков
@@ -250,11 +250,13 @@ void StartInvoiceProcessingQueue(IServiceProvider services)
             // Стратегия выборки: порциями по 10 записей
             var invoices = await invoiceService.GetInvoicesDAOAsync(null,null);
             var filteredInvoices = invoices
-                .Where(i => (i.Stage == InvoiceStageEnum.New ||
-                             i.Stage == InvoiceStageEnum.QRCodeRecognition ||
+                .Where(i => (
+                            (i.Stage == InvoiceStageEnum.New && i.StageStatus == InvoiceStatusEnum.Ok )||
+                             
+                            (i.Stage == InvoiceStageEnum.QRCodeRecognition ||
                              i.Stage == InvoiceStageEnum.TextRecognition) &&
                             (i.StageStatus == InvoiceStatusEnum.Ok ||
-                             i.StageStatus == InvoiceStatusEnum.Processing))
+                             i.StageStatus == InvoiceStatusEnum.Processing)))
                 .Take(10) // Порция записей
                 .ToList();
 

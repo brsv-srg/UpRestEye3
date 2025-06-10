@@ -175,9 +175,9 @@
                                                         {
                                                             <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="container.Num" /></td>
                                                             <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="container.Name" /></td>
-                                                            <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="container.Count" /></td>
-                                                            <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="container.ContainerWeight" /></td>
-                                                            <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="container.FullContainerWeight" /></td>
+                                                            <td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="container.Count" /></td>
+                                                            <td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="container.ContainerWeight" /></td>
+                                                            <td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="container.FullContainerWeight" /></td>
                                                             <td class="p-1 align-middle">
                                                                 <div class="d-flex justify-content-around align-items-center">
                                                                     <button class="custom-btn" @onclick="async () => SaveContainer(container)">
@@ -215,9 +215,9 @@
                                                     <tr>
                                                         <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newContainer.Num" /></td>
                                                         <td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newContainer.Name" /></td>
-                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newContainer.Count" /></td>
-                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newContainer.ContainerWeight" /></td>
-                                                        <td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newContainer.FullContainerWeight" /></td>
+                                                        <td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newContainer.Count" /></td>
+                                                        <td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newContainer.ContainerWeight" /></td>
+                                                        <td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newContainer.FullContainerWeight" /></td>
                                                         <td class="p-1 align-middle">
                                                             <div class="d-flex justify-content-around align-items-center">
                                                                 <button class="custom-btn" @onclick="async () => SaveNewContainer()">
@@ -399,6 +399,57 @@
         }
     }
 
+    private RMSProductStatusEnum GetStatusOfChangings(RMSProductDTO changed, RMSProductDTO stable)
+    {
+        if (stable.Status == RMSProductStatusEnum.NewProduct ||
+            stable.Status == RMSProductStatusEnum.Changed)
+        {
+            if (stable.RMSProductExtGuid == null || stable.RMSProductExtGuid == Guid.Empty)
+            {
+                return RMSProductStatusEnum.NewProduct;
+            }
+            else
+            {
+                return RMSProductStatusEnum.Changed;
+            }
+        }
+		
+        var isProductChanged = changed.Name != stable.Name ||
+			changed.Description != stable.Description ||
+			changed.Num != stable.Num ||
+			changed.RMSProductExtGuid != stable.RMSProductExtGuid ||
+			changed.MainUnit != stable.MainUnit ||
+			changed.Parent != stable.Parent;
+
+		var isContainersChanged = changed.Containers?.Count != stable.Containers?.Count ||
+            (changed.Containers != null && stable.Containers != null &&
+				changed.Containers.Any(c => !stable.Containers.Any(s => s.Id == c.Id &&
+				s.Num == c.Num &&
+				s.Name == c.Name &&
+				s.Count == c.Count &&
+				s.ContainerWeight == c.ContainerWeight &&
+				s.FullContainerWeight == c.FullContainerWeight &&
+				s.RMSContainerExtGuid == c.RMSContainerExtGuid)));
+
+        if (!isProductChanged && isContainersChanged)
+		{
+            if (stable.Status == RMSProductStatusEnum.Synchronized)
+				return RMSProductStatusEnum.NewContainer;
+            else
+				return stable.Status;
+			
+		}
+
+		if (isProductChanged)
+		{
+			if (stable.Status == RMSProductStatusEnum.Synchronized)
+				return RMSProductStatusEnum.Changed;
+			else 
+			    return stable.Status;
+		}
+
+		return stable.Status; // Если нет изменений, возвращаем текущий статус
+    }
 
     private void CopyToEditModel(RMSProductDTO source, RMSProductDTO target)
     {
@@ -535,13 +586,14 @@
                 baseUri = baseUri.Substring(0, baseUri.Length - 1);
             }
 
+			// Устанавливаем статус продукта
+			editProduct.Status = GetStatusOfChangings(editProduct, selectedProduct);
+
             var response = await Http.PostAsJsonAsync($"{baseUri}/api/RMSProducts/save", editProduct);
 
             if (response.IsSuccessStatusCode)
             {
-                Console.WriteLine("Product updated successfully.");
-                uploadMessage = "Product updated successfully.";
-                uploadMessageClass = "alert-success";
+                await ShowMessage("RMSProduct updated successfully.", "alert-success");
 
                 CopyToEditModel(editProduct, selectedProduct); // Копирование данных из временной модели в оригинальную
 
@@ -550,8 +602,9 @@
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"Product update failed. Status code: {response.StatusCode}, Error: {errorContent}");
-                uploadMessage = "Product update failed.";
-                uploadMessageClass = "alert-danger";
+                await ShowMessage("RMSProduct updated failed.", "alert-danger");
+
+
             }
 
             showProductModal = false;
@@ -584,22 +637,17 @@
 
             if (response.IsSuccessStatusCode)
             {
-                Console.WriteLine("Parameters saved successfully.");
                 await ReadRMSProducts();
+				await ShowMessage("RMSProducts downloaded successfully.", "alert-success");
             }
             else
             {
-                Console.WriteLine($"Parameters save failed. Status code: {response.StatusCode}");
-                var errorContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Error content: {errorContent}");
+                await ShowMessage($"Failed to download RMSProduct.", "alert-danger");
             }
-        }
-        catch (HttpRequestException ex)
-        {
-            Console.WriteLine($"Request error: {ex.Message}");
         }
         catch (Exception ex)
         {
+            await ShowMessage($"An unexpected error occurred: {ex.Message}", "alert-danger");
             Console.WriteLine($"An unexpected error occurred: {ex.Message}");
         }
     }
@@ -632,26 +680,35 @@
 
                 if (response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine("Parameters saved successfully.");
                     await ReadRMSProducts();
+                    await ShowMessage("RMSProduct uploaded successfully.", "alert-success");
+
                 }
                 else
-                {
-                    Console.WriteLine($"Parameters save failed. Status code: {response.StatusCode}");
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"Error content: {errorContent}");
+                {	
+                    await ShowMessage($"Failed to upload RMSProduct.", "alert-danger");
                 }
             }
         }
-        catch (HttpRequestException ex)
-        {
-            Console.WriteLine($"Request error: {ex.Message}");
-        }
         catch (Exception ex)
         {
+            await ShowMessage($"An unexpected error occurred: {ex.Message}", "alert-danger");
             Console.WriteLine($"An unexpected error occurred: {ex.Message}");
         }
     }
+
+    private async Task ShowMessage(string message, string cssClass)
+    {
+        uploadMessage = message;
+        uploadMessageClass = cssClass;
+        StateHasChanged();
+
+        await Task.Delay(3000); // Сообщение пропадает через 5 секунд
+        uploadMessage = null;
+        uploadMessageClass = null;
+        StateHasChanged();
+    }
+
 
     private async Task DeleteSelectedProductsAsync()
     {
@@ -680,8 +737,8 @@
 
             if (!selectedProductIds.Any())
             {
-                uploadMessage = "No products selected for deletion.";
-                uploadMessageClass = "alert-warning";
+                await ShowMessage($"No products selected for deletion", "alert-warning");
+
                 return;
             }
 
@@ -690,23 +747,23 @@
 
             if (response.IsSuccessStatusCode)
             {
-                uploadMessage = "Selected products deleted successfully.";
-                uploadMessageClass = "alert-success";
+                
+                await ReadRMSProducts();
+                await ShowMessage($"Selected products deleted successfully.", "alert-success");
 
                 // Обновляем список продуктов
-                await ReadRMSProducts();
             }
             else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                uploadMessage = $"Failed to delete products. Error: {errorContent}";
-                uploadMessageClass = "alert-danger";
+                await ShowMessage($"Failed to delete products. Error: {errorContent}", "alert-danger");
+
             }
         }
         catch (Exception ex)
         {
-            uploadMessage = $"An unexpected error occurred: {ex.Message}";
-            uploadMessageClass = "alert-danger";
+            await ShowMessage($"An unexpected error occurred: {ex.Message}", "alert-danger");
+
         }
     }
 

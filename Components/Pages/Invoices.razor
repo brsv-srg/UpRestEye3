@@ -160,29 +160,29 @@
 										<div class="col-md-6">
 											<div class="mb-3">
 												<label for="invoiceNumber" class="form-label">Invoice Number</label>
-												<InputText id="invoiceNumber" class="form-control" @bind-Value="editInvoice.InvoiceNumber" />
+												<InputText id="invoiceNumber" class="form-control" @bind-Value="editInvoice.InvoiceNumber" disabled ="@IsInvoiceReadOnly" />
 											</div>
 											<div class="mb-4">
 												<label for="invoiceDate" class="form-label">Invoice Date</label>
-												<InputDate id="invoiceDate" class="form-control" @bind-Value="editInvoice.InvoiceDate" />
+												<InputDate id="invoiceDate" class="form-control" @bind-Value="editInvoice.InvoiceDate" disabled ="@IsInvoiceReadOnly" />
 											</div>
 										</div>
 
 										<div class="col-md-6">
 											<div class="mb-3">
 												<label for="supplier" class="form-label">Supplier</label>
-												<InputText id="supplier" class="form-control" @bind-Value="editInvoice.Supplier.Name" />
+												<InputText id="supplier" class="form-control" @bind-Value="editInvoice.Supplier.Name" disabled="@IsInvoiceReadOnly" />
 											</div>
 											<div class="mb-4">
 												<label for="supplierTaxNumber" class="form-label">Supplier Tax Number</label>
-												<InputText id="supplierTaxNumber" class="form-control" @bind-Value="editInvoice.Supplier.TaxNumber" />
+												<InputText id="supplierTaxNumber" class="form-control" @bind-Value="editInvoice.Supplier.TaxNumber" disabled="@IsInvoiceReadOnly" />
 											</div>
 										</div>
 									</div>
 									<div class="mb-4">
 										<div class="mb-3 d-flex justify-content-between align-items-center">
 											<label for="products" class="form-label font-weight-bold fs-4">Products</label>
-											<button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewProduct()">
+											<button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewProduct()" disabled="@IsInvoiceReadOnly">
 												<i class="fa fa-plus-square fa-2x" aria-hidden="true"></i>
 											</button>
 										</div>
@@ -215,10 +215,10 @@
 																<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductCode" /></td>
 																<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.ProductName" /></td>
 																<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.Unit" /></td>
-																<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Quantity" /></td>
+																<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="product.Quantity" /></td>
 																<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="product.Container" /></td>
-																<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="product.Count" /></td>
-																<td class="p-1"><input type="number" class="form-control form-control-sm text-end pe-5" @bind="product.ProductTotalValue" /></td>
+																<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="product.Count" /></td>
+																<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin text-end pe-5" @bind="product.ProductTotalValue" /></td>
 																<td class="p-1">
 																	<select class="form-control form-control-sm" @bind="product.TaxCategory">
 																		@foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
@@ -261,7 +261,7 @@
 
 																<td class="p-1 align-middle">
 																	<div class="d-flex justify-content-around align-items-center">
-																		<button class="custom-btn" @onclick="async () => SaveProduct(product)">
+																		<button class="custom-btn" @onclick="async () => SaveProduct(product)" >
 																			<i class="fa fa-save" aria-hidden="true"></i>
 																		</button>
 																		<button class="custom-btn" @onclick="async () => CancelEditProduct(product)">
@@ -291,7 +291,7 @@
 																<td class="p-1">@product.RMSContainer?.Name</td>
 																<td class="p-1">@product.RMSStorage?.Name</td>
 																<td class="p-1">
-																	<button class="custom-btn" @onclick="async () => EditProduct(product)">
+																	<button class="custom-btn" @onclick="async () => EditProduct(product)" disabled="@IsInvoiceReadOnly">
 																		<i class="fa fa-pencil" aria-hidden="true"></i>
 																	</button>
 																</td>
@@ -305,10 +305,10 @@
 															<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductCode" /></td>
 															<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.ProductName" /></td>
 															<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.Unit" /></td>
-															<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Quantity" /></td>
+															<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newProduct.Quantity" /></td>
 															<td class="p-1"><input type="text" class="form-control form-control-sm" @bind="newProduct.Container" /></td>
-															<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newProduct.Count" /></td>
-															<td class="p-1"><input type="number" class="form-control form-control-sm text-end pe-5" @bind="newProduct.ProductTotalValue" /></td>
+															<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newProduct.Count" /></td>
+															<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin text-end pe-5" @bind="newProduct.ProductTotalValue" /></td>
 															<td class="p-1">
 																<select class="form-control form-control-sm" @bind="newProduct.TaxCategory">
 																	@foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
@@ -376,7 +376,7 @@
 										<div class="col-md-6">
 											<div class="mb-3 d-flex justify-content-between align-items-center">
 												<label for="taxCategories" class="form-label font-weight-bold fs-4">Tax Categories</label>
-												<button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewTaxCategory()">
+												<button class="btn btn-light btn-sm ms-3" @onclick="async () => AddNewTaxCategory()" disabled="@IsInvoiceReadOnly">
 													<i class="fa fa-plus-square fa-2x" aria-hidden="true"></i>
 												</button>
 											</div>
@@ -405,9 +405,9 @@
 																			}
 																		</select>
 																	</td>
-																	<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="tax.Base" /></td>
-																	<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="tax.IVA" /></td>
-																	<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="tax.Total" /></td>
+																	<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="tax.Base" /></td>
+																	<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="tax.IVA" /></td>
+																	<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="tax.Total" /></td>
 																	<td class="p-1 align-middle">
 																		<div class="d-flex justify-content-around align-items-center">
 																			<button class="custom-btn" @onclick="async () => SaveTaxCategory(tax)">
@@ -430,7 +430,7 @@
 																	<td class="p-1">@tax.IVA</td>
 																	<td class="p-1">@tax.Total</td>
 																	<td class="p-1">
-																		<button class="custom-btn" @onclick="async () => EditTaxCategory(tax)">
+																		<button class="custom-btn" @onclick="async () => EditTaxCategory(tax)" disabled="@IsInvoiceReadOnly">
 																			<i class="fa fa-pencil" aria-hidden="true"></i>
 																		</button>
 																	</td>
@@ -447,9 +447,9 @@
 																}
 															</select>
 														</td>
-														<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newTaxCategory.Base" /></td>
-														<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newTaxCategory.IVA" /></td>
-														<td class="p-1"><input type="number" class="form-control form-control-sm" @bind="newTaxCategory.Total" /></td>
+														<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newTaxCategory.Base" /></td>
+														<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newTaxCategory.IVA" /></td>
+														<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newTaxCategory.Total" /></td>
 														<td class="p-1 align-middle">
 															<div class="d-flex justify-content-around align-items-center">
 																<button class="custom-btn" @onclick="async () => SaveNewTaxCategory()">
@@ -469,11 +469,11 @@
 										<div class="col-md-6">
 											<div class="mb-3">
 												<label for="totalIVA" class="form-label font-weight-bold fs-4">Total IVA</label>
-												<InputNumber id="totalIVA" class="form-control" @bind-Value="editInvoice.TotalIVA" />
+												<input type="number" step="any" id="totalIVA" class="form-control nospin" @bind="editInvoice.TotalIVA" disabled="@IsInvoiceReadOnly" />
 											</div>
 											<div class="mb-3">
 												<label for="totalAmount" class="form-label font-weight-bold fs-4">Total Amount</label>
-												<InputNumber id="totalAmount" class="form-control" @bind-Value="editInvoice.TotalAmount" />
+												<input type="number" step="any" id="totalAmount" class="form-control nospin" @bind="editInvoice.TotalAmount" disabled="@IsInvoiceReadOnly" />
 											</div>
 										</div>
 									</div>
@@ -497,11 +497,11 @@
 						</div>
 						<div class="modal-footer d-flex justify-content-between align-items-center">
 							<div class="flex-grow-1 me-4">
-								<input type="text" class="form-control" placeholder="Comments" @bind="editInvoice.Comments" />
+								<input type="text" class="form-control" placeholder="Comments" @bind="editInvoice.Comments" disabled="@IsInvoiceReadOnly" />
 							</div>
 							<div class="d-flex">
 								<button type="button" class="btn btn-secondary me-3" @onclick="async () => await CloseInvoiceModalAsync()">Close</button>
-								<button type="button" class="btn btn-primary me-3" @onclick="async () => await SaveInvoiceAsync()">Save changes</button>
+								<button type="button" class="btn btn-primary me-3" @onclick="async () => await SaveInvoiceAsync()" disabled="@IsInvoiceReadOnly">Save changes</button>
 							</div>
 						</div>
 
@@ -631,7 +631,13 @@
 
 	// Выбранный файл
 	// private IBrowserFile? selectedFile;
-	private List<IBrowserFile> selectedFiles = new();
+	private List<FileUploadStatus> selectedFiles = new();
+	private class FileUploadStatus
+	{
+		public IBrowserFile selectedFile { get; set; }
+		public string status { get; set; }
+		public int? invoiceId { get; set; } 
+	}
 
 	private string? scannedImageBase64;
 	private Dictionary<int, string> scannedImageCache = new(); // Кэш для изображений
@@ -647,6 +653,11 @@
 	[Parameter]
 	public int? rmsProductId { get; set; }
 
+	// Флаг блокировки
+	private bool IsInvoiceReadOnly =>
+    editInvoice != null &&
+    editInvoice.Stage == InvoiceStageEnum.SavingToSystem &&
+    editInvoice.StageStatus == InvoiceStatusEnum.Ok;
 
 
 	// Список продуктов
@@ -1026,11 +1037,17 @@
 
 	private void HandleFileSelected(InputFileChangeEventArgs e)
 	{
-		selectedFiles = e.GetMultipleFiles().ToList();
+
+		selectedFiles = e.GetMultipleFiles().Select(f => new FileUploadStatus
+        {
+            selectedFile = f,
+            status = string.Empty // или другое начальное значение статуса
+		}).ToList();
+
 		Console.WriteLine($"Selected {selectedFiles.Count} files:");
 		foreach (var file in selectedFiles)
 		{
-			Console.WriteLine($"- {file.Name} ({file.Size} bytes)");
+			Console.WriteLine($"- {file.selectedFile.Name} ({file.selectedFile.Size} bytes)");
 		}
 
 		// Если нужно сразу загружать файлы:
@@ -1042,27 +1059,69 @@
 	{
 		if (appUser?.ConsumerId != null)
 		{
-			foreach (var selectedFile in selectedFiles)
+			foreach (var file in selectedFiles)
 			{
-				if (selectedFile.Size > 10 * 1024 * 1024)
+				if (file.selectedFile.Size > 10 * 1024 * 1024)
 				{
 					await ShowMessage("File size exceeds the 10 MB limit. Please reduce the file size.", "alert-danger");
+					file.status = "Manual";
 					continue;
 				}
-				
-				Console.WriteLine("Uploading file: " + selectedFile.Name);
+
+				Console.WriteLine("Uploading file: " + file.selectedFile.Name);
 
 				var content = new MultipartFormDataContent();
-				content.Add(new StreamContent(selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)), "file", selectedFile.Name);
+				content.Add(new StreamContent(file.selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)), "file", file.selectedFile.Name);
 				content.Add(new StringContent(appUser.ConsumerId.ToString()), "consumerId");
 
 				var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/upload", content);
 
 				if (response.IsSuccessStatusCode)
-					await ShowMessage($"File {selectedFile.Name} uploaded successfully.", "alert-success");
-				else
-					await ShowMessage($"Failed to upload file {selectedFile.Name}. Status code: {response.StatusCode}", "alert-danger");
+				{
+					var json = await response.Content.ReadAsStringAsync();
+					var result = System.Text.Json.JsonDocument.Parse(json);
+					var _invoiceId = result.RootElement.GetProperty("invoiceId").GetInt32();
 
+					await ShowMessage($"File {file.selectedFile.Name} uploaded successfully.", "alert-success");
+
+					file.status = "Processing";
+					file.invoiceId = _invoiceId;
+				}
+				else
+				{
+					await ShowMessage($"Failed to upload file {file.selectedFile.Name}. Status code: {response.StatusCode}", "alert-danger");
+					file.status = "Error";
+				}
+			}
+
+
+			//Берем только те элементы списка, где есть ID сохраненного инвойса
+
+			var invoicesIdsList = selectedFiles.Where(f => f.invoiceId != null).Select(f => f.invoiceId).ToList();
+
+			if(invoicesIdsList.Count() > 0)
+			{
+				var request = new SetInvoicesStatusRequest()
+				{
+					invoiceIds = invoicesIdsList,
+					stage = InvoiceStageEnum.New,
+					stageStatus = InvoiceStatusEnum.Ok
+				};
+
+				var response = await Http.PostAsJsonAsync($"{baseUri}/api/InvoicesFiles/set-status", request);
+
+				if (response.IsSuccessStatusCode)
+				{
+					var json = await response.Content.ReadAsStringAsync();
+					var result = System.Text.Json.JsonDocument.Parse(json);
+
+					await ShowMessage($"Files are ready to processing.", "alert-success");
+
+				}
+				else
+				{
+					await ShowMessage($"Failed to upload files. Status code: {response.StatusCode}", "alert-danger");
+				}
 			}
 		}
 		else
