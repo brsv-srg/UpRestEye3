@@ -1,14 +1,17 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using OpenCvSharp;
 using System.IO;
 using System.Threading.Tasks;
+using UpRestEye3.Components.Pages;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Services.BusinessLogic;
 using UpRestEye3.Services.DataLayer;
 
 
-namespace UpRestEye3.Controllers
+namespace UpRestEye3.Services.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -55,13 +58,73 @@ namespace UpRestEye3.Controllers
                 await file.CopyToAsync(stream);
             }
 
-            var invoiceId = await _imageProcessor.SaveInitialInvoiceAsync(consumerId, filePath);
+            var invoiceId = await _imageProcessor.SaveInitialInvoiceAsync(consumerId, fileName, filePath);
             if (invoiceId == 0)
                 return BadRequest(new { message = "Failed to save invoice information." });
 
 //            _ = _imageProcessor.InvoiceFileProcessAsync((int)invoiceId, consumerId);
 
             return Ok(new { message = "File uploaded successfully, processing started.", invoiceId });
+        }
+
+        
+        [HttpPost("multiupload")]
+        public async Task<IActionResult> MultiUpload([FromForm] IFormFileCollection files, [FromForm] int consumerId)
+        {
+            if (files == null || files.Count == 0)
+                return BadRequest("No files uploaded.");
+
+            var uploadsFolder = "uploads";
+
+            var fileNames = new List<string>();
+            var firstFileName = string.Empty;
+            var filePaths = new List<string>();
+
+
+            // MULTIPAGE: Сохраняем файлы на диск/в хранилище
+            foreach (var file in files)
+            {
+
+                var fileName = file.FileName;
+                if (string.IsNullOrEmpty(firstFileName))
+                {
+                    firstFileName = fileName; // Сохраняем имя первого файла
+                }
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                // Check if file exists and append a modifier if it does
+                if (System.IO.File.Exists(filePath))
+                {
+                    //if (IsFileLocked(filePath))
+                    //{
+                    var fileExtension = Path.GetExtension(fileName);
+                    var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+                    var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+                    fileName = $"{fileNameWithoutExtension}_{timestamp}{fileExtension}";
+                    filePath = Path.Combine(uploadsFolder, fileName);
+                    //}
+                }
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+
+                // Добавляем имя и путь файла в строки
+                fileNames.Add(fileName);
+                filePaths.Add(filePath);
+            }
+
+            // Save all file paths as a single string separated by semicolons
+            var filePathsString = string.Join(";", filePaths);
+
+            // Если мультистраничный, сохраняем все файлы как один invoice
+            var invoiceId = await _imageProcessor.SaveInitialInvoiceAsync(consumerId, firstFileName, filePathsString);
+            if (invoiceId == 0)
+                return BadRequest(new { message = "Failed to save invoice information for files: " + string.Join("; ", fileNames) });
+
+            return Ok(new { message = "Files uploaded successfully, processing started.", invoiceId });
         }
 
         

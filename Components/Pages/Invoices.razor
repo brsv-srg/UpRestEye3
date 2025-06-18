@@ -99,11 +99,20 @@
 					</tbody>
 				</table>
 			</div>
-			<div class="upload-button-container">
-				<label class="upload-button">
-					<span class="plus-icon">+</span>
-					<InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.png,.heic,.pdf" multiple />
-				</label>
+
+			<div class="d-flex justify-content-end align-items-center gap-3 mb-3">
+
+				<div class="form-check">
+					<input class="form-check-input" type="checkbox" id="multipageCheckbox" @bind="isMultipage" />
+					<label class="form-check-label" for="multipageCheckbox">Multipage</label>
+				</div>
+				<div class="upload-button-container">
+					<label class="upload-button mb-0">
+						<span class="plus-icon">+</span>
+						<InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.png,.heic,.pdf" multiple />
+					</label>
+				</div>
+
 			</div>
 
 		}
@@ -655,10 +664,12 @@
 
 	// Флаг блокировки
 	private bool IsInvoiceReadOnly =>
-    editInvoice != null &&
-    editInvoice.Stage == InvoiceStageEnum.SavingToSystem &&
-    editInvoice.StageStatus == InvoiceStatusEnum.Ok;
+	editInvoice != null &&
+	editInvoice.Stage == InvoiceStageEnum.SavingToSystem &&
+	editInvoice.StageStatus == InvoiceStatusEnum.Ok;
 
+	// Флаг для отображения мультистраничного инвойса
+	private bool isMultipage = false;
 
 	// Список продуктов
 	private RMSProductDTO[]? rmsProducts;
@@ -717,6 +728,8 @@
 	private bool showDeleteConfirmationModal = false;
 	private int selectedInvoiceCount = 0;
 	private List<int> selectedInvoiceIds = new();
+
+	private long maxFileSize = 10 * 1024 * 1024; // 10MB
 
 
 
@@ -1050,8 +1063,10 @@
 			Console.WriteLine($"- {file.selectedFile.Name} ({file.selectedFile.Size} bytes)");
 		}
 
-		// Если нужно сразу загружать файлы:
-		UploadFiles();
+		if (isMultipage)
+			MultiUploadFiles();
+		else 
+			UploadFiles();
 	}
 
 
@@ -1131,6 +1146,92 @@
 		}
 	}
 
+
+	private async Task MultiUploadFiles()
+	{
+		if (appUser?.ConsumerId != null)
+		{
+			try
+			{
+
+
+				using var content = new MultipartFormDataContent();
+
+				// Добавляем все выбранные файлы в запрос
+				foreach (var file in selectedFiles)
+				{
+
+					Console.WriteLine("Uploading file: " + file.selectedFile.Name);
+
+					// Конвертируем IBrowserFile в StreamContent
+					// Получаем поток из IBrowserFile
+					var fileStream = file.selectedFile.OpenReadStream(maxFileSize);
+					var streamContent = new StreamContent(fileStream);
+
+					// Устанавливаем правильный Content-Type
+					streamContent.Headers.ContentType = new MediaTypeHeaderValue(file.selectedFile.ContentType ?? "application/octet-stream");
+
+					// Добавляем файл в MultipartFormDataContent
+					// Ключевой момент: используем имя "files" для привязки к IFormFileCollection
+					content.Add(streamContent, "files", file.selectedFile.Name);
+					
+				}
+
+				// Добавляем идентификатор потребителя
+				content.Add(new StringContent(appUser.ConsumerId.ToString()), "consumerId");
+				var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/multiupload", content);
+
+				int _invoiceId = 0;
+				if (response.IsSuccessStatusCode)
+				{
+					var json = await response.Content.ReadAsStringAsync();
+					var result = System.Text.Json.JsonDocument.Parse(json);
+					_invoiceId = result.RootElement.GetProperty("invoiceId").GetInt32();
+
+					await ShowMessage($"Files uploaded successfully.", "alert-success");
+
+				}
+				else
+				{
+					await ShowMessage($"Failed to upload files. Status code: {response.StatusCode}", "alert-danger");
+					return;
+				}
+
+
+				var request = new SetInvoicesStatusRequest()
+					{
+						invoiceIds = new List<int?>(_invoiceId),
+						stage = InvoiceStageEnum.New,
+						stageStatus = InvoiceStatusEnum.Ok
+					};
+
+				response = await Http.PostAsJsonAsync($"{baseUri}/api/InvoicesFiles/set-status", request);
+
+				if (response.IsSuccessStatusCode)
+				{
+					var json = await response.Content.ReadAsStringAsync();
+					var result = System.Text.Json.JsonDocument.Parse(json);
+
+					await ShowMessage($"Files are ready to processing.", "alert-success");
+
+				}
+				else
+				{
+					await ShowMessage($"Failed to upload files. Status code: {response.StatusCode}", "alert-danger");
+				}
+			}
+			catch (Exception ex)
+			{
+				await ShowMessage($"Failed to upload files. Error: {ex.Message}", "alert-danger");
+			}
+
+		}
+		else
+		{
+			var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+			Navigation.NavigateTo($"/Account/Login?returnUrl={returnUrl}");
+		}
+	}
 
 	private async Task ProcessSelectedInvoicesAsync()
 	{

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 
 
-namespace UpRestEye3.Controllers
+namespace UpRestEye3.Services.Controllers
 {
     public class NotificationHub : Hub
     {

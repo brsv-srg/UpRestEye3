@@ -8,7 +8,7 @@ using UpRestEye3.Services.BusinessLogic;
 using UpRestEye3.Services.DataLayer;
 using UpRestEye3.Services.Integration;
 
-namespace UpRestEye3.Controllers
+namespace UpRestEye3.Services.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -98,7 +98,7 @@ namespace UpRestEye3.Controllers
 
             foreach (var id in invoiceIds)
             {
-                _ = Task.Run(() => _invoiceFileService.InvoiceFileProcessAsync(id, (int)consumerId));
+                _ = Task.Run(() => _invoiceFileService.InvoiceFileProcessAsync(id, consumerId));
             }
             return Ok("Invoices are being processed asynchronously.");
 

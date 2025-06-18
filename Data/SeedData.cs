@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using UpRestEye3.Controllers;
+using UpRestEye3.Services.Controllers;
 using System;
 using System.Linq;
 using UpRestEye3.Components.Pages;

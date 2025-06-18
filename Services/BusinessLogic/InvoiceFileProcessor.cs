@@ -4,10 +4,10 @@ using Microsoft.AspNetCore.SignalR;
 using System.Collections.Generic;
 using System.Drawing;
 using UpRestEye3.Components.Pages;
-using UpRestEye3.Controllers;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.Account;
+using UpRestEye3.Services.Controllers;
 using UpRestEye3.Services.DataLayer;
 using UpRestEye3.Services.Integration;
 using UpRestEye3.Services.MLServices;
@@ -19,7 +19,7 @@ namespace UpRestEye3.Services.BusinessLogic
     public interface IInvoiceFileProcessor
     {
         Task<bool> InvoiceFileProcessAsync(int invoiceId, int consumerID);
-        Task<int?> SaveInitialInvoiceAsync(int consumerId, string filePath);
+        Task<int?> SaveInitialInvoiceAsync(int consumerId, string fileName, string fileFullName);
 
     }
 
@@ -36,7 +36,7 @@ namespace UpRestEye3.Services.BusinessLogic
         }
 
 
-        public async Task<int?> SaveInitialInvoiceAsync(int consumerId, string filePath)
+        public async Task<int?> SaveInitialInvoiceAsync(int consumerId, string fileName, string fileFullName)
         {
             using (var scope = _serviceScopeFactory.CreateScope())
             {
@@ -50,8 +50,8 @@ namespace UpRestEye3.Services.BusinessLogic
 
                 var invoice = new InvoiceDTO
                 {
-                    InvoiceNumber = filePath,
-                    FilePath = filePath,
+                    InvoiceNumber = fileName,
+                    FilePath = fileFullName,
                     Stage = InvoiceStageEnum.New,
                     StageStatus = InvoiceStatusEnum.Processing
                 };

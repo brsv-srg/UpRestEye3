@@ -5,7 +5,7 @@ using UpRestEye3.Services.BusinessLogic;
 using UpRestEye3.Services.DataLayer;
 using UpRestEye3.Services.Integration;
 
-namespace UpRestEye3.Controllers
+namespace UpRestEye3.Services.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
