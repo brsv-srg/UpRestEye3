@@ -22,7 +22,7 @@ namespace UpRestEye3.Services.Recognition
     {
         
         Task<string> DocumentRecognize(Bitmap sourceImage);
-        Task<SimplifiedDocument> TextRecognize(Bitmap sourceImage);
+        Task<SimplifiedDocument> TextRecognize(List<Bitmap> sourceImages);
         Task<QRCodeData> QRRecognize(Bitmap sourceImage);
 
     }
@@ -37,39 +37,46 @@ namespace UpRestEye3.Services.Recognition
         }
 
 
-        public async Task<SimplifiedDocument> TextRecognize(Bitmap sourceImage)
+        public async Task<SimplifiedDocument> TextRecognize(List<Bitmap> sourceImages)
         {
-            var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(BitmapToBytes(sourceImage));
+            // TODO тут поправить
 
-            var clientIA = await ImageAnnotatorClient.CreateAsync();
-            TextAnnotation text = clientIA.DetectDocumentText(googleImage);
-            Console.WriteLine($"Text: {text.Text}");
+            SimplifiedDocument simplifiedDocument = null;
 
-            HtmlGenerator htmlGenerator = new HtmlGenerator();
-            var html = htmlGenerator.GenerateHtmlFromTextAnnotation(text);
-            htmlGenerator.SaveHtmlToFile(html, "hhttmmllTextAnnotation.html");
-
-            // Упрощенная структура для сериализации
-            var simplifiedDocument = new SimplifiedDocument
+            foreach (var sourceImage in sourceImages)
             {
-                //Text = text.Text,
-                Pages = text.Pages.Select(page => new SimplifiedPage
+                var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(BitmapToBytes(sourceImage));
+
+                var clientIA = await ImageAnnotatorClient.CreateAsync();
+                TextAnnotation text = clientIA.DetectDocumentText(googleImage);
+                Console.WriteLine($"Text: {text.Text}");
+
+                HtmlGenerator htmlGenerator = new HtmlGenerator();
+                var html = htmlGenerator.GenerateHtmlFromTextAnnotation(text);
+                htmlGenerator.SaveHtmlToFile(html, "hhttmmllTextAnnotation.html");
+
+                // Упрощенная структура для сериализации
+                simplifiedDocument = new SimplifiedDocument
                 {
-                    Blocks = page.Blocks.Select(block => new SimplifiedBlock
+                    //Text = text.Text,
+                    Pages = text.Pages.Select(page => new SimplifiedPage
                     {
-                        BlockCoordinates = ConvertBoundingPolyToRectangleCoordinates(block.BoundingBox),
-                        Paragraphs = block.Paragraphs.Select(paragraph => new SimplifiedParagraph
+                        Blocks = page.Blocks.Select(block => new SimplifiedBlock
                         {
-                            ParagraphCoordinates = ConvertBoundingPolyToRectangleCoordinates(paragraph.BoundingBox),
-                            Words = paragraph.Words.Select(word => new SimplifiedWord
+                            BlockCoordinates = ConvertBoundingPolyToRectangleCoordinates(block.BoundingBox),
+                            Paragraphs = block.Paragraphs.Select(paragraph => new SimplifiedParagraph
                             {
-                                WordText = string.Join("", word.Symbols.Select(s => s.Text)),
-                                WordCoordinates = ConvertBoundingPolyToRectangleCoordinates(word.BoundingBox)
-                            }).ToList() 
-                        }).ToList() 
-                    }).ToList() 
-                }).ToList() 
-            };
+                                ParagraphCoordinates = ConvertBoundingPolyToRectangleCoordinates(paragraph.BoundingBox),
+                                Words = paragraph.Words.Select(word => new SimplifiedWord
+                                {
+                                    WordText = string.Join("", word.Symbols.Select(s => s.Text)),
+                                    WordCoordinates = ConvertBoundingPolyToRectangleCoordinates(word.BoundingBox)
+                                }).ToList()
+                            }).ToList()
+                        }).ToList()
+                    }).ToList()
+                };
+            }
 
             return simplifiedDocument;
         }

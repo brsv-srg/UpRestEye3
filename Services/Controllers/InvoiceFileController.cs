@@ -69,65 +69,80 @@ namespace UpRestEye3.Services.Controllers
 
         
         [HttpPost("multiupload")]
-        public async Task<IActionResult> MultiUpload([FromForm] IFormFileCollection files, [FromForm] int consumerId)
+        public async Task<IActionResult> MultiUpload([FromForm] IFormFile file)
         {
-            if (files == null || files.Count == 0)
+            if (file == null || file.Length == 0)
+                return BadRequest("No file uploaded.");
+
+            var uploadsFolder = "uploads";
+            var fileName = file.FileName;
+            var filePath = Path.Combine(uploadsFolder, fileName);
+
+            // Check if file exists and append a modifier if it does
+            if (System.IO.File.Exists(filePath))
+            {
+                //if (IsFileLocked(filePath))
+                //{
+                var fileExtension = Path.GetExtension(fileName);
+                var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+                var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+                fileName = $"{fileNameWithoutExtension}_{timestamp}{fileExtension}";
+                filePath = Path.Combine(uploadsFolder, fileName);
+                //}
+            }
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            return Ok(new { message = "File uploaded successfully, processing started.", filePath });
+
+        }
+
+        [HttpPost("createMultiInvoice")]
+        public async Task<IActionResult> CreateMultiInvoice([FromBody] CreateMultiInvoiceRequest request)
+        {
+            if (request.files == null || request.files.Count == 0)
                 return BadRequest("No files uploaded.");
 
             var uploadsFolder = "uploads";
-
-            var fileNames = new List<string>();
-            var firstFileName = string.Empty;
-            var filePaths = new List<string>();
+            bool isAnyFileSkipped = false;
 
 
             // MULTIPAGE: Сохраняем файлы на диск/в хранилище
-            foreach (var file in files)
+            foreach (var file in request.files)
             {
-
-                var fileName = file.FileName;
-                if (string.IsNullOrEmpty(firstFileName))
+                if (!System.IO.File.Exists(file))
                 {
-                    firstFileName = fileName; // Сохраняем имя первого файла
+                    isAnyFileSkipped = true;
                 }
-                var filePath = Path.Combine(uploadsFolder, fileName);
-
-                // Check if file exists and append a modifier if it does
-                if (System.IO.File.Exists(filePath))
-                {
-                    //if (IsFileLocked(filePath))
-                    //{
-                    var fileExtension = Path.GetExtension(fileName);
-                    var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
-                    var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
-                    fileName = $"{fileNameWithoutExtension}_{timestamp}{fileExtension}";
-                    filePath = Path.Combine(uploadsFolder, fileName);
-                    //}
-                }
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
-
-
-                // Добавляем имя и путь файла в строки
-                fileNames.Add(fileName);
-                filePaths.Add(filePath);
+            }
+            if (isAnyFileSkipped)
+            {
+                return BadRequest(new { message = "Some files do not exist on the server." });
             }
 
             // Save all file paths as a single string separated by semicolons
-            var filePathsString = string.Join(";", filePaths);
+            var filePathsString = string.Join("; ", request.files);
+            var firstFileName = Path.GetFileName(request.files.First());
 
             // Если мультистраничный, сохраняем все файлы как один invoice
-            var invoiceId = await _imageProcessor.SaveInitialInvoiceAsync(consumerId, firstFileName, filePathsString);
+            var invoiceId = await _imageProcessor.SaveInitialInvoiceAsync(request.consumerId, firstFileName, filePathsString);
             if (invoiceId == 0)
-                return BadRequest(new { message = "Failed to save invoice information for files: " + string.Join("; ", fileNames) });
+                return BadRequest(new { message = "Failed to save invoice information for files: " + filePathsString });
 
             return Ok(new { message = "Files uploaded successfully, processing started.", invoiceId });
         }
 
-        
+        public class CreateMultiInvoiceRequest
+        {
+            public List<string> files { get; set; }
+            public int consumerId { get; set; }
+            
+        }
+
+
         [HttpGet("{invoiceId}/scanned-image")]
         public async Task<IActionResult> GetScannedFile(int invoiceId)
         {
@@ -157,7 +172,7 @@ namespace UpRestEye3.Services.Controllers
                 var image = imageLoader.LoadImage(invoice.FilePath);
 
                 // Читаем файл и возвращаем его
-                var fileBytes = imageLoader.ConvertBitmapToByteArray(image); //await System.IO.File.ReadAllBytesAsync(invoice.FilePath);
+                var fileBytes = imageLoader.ConvertBitmapToByteArray(image[0]); //await System.IO.File.ReadAllBytesAsync(invoice.FilePath);
                 var fileName = Path.GetFileName(invoice.FilePath);
                 var contentType = "application/octet-stream"; // Можно уточнить MIME-тип, если известно
 

@@ -103,9 +103,9 @@ namespace UpRestEye3.Services.BusinessLogic
 
                     // Проверка, конвертация и загрузка изображения
                     var imageLoader = new ImageLoader();
-                    var image = imageLoader.LoadImage(workingInvoice.FilePath);
+                    var images = imageLoader.LoadImage(workingInvoice.FilePath);
 
-                    if (image == null)
+                    if (images == null || images.Count == 0)
                         throw new Exception("Failed to load image.");
 
 
@@ -119,7 +119,7 @@ namespace UpRestEye3.Services.BusinessLogic
                         {
                             // Распознвание QR-кода
                             case InvoiceStageEnum.New:
-                                workingInvoice = await ProcessQRCodeAsync(workingInvoice, image, scope, hubContext);
+                                workingInvoice = await ProcessQRCodeAsync(workingInvoice, images, scope, hubContext);
                                 if (workingInvoice.StageStatus != InvoiceStatusEnum.Ok)
                                     break;
                                 else
@@ -127,7 +127,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
                             // Распознование текста
                             case InvoiceStageEnum.QRCodeRecognition:
-                                workingInvoice = await RecognizeTextAsync(workingInvoice, image, scope, hubContext);
+                                workingInvoice = await RecognizeTextAsync(workingInvoice, images, scope, hubContext);
                                 if (workingInvoice.StageStatus != InvoiceStatusEnum.Ok)
                                     break;
                                 else
@@ -158,7 +158,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 //}
             }
         }
-        private async Task<InvoiceDTO> ProcessQRCodeAsync(InvoiceDTO invoice, Bitmap image, IServiceScope scope, IHubContext<NotificationHub> hubContext)
+        private async Task<InvoiceDTO> ProcessQRCodeAsync(InvoiceDTO invoice, List<Bitmap> images, IServiceScope scope, IHubContext<NotificationHub> hubContext)
         {
             var imageProcessor = scope.ServiceProvider.GetRequiredService<IImageRecognitionService>();
             var consumerService = scope.ServiceProvider.GetRequiredService<IConsumerService>();
@@ -170,16 +170,31 @@ namespace UpRestEye3.Services.BusinessLogic
             await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognizing started..");
 
 
-            var (basicQRCode, basicProcessedImage) = await imageProcessor.BasicQRRecognitionAsync(image, invoice.FilePath);
-
-            if (basicQRCode == null)
+            var basicQRResult = await imageProcessor.BasicQRRecognitionAsync(images, invoice.FilePath);
+            var basicQRCodes = basicQRResult.Select(i => i.Item1).Distinct().ToList();
+            if (basicQRCodes.Count > 1)
             {
-                var (deepQRCode, deepProcessedImage) = await imageProcessor.DeepQRRecognitionAsync(image, invoice.FilePath);
-                if (deepQRCode == null)
-                    throw new Exception("Failed to recognize QR-code.");
-
-                basicQRCode = deepQRCode;
+                throw new Exception("Multiple QR-codes found in the image.");
             }
+
+            if (basicQRCodes.Count == 0)
+            {
+                var deepQRResult = await imageProcessor.DeepQRRecognitionAsync(images, invoice.FilePath);
+                var deepQRCodes = basicQRResult.Select(i => i.Item1).Distinct().ToList();
+                if (deepQRCodes.Count > 1)
+                {
+                    throw new Exception("Multiple QR-codes found in the image.");
+                }
+
+                if (deepQRCodes.Count == 0)
+                { 
+                    throw new Exception("Failed to recognize QR-code.");
+                }
+
+                basicQRCodes = deepQRCodes;
+            }
+
+            var basicQRCode = basicQRCodes.FirstOrDefault();
 
             var consumer = await consumerService.GetConsumerDTOByIdAsync((int)invoice.Consumer.Id);
             if (basicQRCode.CustomerTaxNumber != consumer.TaxNumber)
@@ -203,8 +218,9 @@ namespace UpRestEye3.Services.BusinessLogic
             return invoice;
         }
 
-        private async Task<InvoiceDTO> RecognizeTextAsync(InvoiceDTO invoice, Bitmap image, IServiceScope scope, IHubContext<NotificationHub> hubContext)
+        private async Task<InvoiceDTO> RecognizeTextAsync(InvoiceDTO invoice, List<Bitmap> images, IServiceScope scope, IHubContext<NotificationHub> hubContext)
         {
+            // TODO доделать тут
             var imageProcessor = scope.ServiceProvider.GetRequiredService<IImageRecognitionService>();
             var rmsMeasureUnitsService = scope.ServiceProvider.GetRequiredService<IRMSMeasureUnitService>();
             var invoiceService = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
@@ -220,7 +236,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 throw new Exception("Failed to get measure units.");
 
 
-            invoice = await imageProcessor.DeepTextRecognitionAsync(image, null, invoice, measUnits);
+            invoice = await imageProcessor.DeepTextRecognitionAsync(images, null, invoice, measUnits);
 
             var validatorText = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.TextRecognition);
             validatorText.Validate(invoice, invoice.Consumer.TaxNumber);

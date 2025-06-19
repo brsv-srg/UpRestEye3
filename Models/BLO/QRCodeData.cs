@@ -101,6 +101,8 @@ namespace UpRestEye3.Models.BLO
             }
         }
 
+
+
         private static decimal ParseDecimal(string value)
         {
             try
@@ -126,6 +128,49 @@ namespace UpRestEye3.Models.BLO
         {
             string pattern = @"^A:.*\*B:.*\*C:.*\*D:.*\*E:.*\*F:.*\*G:.*\*H:.*$";
             return Regex.IsMatch(input, pattern);
+        }
+
+
+
+        public override bool Equals(object obj)
+        {
+            if (obj is not QRCodeData other)
+                return false;
+            
+            return
+                A == other.A &&
+                B == other.B &&
+                C == other.C &&
+                D == other.D &&
+                E == other.E &&
+                F == other.F &&
+                G == other.G &&
+                H == other.H &&
+                I1 == other.I1 &&
+                I2 == other.I2 &&
+                I3 == other.I3 &&
+                I4 == other.I4 &&
+                I5 == other.I5 &&
+                I6 == other.I6 &&
+                I7 == other.I7 &&
+                I8 == other.I8 &&
+                N == other.N &&
+                O == other.O &&
+                Q == other.Q &&
+                R == other.R;
+            }
+
+        public override int GetHashCode()
+        {
+            // Split the properties into smaller groups to avoid exceeding the argument limit of HashCode.Combine  
+            var hash1 = HashCode.Combine(A, B, C, D, E);
+            var hash2 = HashCode.Combine(F, G, H, I1, I2);
+            var hash3 = HashCode.Combine(I3, I4, I5, I6, I7);
+            var hash4 = HashCode.Combine(I8, N, O, Q, R);
+
+            // Combine the smaller hashes into a final hash  
+            return HashCode.Combine(hash1, hash2, hash3, hash4);
+
         }
 
     }

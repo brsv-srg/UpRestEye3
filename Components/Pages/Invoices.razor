@@ -109,7 +109,7 @@
 				<div class="upload-button-container">
 					<label class="upload-button mb-0">
 						<span class="plus-icon">+</span>
-						<InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.png,.heic,.pdf" multiple />
+						<InputFile OnChange="HandleFileSelected" class="file-input" style="display: none;" accept=".jpg,.jpeg,.jfif,.png,.heic,.heif,.tif,.tiff,.pdf" multiple />
 					</label>
 				</div>
 
@@ -645,6 +645,7 @@
 	{
 		public IBrowserFile selectedFile { get; set; }
 		public string status { get; set; }
+		public string filePath { get; set; } = string.Empty; // Путь к файлу на сервере
 		public int? invoiceId { get; set; } 
 	}
 
@@ -1151,78 +1152,88 @@
 	{
 		if (appUser?.ConsumerId != null)
 		{
-			try
+
+			foreach (var file in selectedFiles)
 			{
-
-
-				using var content = new MultipartFormDataContent();
-
-				// Добавляем все выбранные файлы в запрос
-				foreach (var file in selectedFiles)
+				if (file.selectedFile.Size > 10 * 1024 * 1024)
 				{
-
-					Console.WriteLine("Uploading file: " + file.selectedFile.Name);
-
-					// Конвертируем IBrowserFile в StreamContent
-					// Получаем поток из IBrowserFile
-					var fileStream = file.selectedFile.OpenReadStream(maxFileSize);
-					var streamContent = new StreamContent(fileStream);
-
-					// Устанавливаем правильный Content-Type
-					streamContent.Headers.ContentType = new MediaTypeHeaderValue(file.selectedFile.ContentType ?? "application/octet-stream");
-
-					// Добавляем файл в MultipartFormDataContent
-					// Ключевой момент: используем имя "files" для привязки к IFormFileCollection
-					content.Add(streamContent, "files", file.selectedFile.Name);
-					
+					await ShowMessage("File size exceeds the 10 MB limit. Please reduce the file size.", "alert-danger");
+					file.status = "Manual";
+					continue;
 				}
 
-				// Добавляем идентификатор потребителя
-				content.Add(new StringContent(appUser.ConsumerId.ToString()), "consumerId");
-				var response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/multiupload", content);
+				Console.WriteLine("Uploading file: " + file.selectedFile.Name);
 
-				int _invoiceId = 0;
-				if (response.IsSuccessStatusCode)
+				var content = new MultipartFormDataContent();
+				content.Add(new StreamContent(file.selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)), "file", file.selectedFile.Name);
+
+				var _response = await Http.PostAsync($"{baseUri}/api/InvoicesFiles/multiupload", content);
+
+				if (_response.IsSuccessStatusCode)
 				{
-					var json = await response.Content.ReadAsStringAsync();
+					var json = await _response.Content.ReadAsStringAsync();
 					var result = System.Text.Json.JsonDocument.Parse(json);
-					_invoiceId = result.RootElement.GetProperty("invoiceId").GetInt32();
+					var _filePath = result.RootElement.GetProperty("filePath").GetString();
 
-					await ShowMessage($"Files uploaded successfully.", "alert-success");
+					await ShowMessage($"File {file.selectedFile.Name} uploaded successfully.", "alert-success");
 
+					file.status = "New";
+					file.filePath = _filePath;
 				}
 				else
 				{
-					await ShowMessage($"Failed to upload files. Status code: {response.StatusCode}", "alert-danger");
+					await ShowMessage($"Failed to upload file {file.selectedFile.Name}. Status code: {_response.StatusCode}", "alert-danger");
 					return;
 				}
-
-
-				var request = new SetInvoicesStatusRequest()
-					{
-						invoiceIds = new List<int?>(_invoiceId),
-						stage = InvoiceStageEnum.New,
-						stageStatus = InvoiceStatusEnum.Ok
-					};
-
-				response = await Http.PostAsJsonAsync($"{baseUri}/api/InvoicesFiles/set-status", request);
-
-				if (response.IsSuccessStatusCode)
-				{
-					var json = await response.Content.ReadAsStringAsync();
-					var result = System.Text.Json.JsonDocument.Parse(json);
-
-					await ShowMessage($"Files are ready to processing.", "alert-success");
-
-				}
-				else
-				{
-					await ShowMessage($"Failed to upload files. Status code: {response.StatusCode}", "alert-danger");
-				}
 			}
-			catch (Exception ex)
+
+			var createMultiInvoiceRequest = new
 			{
-				await ShowMessage($"Failed to upload files. Error: {ex.Message}", "alert-danger");
+				files = selectedFiles.Select(f => f.filePath).ToList(),
+				consumerId = appUser.ConsumerId.ToString()
+
+			};
+
+
+			var response = await Http.PostAsJsonAsync($"{baseUri}/api/InvoicesFiles/createMultiInvoice", createMultiInvoiceRequest);
+			var invoiceId = 0;
+			if (response.IsSuccessStatusCode)
+			{
+				var json = await response.Content.ReadAsStringAsync();
+				var result = System.Text.Json.JsonDocument.Parse(json);
+				invoiceId = result.RootElement.GetProperty("invoiceId").GetInt32();
+
+				await ShowMessage($"Files are combine to one invoice.", "alert-success");
+
+			}
+			else
+			{
+				await ShowMessage($"Failed to combine files to one invoice. Status code: {response.StatusCode}", "alert-danger");
+				return;
+			}
+			
+			var invoicesIdsList = new List<int?> { invoiceId };
+
+			var request = new SetInvoicesStatusRequest()
+			{
+				invoiceIds = invoicesIdsList,
+				stage = InvoiceStageEnum.New,
+				stageStatus = InvoiceStatusEnum.Ok
+			};
+
+			response = await Http.PostAsJsonAsync($"{baseUri}/api/InvoicesFiles/set-status", request);
+
+			if (response.IsSuccessStatusCode)
+			{
+				var json = await response.Content.ReadAsStringAsync();
+				var result = System.Text.Json.JsonDocument.Parse(json);
+
+				await ShowMessage($"Files are ready to processing.", "alert-success");
+
+			}
+			else
+			{
+				await ShowMessage($"Failed to upload files. Status code: {response.StatusCode}", "alert-danger");
 			}
 
 		}

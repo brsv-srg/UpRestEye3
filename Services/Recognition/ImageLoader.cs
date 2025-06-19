@@ -1,30 +1,46 @@
-﻿using System;
+﻿using ImageMagick;
+using iTextSharp.text.pdf;
+using iTextSharp.text.pdf.parser;
+using Microsoft.AspNetCore.StaticFiles;
+using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using Microsoft.AspNetCore.StaticFiles;
-using iTextSharp.text.pdf;
-using iTextSharp.text.pdf.parser;
 using System.Runtime.InteropServices;
-using ImageMagick;
+using UpRestEye3.Components.Pages;
 
 
 public class ImageLoader
 {
 
-    public Bitmap LoadImage(string filePath)
+    public List<Bitmap> LoadImage(string _filePath)
     {
-        var extension = System.IO.Path.GetExtension(filePath).ToLower();
+        var filePaths = _filePath.Split(';', StringSplitOptions.RemoveEmptyEntries);
+        var images = new List<Bitmap>();
 
-        switch (extension)
+        foreach (var filePath in filePaths)
         {
-            case ".pdf":
-                return LoadImageFromPdf(filePath);
-            case ".heic":
-                return LoadImageFromHeic(filePath);
-            default:
-                return LoadImageFromFile(filePath);
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"File not found: {filePath}");
+            }
+
+            var extension = System.IO.Path.GetExtension(filePath).ToLower();
+
+            switch (extension)
+            {
+                case ".pdf":
+                    images.Add(LoadImageFromPdf(filePath));
+                    break;
+                case ".heic":
+                    images.Add(LoadImageFromHeic(filePath));
+                    break;
+                default:
+                    images.Add(LoadImageFromFile(filePath));
+                    break; // Added break to fix CS8070
+            }
         }
+        return images;
     }
 
     private Bitmap LoadImageFromPdf(string filePath)
