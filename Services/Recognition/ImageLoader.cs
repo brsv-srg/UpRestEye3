@@ -13,10 +13,10 @@ using UpRestEye3.Components.Pages;
 public class ImageLoader
 {
 
-    public List<Bitmap> LoadImage(string _filePath)
+    public List<(Bitmap, string)> LoadImage(string _filePath)
     {
-        var filePaths = _filePath.Split(';', StringSplitOptions.RemoveEmptyEntries);
-        var images = new List<Bitmap>();
+        var filePaths = _filePath.Split("; ", StringSplitOptions.RemoveEmptyEntries);
+        var images = new List<(Bitmap, string)>();
 
         foreach (var filePath in filePaths)
         {
@@ -30,13 +30,13 @@ public class ImageLoader
             switch (extension)
             {
                 case ".pdf":
-                    images.Add(LoadImageFromPdf(filePath));
+                    images.Add((LoadImageFromPdf(filePath), filePath));
                     break;
                 case ".heic":
-                    images.Add(LoadImageFromHeic(filePath));
+                    images.Add((LoadImageFromHeic(filePath), filePath));
                     break;
                 default:
-                    images.Add(LoadImageFromFile(filePath));
+                    images.Add((LoadImageFromFile(filePath), filePath));
                     break; // Added break to fix CS8070
             }
         }

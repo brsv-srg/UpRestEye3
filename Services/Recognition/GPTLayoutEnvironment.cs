@@ -189,13 +189,16 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 - Each `Row` consists of `Words`, each with exact `WordText` and `WordCoordinates`.  
 - Coordinates follow the format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.  
 - Rows are grouped by visual alignment along the Y-axis — errors from OCR or scanning are partially corrected.
+- ⚠️ **There may be multiple pages. All analysis must include all `Pages[]`, processing them in logical order. Tables may span across pages. Pages might appear out of order — you must infer the correct page sequence based on content and structure (e.g., headers, section titles, continuation of tables).**
 
 ---
 
 ### 🛠️ **Extraction Tasks:**
 
 #### 1. **Detect Sections:**
-- Locate and isolate the product table and the tax section.
+- Locate and isolate the product table and the tax section **across all pages**.
+- The product and tax tables may be split across multiple pages, or appear in unexpected positions.
+- Even if tables are interrupted, repeated, or scattered, identify and reconstruct them correctly.
 - Ignore unrelated parts like addresses, notes, footer, etc.
 
 ---
@@ -203,6 +206,7 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 #### 2. **Extract Product Table Headers:**
 
 - Identify the row or **group of visually consecutive rows** containing product table column headers (e.g., `Code`, `Description`, `Qty`, `Unit`, `Price`, `IVA`, `Discount`, `Total`, etc.).
+- Search for headers **on all pages**, especially near the start of product sections.
 - Headers may be in **Portuguese, English**, or use common abbreviations (`Cod`, `Qtd`, `UNI`, `IVA`, etc.).
 - **Headers may span multiple lines**. If a column name is split across several rows (e.g., 'Desconto' / 'promocional'), include **all relevant rows**.
 - Store all words in the `ProductHeaders` array **exactly as recognized**:
@@ -218,13 +222,16 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
   - Main product lines,
   - Variants (e.g., flavor, cut),
   - Supplemental rows (e.g., batch number, Lote, descriptions).
+- Tables may **continue from one page to the next**, or even start mid-page.
 - Continue extraction until clearly unrelated content begins (e.g., totals, taxes, notes).
+- Include rows from **all pages** as needed.
+- Merge rows from multiple pages into a single logical table in `ProductRows`, even if they are visually separated.
 
 For each row:
 - Preserve:
   - Exact sequence of words as recognized,
   - Original text with symbols and casing,
-  - Raw coordinates without changes in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`..
+  - Raw coordinates without changes in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
 - Add each row to `ProductRows`.
 
 ##### ⚠️ Quantity + Unit Handling:
@@ -239,6 +246,7 @@ For each row:
 #### 4. **Extract Tax Table Headers:**
 
 - Identify the header row(s) for the tax section (e.g., `Incidência`, `Taxa`, `IVA`, `Valor`, `Total`).
+- Search **across all pages**, especially near the end of the invoice.
 - Store all header words in `TaxCategoriesHeaders`, preserving:
   - Exact text (with all symbols, accents, etc.),
   - Coordinates unmodified in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`..
@@ -248,6 +256,7 @@ For each row:
 #### 5. **Extract Tax Table Rows:**
 
 - Extract each row that belongs to the tax breakdown table.
+- The table may be split or start in the middle of a page.
 - Use the header layout to guide column matching.
 - Store each row in `TaxCategoriesRows`, preserving full word details and unmodified coordinates in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`..
 

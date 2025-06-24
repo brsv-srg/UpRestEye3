@@ -38,13 +38,16 @@ namespace UpRestEye3.Services.DataLayer
                 .FirstOrDefaultAsync(s => s.Id == id);
             return supplierDAO != null ? new SupplierDTO
             {
+                Id = supplierDAO.Id,
                 Name = supplierDAO.Name,
                 TaxNumber = supplierDAO.TaxNumber,
                 BankAccount = supplierDAO.BankAccount,
                 RMSSupplierId = supplierDAO.RMSSupplierId,
                 Status = supplierDAO.Status,
                 ConsumerId = supplierDAO.ConsumerId,
-                ConsumerTaxId = supplierDAO.Consumer.TaxNumber
+                ConsumerTaxId = supplierDAO.Consumer.TaxNumber,
+                HasInvoices = _context.Invoices.Any(i => i.SupplierId == id)
+
             } : null;
         }
 
@@ -62,13 +65,16 @@ namespace UpRestEye3.Services.DataLayer
             return new List<SupplierDTO>(
                     suppliersDAO.Select(s => new SupplierDTO
                     {
+                        Id = s.Id,
                         Name = s.Name,
                         TaxNumber = s.TaxNumber,
                         BankAccount = s.BankAccount,
                         RMSSupplierId = s.RMSSupplierId,
                         Status = s.Status,
                         ConsumerId = s.ConsumerId,
-                        ConsumerTaxId = s.Consumer.TaxNumber
+                        ConsumerTaxId = s.Consumer.TaxNumber,
+                        HasInvoices = _context.Invoices.Any(i => i.SupplierId == s.Id)
+
                     }));
         }
 

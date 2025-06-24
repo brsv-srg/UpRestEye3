@@ -127,7 +127,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
                             // Распознование текста
                             case InvoiceStageEnum.QRCodeRecognition:
-                                workingInvoice = await RecognizeTextAsync(workingInvoice, images, scope, hubContext);
+                                workingInvoice = await RecognizeTextAsync(workingInvoice, images.Select(i => i.Item1).ToList(), scope, hubContext);
                                 if (workingInvoice.StageStatus != InvoiceStatusEnum.Ok)
                                     break;
                                 else
@@ -158,7 +158,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 //}
             }
         }
-        private async Task<InvoiceDTO> ProcessQRCodeAsync(InvoiceDTO invoice, List<Bitmap> images, IServiceScope scope, IHubContext<NotificationHub> hubContext)
+        private async Task<InvoiceDTO> ProcessQRCodeAsync(InvoiceDTO invoice, List<(Bitmap, string)> images, IServiceScope scope, IHubContext<NotificationHub> hubContext)
         {
             var imageProcessor = scope.ServiceProvider.GetRequiredService<IImageRecognitionService>();
             var consumerService = scope.ServiceProvider.GetRequiredService<IConsumerService>();
@@ -169,29 +169,39 @@ namespace UpRestEye3.Services.BusinessLogic
             await invoiceService.SaveInvoiceAsync(invoice);
             await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognizing started..");
 
+            var imagesQR = images.Select(i => (i.Item1, i.Item2, new QRCodeData())).ToList();
 
-            var basicQRResult = await imageProcessor.BasicQRRecognitionAsync(images, invoice.FilePath);
-            var basicQRCodes = basicQRResult.Select(i => i.Item1).Distinct().ToList();
+            for (int i = 0; i < imagesQR.Count; i++)
+            {
+                var image = imagesQR[i].Item1;
+                var filePath = imagesQR[i].Item2;
+
+                var basicQRResult = await imageProcessor.BasicQRRecognitionAsync(image, filePath);
+
+
+                if (basicQRResult.Item1 == null)
+                {
+                    var deepQRResult = await imageProcessor.DeepQRRecognitionAsync(image, filePath);
+
+
+                    if (deepQRResult.Item1 != null)
+                        basicQRResult = deepQRResult;
+                }
+
+                imagesQR[i] = (imagesQR[i].Item1, imagesQR[i].Item2, basicQRResult.Item1);
+            }
+
+            var basicQRCodes = imagesQR.Where(i => i.Item3 != null).Select(i => i.Item3).Distinct().ToList();
+
             if (basicQRCodes.Count > 1)
             {
-                throw new Exception("Multiple QR-codes found in the image.");
+                throw new Exception("Failed to recognize: multiple QR codes have been detected.");
+
             }
 
             if (basicQRCodes.Count == 0)
             {
-                var deepQRResult = await imageProcessor.DeepQRRecognitionAsync(images, invoice.FilePath);
-                var deepQRCodes = basicQRResult.Select(i => i.Item1).Distinct().ToList();
-                if (deepQRCodes.Count > 1)
-                {
-                    throw new Exception("Multiple QR-codes found in the image.");
-                }
-
-                if (deepQRCodes.Count == 0)
-                { 
-                    throw new Exception("Failed to recognize QR-code.");
-                }
-
-                basicQRCodes = deepQRCodes;
+                throw new Exception("Failed to recognize QR-code.");
             }
 
             var basicQRCode = basicQRCodes.FirstOrDefault();
@@ -236,7 +246,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 throw new Exception("Failed to get measure units.");
 
 
-            invoice = await imageProcessor.DeepTextRecognitionAsync(images, null, invoice, measUnits);
+            invoice = await imageProcessor.DeepTextRecognitionAsync(images, invoice, measUnits);
 
             var validatorText = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.TextRecognition);
             validatorText.Validate(invoice, invoice.Consumer.TaxNumber);

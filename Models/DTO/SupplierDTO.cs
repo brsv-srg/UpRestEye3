@@ -15,5 +15,6 @@ namespace UpRestEye3.Models.DTO
         public Guid? RMSSupplierId { get; set; }
         public int? ConsumerId { get; set; }
         public string? ConsumerTaxId { get; set; } = string.Empty;
+        public bool HasInvoices { get; set; } = false;
     }
 }

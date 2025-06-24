@@ -491,6 +491,7 @@
 
 								<div class="col-md-4">
 									<div class="mb-3">
+
 										@if (!string.IsNullOrEmpty(scannedImageBase64))
 										{
 											<img src="data:image/png;base64,@scannedImageBase64" alt="Scanned Document" class="img-fluid" />
@@ -498,6 +499,19 @@
 										else
 										{
 											<p><em>Loading scanned document...</em></p>
+										}
+										@if (invoiceFilePaths.Count > 1)
+										{
+											<div class="mb-2 d-flex justify-content-center">
+												@for (int i = 0; i < invoiceFilePaths.Count; i++)
+												{
+													var pageIndex = i;
+													<button type="button" class="btn btn-link mx-1 @(selectedInvoicePage == pageIndex ? "fw-bold text-primary" : "")"
+															@onclick="async () => await OnInvoicePageSelected(pageIndex)">
+														@(pageIndex + 1)
+													</button>
+												}
+											</div>
 										}
 									</div>
 								</div>
@@ -650,7 +664,7 @@
 	}
 
 	private string? scannedImageBase64;
-	private Dictionary<int, string> scannedImageCache = new(); // Кэш для изображений
+	private Dictionary<(int invoiceId, int pageIndex), string> scannedImageCache = new(); // Кэш для изображений
 
 
 	// Список инвойсов
@@ -660,8 +674,14 @@
 	// Временная модель для редактирования, чтобы не менять объект из списка напрямую
 	private InvoiceDTO editInvoice = new InvoiceDTO();
 
+	private List<string> invoiceFilePaths = new();
+	private int selectedInvoicePage = 0;
+
 	[Parameter]
 	public int? rmsProductId { get; set; }
+
+	[Parameter]
+	public int? supplierId { get; set; }
 
 	// Флаг блокировки
 	private bool IsInvoiceReadOnly =>
@@ -734,6 +754,8 @@
 
 
 
+
+
 	private void ToggleSelectAll()
 	{
 		selectAll = !selectAll;
@@ -769,8 +791,22 @@
 				{
 					rmsProductId = productId;
 				}
+				await InitializeDataAsync(rmsProductId, null);
 			}
-			await InitializeDataAsync(rmsProductId);
+			else
+			if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("supplierId", out var supplierIdValue))
+			{
+				if (int.TryParse(supplierIdValue, out var supplierIdParam))
+				{
+					supplierId = supplierIdParam;
+				}
+				await InitializeDataAsync(null, supplierId);
+			}
+			else
+			{
+				await InitializeDataAsync(null, null);
+			}
+
 			await InitializeSignalRAsync(); // Добавлено: Инициализация SignalR
 			isInitialized = true;
 		}
@@ -848,9 +884,10 @@
 
 
 
-	private async Task InitializeDataAsync(int? _rmsProductId = null)
+	private async Task InitializeDataAsync(int? _rmsProductId = null, int? _supplierId = null)
 	{
 		rmsProductId = _rmsProductId;
+		supplierId = _supplierId;
 		if (appUser?.ConsumerId == null)
 		{
 			var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
@@ -900,7 +937,13 @@
 	{
 		try
 		{
-			var filterQuery = (rmsProductId != null && rmsProductId.HasValue) ? $"?rmsProductId={rmsProductId}" : string.Empty;
+			var filterQuery = string.Empty;
+			if (rmsProductId != null && rmsProductId.HasValue) 
+				filterQuery = $"?rmsProductId={rmsProductId}";
+			else
+			if (supplierId != null && supplierId.HasValue)
+				filterQuery = $"?supplierId={supplierId}";
+
 			invoices = await Http.GetFromJsonAsync<InvoiceDTO[]>($"{baseUri}/api/invoices/{appUser.ConsumerId}{filterQuery}");
 		}
 		catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -967,10 +1010,26 @@
 		}
 	}
 
-	private async Task LoadScannedImageAsync(int invoiceId)
+	private void ParseInvoiceFilePaths()
+	{
+		invoiceFilePaths = (editInvoice.FilePath ?? "")
+			.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+			.ToList();
+		if (selectedInvoicePage >= invoiceFilePaths.Count)
+			selectedInvoicePage = 0;
+	}
+
+	private async Task OnInvoicePageSelected(int pageIndex)
+	{
+		selectedInvoicePage = pageIndex;
+		await LoadScannedImageAsync(editInvoice.Id ?? 0, selectedInvoicePage);
+		StateHasChanged();
+	}
+
+	private async Task LoadScannedImageAsync(int invoiceId, int pageIndex)
 	{
 		// Проверяем, есть ли изображение в кэше
-		if (scannedImageCache.TryGetValue(invoiceId, out var cachedImage))
+		if (scannedImageCache.TryGetValue((invoiceId, pageIndex), out var cachedImage))
 		{
 			scannedImageBase64 = cachedImage;
 			return;
@@ -978,14 +1037,15 @@
 
 		try
 		{
-			var response = await Http.GetAsync($"{baseUri}/api/InvoicesFiles/{invoiceId}/scanned-image");
+			var fileName = invoiceFilePaths[pageIndex];
+			var response = await Http.GetAsync($"{baseUri}/api/InvoicesFiles/{invoiceId}/scanned-image?fileName={Uri.EscapeDataString(fileName)}");
 			if (response.IsSuccessStatusCode)
 			{
 				var imageBytes = await response.Content.ReadAsByteArrayAsync();
 				scannedImageBase64 = Convert.ToBase64String(imageBytes);
 
 				// Сохраняем изображение в кэш
-				scannedImageCache[invoiceId] = scannedImageBase64;
+				scannedImageCache[(invoiceId, pageIndex)] = scannedImageBase64;
 			}
 			else
 			{
@@ -1356,11 +1416,13 @@
 		InvoiceHelper.CopyInvoice(editInvoice, selectedInvoice);
 		showInvoiceModal = true;
 
+		ParseInvoiceFilePaths();
+		selectedInvoicePage = 0;
 		// Сбрасываем изображение перед загрузкой нового
 		scannedImageBase64 = null;
 
 		// Загрузка изображения
-		await LoadScannedImageAsync(invoice.Id ?? 0);
+		await LoadScannedImageAsync(invoice.Id ?? 0, selectedInvoicePage);
 
 		StateHasChanged();
 	}

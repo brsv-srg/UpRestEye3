@@ -49,6 +49,7 @@ namespace UpRestEye3.Services.DataLayer
                 .FirstOrDefaultAsync(s => s.Id == id);
             return consumerDAO != null ? new ConsumerDTO
             {
+                Id = consumerDAO.Id,
                 Name = consumerDAO.Name,
                 TaxNumber = consumerDAO.TaxNumber
             } : null;

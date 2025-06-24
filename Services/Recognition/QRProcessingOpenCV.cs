@@ -251,13 +251,17 @@ namespace UpRestEye3.Services.Recognition
         public void SaveImage(Bitmap image, string imagePath, string nameModif, string callStack = "")
         {// запись
 
-            string processedFilePath = Path.Combine(
-                                        Path.GetDirectoryName(imagePath),
-                                        "processed",
-                                        $"{Path.GetFileNameWithoutExtension(imagePath)}-{callStack}-{nameModif}{Path.GetExtension(imagePath)}");
+            #if DEBUG2
 
-            Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
-            image.Save(processedFilePath, ImageFormat.Png);
+                string processedFilePath = Path.Combine(
+                                            Path.GetDirectoryName(imagePath),
+                                            "processed",
+                                            $"{Path.GetFileNameWithoutExtension(imagePath)}-{callStack}-{nameModif}{Path.GetExtension(imagePath)}");
+
+                Directory.CreateDirectory(Path.GetDirectoryName(processedFilePath));
+                image.Save(processedFilePath, ImageFormat.Png);
+
+            #endif
         }
 
 

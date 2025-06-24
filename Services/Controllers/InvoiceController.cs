@@ -29,9 +29,13 @@ namespace UpRestEye3.Services.Controllers
         // TODO сделать по ID of Consumer
         // todo сделать создание ActionResult в контроллере 
         [HttpGet("{consumerId}")]
-        public async Task<ActionResult<IEnumerable<InvoiceDTO>>> GetInvoices(int? consumerId, [FromQuery] int rmsProductId )
+        public async Task<ActionResult<IEnumerable<InvoiceDTO>>> GetInvoices(int? consumerId, [FromQuery] int? rmsProductId, [FromQuery] int? supplierId )
         {
-            var result = await _invoiceService.GetInvoicesDTOAsync(consumerId, rmsProductId);
+
+            rmsProductId = rmsProductId == 0 ? null : rmsProductId;
+            supplierId = supplierId == 0 ? null : supplierId;
+
+            var result = await _invoiceService.GetInvoicesDTOAsync(consumerId, rmsProductId, supplierId);
             if (result == null)
             {
                 return NotFound();

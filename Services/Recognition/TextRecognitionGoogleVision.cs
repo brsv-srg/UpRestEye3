@@ -22,7 +22,7 @@ namespace UpRestEye3.Services.Recognition
     {
         
         Task<string> DocumentRecognize(Bitmap sourceImage);
-        Task<SimplifiedDocument> TextRecognize(List<Bitmap> sourceImages);
+        Task<SimplifiedDocument> TextRecognize(Bitmap sourceImages);
         Task<QRCodeData> QRRecognize(Bitmap sourceImage);
 
     }
@@ -37,46 +37,43 @@ namespace UpRestEye3.Services.Recognition
         }
 
 
-        public async Task<SimplifiedDocument> TextRecognize(List<Bitmap> sourceImages)
+        public async Task<SimplifiedDocument> TextRecognize(Bitmap sourceImage)
         {
             // TODO тут поправить
 
             SimplifiedDocument simplifiedDocument = null;
 
-            foreach (var sourceImage in sourceImages)
+            var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(BitmapToBytes(sourceImage));
+
+            var clientIA = await ImageAnnotatorClient.CreateAsync();
+            TextAnnotation text = clientIA.DetectDocumentText(googleImage);
+            Console.WriteLine($"Text: {text.Text}");
+
+            HtmlGenerator htmlGenerator = new HtmlGenerator();
+            var html = htmlGenerator.GenerateHtmlFromTextAnnotation(text);
+            htmlGenerator.SaveHtmlToFile(html, "hhttmmllTextAnnotation.html");
+
+            // Упрощенная структура для сериализации
+            simplifiedDocument = new SimplifiedDocument
             {
-                var googleImage = Google.Cloud.Vision.V1.Image.FromBytes(BitmapToBytes(sourceImage));
-
-                var clientIA = await ImageAnnotatorClient.CreateAsync();
-                TextAnnotation text = clientIA.DetectDocumentText(googleImage);
-                Console.WriteLine($"Text: {text.Text}");
-
-                HtmlGenerator htmlGenerator = new HtmlGenerator();
-                var html = htmlGenerator.GenerateHtmlFromTextAnnotation(text);
-                htmlGenerator.SaveHtmlToFile(html, "hhttmmllTextAnnotation.html");
-
-                // Упрощенная структура для сериализации
-                simplifiedDocument = new SimplifiedDocument
+                //Text = text.Text,
+                Pages = text.Pages.Select(page => new SimplifiedPage
                 {
-                    //Text = text.Text,
-                    Pages = text.Pages.Select(page => new SimplifiedPage
+                    Blocks = page.Blocks.Select(block => new SimplifiedBlock
                     {
-                        Blocks = page.Blocks.Select(block => new SimplifiedBlock
+                        BlockCoordinates = ConvertBoundingPolyToRectangleCoordinates(block.BoundingBox),
+                        Paragraphs = block.Paragraphs.Select(paragraph => new SimplifiedParagraph
                         {
-                            BlockCoordinates = ConvertBoundingPolyToRectangleCoordinates(block.BoundingBox),
-                            Paragraphs = block.Paragraphs.Select(paragraph => new SimplifiedParagraph
+                            ParagraphCoordinates = ConvertBoundingPolyToRectangleCoordinates(paragraph.BoundingBox),
+                            Words = paragraph.Words.Select(word => new SimplifiedWord
                             {
-                                ParagraphCoordinates = ConvertBoundingPolyToRectangleCoordinates(paragraph.BoundingBox),
-                                Words = paragraph.Words.Select(word => new SimplifiedWord
-                                {
-                                    WordText = string.Join("", word.Symbols.Select(s => s.Text)),
-                                    WordCoordinates = ConvertBoundingPolyToRectangleCoordinates(word.BoundingBox)
-                                }).ToList()
+                                WordText = string.Join("", word.Symbols.Select(s => s.Text)),
+                                WordCoordinates = ConvertBoundingPolyToRectangleCoordinates(word.BoundingBox)
                             }).ToList()
                         }).ToList()
                     }).ToList()
-                };
-            }
+                }).ToList()
+            };
 
             return simplifiedDocument;
         }

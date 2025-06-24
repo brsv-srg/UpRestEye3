@@ -13,9 +13,9 @@ namespace UpRestEye3.Services.BusinessLogic
 
     public interface IImageRecognitionService
     {
-        Task<List<(QRCodeData, Bitmap)>> BasicQRRecognitionAsync(List<Bitmap> sourceImages, string imagePath);
-        Task<List<(QRCodeData, Bitmap)>> DeepQRRecognitionAsync(List<Bitmap> sourceImages, string imagePath);
-        Task<InvoiceDTO?> DeepTextRecognitionAsync(List<Bitmap> sourceImages, List<Bitmap> enhancedImages, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits);
+        Task<(QRCodeData, Bitmap)> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath);
+        Task<(QRCodeData, Bitmap)> DeepQRRecognitionAsync(Bitmap sourceImage, string imagePath);
+        Task<InvoiceDTO?> DeepTextRecognitionAsync(List<Bitmap> sourceImages, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits);
       
 
     }
@@ -42,120 +42,98 @@ namespace UpRestEye3.Services.BusinessLogic
             _pipelineHelper = pipelineHelper;
         }
 
-        public async Task<List<(QRCodeData, Bitmap)>> BasicQRRecognitionAsync(List<Bitmap> sourceImages, string imagePath)
+        public async Task<(QRCodeData, Bitmap)> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath)
         {
-            var result = new List<(QRCodeData, Bitmap)>();
+           
+            // Шаг 1. Создание дайджеста изображения
+            var digest = _qrProcessor.GenerateImageDigest(sourceImage);
 
-            foreach (var sourceImage in sourceImages)
+            // Шаг 2. Попытка распознать "в лоб"
+            if (TryDecodeQRCode(sourceImage, out QRCodeData? qrCodeData))
+                return ((qrCodeData, sourceImage));
+
+            // Шаг 3. Обработка по пайплайну от модели
+            var predictedPipeline = _predictor.Predict(digest);
+            if (predictedPipeline != null && predictedPipeline.Any())
             {
-
-                // Шаг 1. Создание дайджеста изображения
-                var digest = _qrProcessor.GenerateImageDigest(sourceImage);
-
-                // Шаг 2. Попытка распознать "в лоб"
-                if (TryDecodeQRCode(sourceImage, out QRCodeData? qrCodeData))
-                {
-                    result.Add((qrCodeData, sourceImage));
-                    continue;
-                }
-
-                // Шаг 3. Обработка по пайплайну от модели
-                var predictedPipeline = _predictor.Predict(digest);
-                if (predictedPipeline != null && predictedPipeline.Any())
-                {
-                    var processedImagePred = _qrProcessor.ApplyImageProcessing(sourceImage, predictedPipeline, imagePath, "basicQR-predPL");
-                    if (TryDecodeQRCode(processedImagePred, out qrCodeData))
-                    {
-                        result.Add((qrCodeData, processedImagePred));
-                        continue;
-                    }
-                }
-
-                // Шаг 4. Обработка по алгоритмически подбранному по дайджесту пайплайну
-                var calculatedPipeline = _pipelineHelper.GetCalculatedPipeline(digest);
-                if (calculatedPipeline != null)
-                {
-                    var processedImageCalc = _qrProcessor.ApplyImageProcessing(sourceImage, calculatedPipeline, imagePath, "basicQR-calcPL");
-                    if (TryDecodeQRCode(processedImageCalc, out qrCodeData))
-                    {
-                        _predictor.UpdateModel(digest, calculatedPipeline); // Обучение
-                        result.Add((qrCodeData, processedImageCalc));
-                        continue;
-                    }
-                }
-
-                // Шаг 5. На всякий случай пробумем по дефолтному пайплайну на основе умолчательного конструктора
-                var defaultPipeline = _pipelineHelper.GetDefaultPipeline();
-                var processedImageDef = _qrProcessor.ApplyImageProcessing(sourceImage, defaultPipeline, imagePath, "basicQR-defPL");
-                if (TryDecodeQRCode(processedImageDef, out qrCodeData))
-                {
-                    _predictor.UpdateModel(digest, defaultPipeline); // Обучение
-                    result.Add((qrCodeData, processedImageDef));
-                    continue;
-                }
-                else
-                {
-                    // Если не удалось распознать QR-код, добавляем в результат null
-                    result.Add((null, sourceImage));
-                }
-
+                var processedImagePred = _qrProcessor.ApplyImageProcessing(sourceImage, predictedPipeline, imagePath, "basicQR-predPL");
+                if (TryDecodeQRCode(processedImagePred, out qrCodeData))
+                    return (qrCodeData, processedImagePred);
             }
-            return result;
+
+            // Шаг 4. Обработка по алгоритмически подбранному по дайджесту пайплайну
+            var calculatedPipeline = _pipelineHelper.GetCalculatedPipeline(digest);
+            if (calculatedPipeline != null)
+            {
+                var processedImageCalc = _qrProcessor.ApplyImageProcessing(sourceImage, calculatedPipeline, imagePath, "basicQR-calcPL");
+                if (TryDecodeQRCode(processedImageCalc, out qrCodeData))
+                {
+                    _predictor.UpdateModel(digest, calculatedPipeline); // Обучение
+                    return (qrCodeData, processedImageCalc);
+                }
+            }
+
+            // Шаг 5. На всякий случай пробумем по дефолтному пайплайну на основе умолчательного конструктора
+            var defaultPipeline = _pipelineHelper.GetDefaultPipeline();
+            var processedImageDef = _qrProcessor.ApplyImageProcessing(sourceImage, defaultPipeline, imagePath, "basicQR-defPL");
+            if (TryDecodeQRCode(processedImageDef, out qrCodeData))
+            {
+                _predictor.UpdateModel(digest, defaultPipeline); // Обучение
+                return (qrCodeData, processedImageDef);
+            }
+           
+            // Если не удалось распознать QR-код, добавляем в результат null
+            return (null, sourceImage);
+        
         }
 
 
-        public async Task<List<(QRCodeData, Bitmap)>> DeepQRRecognitionAsync(List<Bitmap> sourceImages, string imagePath)
+        public async Task<(QRCodeData, Bitmap)> DeepQRRecognitionAsync(Bitmap sourceImage, string imagePath)
         {
-            var result = new List<(QRCodeData, Bitmap)>();
 
-            foreach (var sourceImage in sourceImages)
+
+            // Шаг 1. Создание дайджеста изображения
+            var digest = _qrProcessor.GenerateImageDigest(sourceImage);
+
+            // Шаг 2. Создание набора пайплайнов на все случаи жизни 
+            var pipelines = _pipelineHelper.GetPipelines();
+            bool isQRGotten = false;
+            // Шаг 3. Обработка всех вариантов в цикле
+            foreach (var pipeline in pipelines)
             {
-
-                // Шаг 1. Создание дайджеста изображения
-                var digest = _qrProcessor.GenerateImageDigest(sourceImage);
-
-                // Шаг 2. Создание набора пайплайнов на все случаи жизни 
-                var pipelines = _pipelineHelper.GetPipelines();
-                bool isQRGotten = false;
-                // Шаг 3. Обработка всех вариантов в цикле
-                foreach (var pipeline in pipelines)
+                var processedImage = _qrProcessor.ApplyImageProcessing(sourceImage, pipeline.Item2, imagePath, @$"deepQR-allPLs-{pipeline.Item1}");
+                if (TryDecodeQRCode(processedImage, out QRCodeData? qrCodeData))
                 {
-                    var processedImage = _qrProcessor.ApplyImageProcessing(sourceImage, pipeline.Item2, imagePath, @$"deepQR-allPLs-{pipeline.Item1}");
-                    if (TryDecodeQRCode(processedImage, out QRCodeData? qrCodeData))
-                    {
-                        _predictor.UpdateModel(digest, pipeline.Item2); // Обучение модели
-                        result.Add( (qrCodeData, processedImage) );
-                        isQRGotten = true;
-                        continue;
-                    }
-                }
-
-                if (!isQRGotten)
-                {
-                    result.Add((null, sourceImage));
-                    continue;
+                    _predictor.UpdateModel(digest, pipeline.Item2); // Обучение модели
+                    return (qrCodeData, processedImage);
                 }
             }
-            return result;
+
+            return (null, sourceImage);
         }
 
 
-        public async Task<InvoiceDTO?> DeepTextRecognitionAsync(List<Bitmap> sourceImage, List<Bitmap> enhancedImage, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
+        public async Task<InvoiceDTO?> DeepTextRecognitionAsync(List<Bitmap> sourceImages, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
-            // Обращение к внешней OCR
-            var recognizedText = await _textRecognizer.TextRecognize(sourceImage);
-            if (recognizedText == null)
+            var textByLines = new ResortedSimplifiedDocument()
+            { Pages = new List<SimplifiedRowPage>() };
+
+            var textProcessor = new RecognizedTextProcessor();
+
+            foreach (var sourceImage in sourceImages)
             {
-                // Пробуем повторно, с улучшеным изображением
-                recognizedText = await _textRecognizer.TextRecognize(enhancedImage);
-                if(recognizedText == null)
+                // Обращение к внешней OCR
+                var recognizedText = await _textRecognizer.TextRecognize(sourceImage);
+                
+                if (recognizedText == null)
                     throw new Exception($"Text recognition error: Unable to recognize text in the image");
+
+                textByLines.Pages.AddRange (textProcessor.ProcessSimplifiedDocument(recognizedText).Pages);
             }
 
             // Сортировка строк
-            RecognizedTextProcessor textProcessor = new RecognizedTextProcessor();
-            var textByLines = textProcessor.ProcessSimplifiedDocument(recognizedText);
-            if (textByLines == null)
+
+            if (textByLines.Pages.Count == 0)
                 throw new Exception($"Text recognition error: String sorting error");
 
             // Определение таблицы продуктов    

@@ -144,39 +144,41 @@ namespace UpRestEye3.Services.Controllers
 
 
         [HttpGet("{invoiceId}/scanned-image")]
-        public async Task<IActionResult> GetScannedFile(int invoiceId)
+        public async Task<IActionResult> GetScannedFile(int invoiceId, [FromQuery] string? fileName)
         {
             // Получаем информацию о накладной
             var invoice = await _invoiceService.GetInvoiceDAOByIdAsync(invoiceId);
             if (invoice == null)
-            {
                 return NotFound(new { message = "Invoice not found." });
-            }
 
             // Проверяем, указан ли путь к файлу
             if (string.IsNullOrEmpty(invoice.FilePath))
-            {
                 return NotFound(new { message = "Scanned file not found for this invoice." });
+
+
+            // Разбиваем FilePath на массив файлов
+            var files = invoice.FilePath.Split("; ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            string targetFile = files.FirstOrDefault();
+            if (!string.IsNullOrEmpty(fileName))
+            {
+                // Ищем файл по имени
+                targetFile = files.Where(f => f.Equals(fileName, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                if (targetFile == null)
+                    return NotFound(new { message = "Requested file not found in invoice." });
             }
 
-            // Проверяем существование файла
-            if (!System.IO.File.Exists(invoice.FilePath))
-            {
-                return NotFound(new { message = "Scanned file does not exist on the server." });
-            }
 
             try
             {
                 // Проверка, конвертация и загрузка изображения
                 var imageLoader = new ImageLoader();
-                var image = imageLoader.LoadImage(invoice.FilePath);
+                var image = imageLoader.LoadImage(targetFile);
 
                 // Читаем файл и возвращаем его
-                var fileBytes = imageLoader.ConvertBitmapToByteArray(image[0]); //await System.IO.File.ReadAllBytesAsync(invoice.FilePath);
-                var fileName = Path.GetFileName(invoice.FilePath);
-                var contentType = "application/octet-stream"; // Можно уточнить MIME-тип, если известно
-
-                return File(fileBytes, contentType, fileName);
+                var fileBytes = imageLoader.ConvertBitmapToByteArray(image[0].Item1);
+                var contentType = "application/octet-stream";
+                return File(fileBytes, contentType, Path.GetFileName(targetFile));
             }
             catch (Exception ex)
             {

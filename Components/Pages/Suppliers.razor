@@ -49,6 +49,7 @@
                             <th>Bank Account</th>
                             <th>Status</th>
                             <th style="text-align: center;">Actions</th>
+                            <th>Invoices</th> <!-- Новая колонка -->
                         </tr>
                     </thead>
                     <tbody>
@@ -68,6 +69,14 @@
                                     <button class="custom-btn" @onclick="async () => await ShowProductDetailsAsync(supplier)">
                                         <i class="fa fa-pencil" aria-hidden="true"></i>
                                     </button>
+                                </td>
+                                <td>
+                                    @if (supplier.HasInvoices)
+                                    {
+                                        <a href="javascript:void(0)" @onclick="() => NavigateToInvoices(supplier.Id)">
+                                            >>
+                                        </a>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -161,6 +170,13 @@
             {
                 editSupplier.RMSSupplierId = null;
             }
+        }
+    }
+    private void NavigateToInvoices(int? supplierId)
+    {
+        if (supplierId.HasValue)
+        {
+            Navigation.NavigateTo($"/invoices?supplierId={supplierId.Value}");
         }
     }
 

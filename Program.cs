@@ -248,7 +248,7 @@ void StartInvoiceProcessingQueue(IServiceProvider services)
 
 
             // Стратегия выборки: порциями по 10 записей
-            var invoices = await invoiceService.GetInvoicesDAOAsync(null,null);
+            var invoices = await invoiceService.GetInvoicesDAOAsync(null,null,null);
             var filteredInvoices = invoices
                 .Where(i => (
                             (i.Stage == InvoiceStageEnum.New && i.StageStatus == InvoiceStatusEnum.Ok )||
@@ -269,7 +269,8 @@ void StartInvoiceProcessingQueue(IServiceProvider services)
                     // Проверяем, не заблокирована ли накладная
                     if (await processingLockService.TryLockAsync(invoice.Id.Value))
                     {
-                        queue.Add(new Tuple<int, int>(invoice.Id.Value, invoice.ConsumerId.Value)); // Добавляем ID накладной и consumerId в очередь
+                        var tuple = new Tuple<int, int>(invoice.Id.Value, invoice.ConsumerId.Value);
+                        queue.Add(tuple); // Добавляем ID накладной и consumerId в очередь
                     }
                 }
             }
