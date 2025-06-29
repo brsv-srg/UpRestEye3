@@ -175,15 +175,7 @@
     touch-action: none; /* Отключение жестов браузера для корректной работы */
 }
 
-/* Изображение */
-.scanned-image {
-    position: absolute;
-    top: 0;
-    left: 0;
-    transform-origin: center center; /* Точка увеличения */
-    transition: transform 0.1s ease; /* Плавное увеличение */
-    cursor: grab; /* Указатель мыши для перемещения */
-}
+
 
 .wider-dropdown {
     width: 500px !important; /* Укажите желаемую ширину */
@@ -198,3 +190,10 @@
 .nospin {
     -moz-appearance: textfield;
 }
+
+
+
+.transform-origin-top-left {
+    transform-origin: top left;
+}
+

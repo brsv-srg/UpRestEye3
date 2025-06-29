@@ -291,7 +291,7 @@ namespace UpRestEye3.Services.DataLayer
                     // Remove Invoice Products that are not in the new list
                     foreach (var existingProduct in existingInvoiceProducts)
                     {
-                        if (!newInvoiceProducts.Any(c => c.ProductName == existingProduct.ProductName && c.ProductCode == existingProduct.ProductCode))
+                        if (!newInvoiceProducts.Any(c => c.Id == existingProduct.Id))
                         {
                             //_context.Remove(existingProduct);
                             newInvoiceProducts.Add(existingProduct);

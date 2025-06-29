@@ -49,9 +49,9 @@ namespace UpRestEye3.Services.Recognition
             TextAnnotation text = clientIA.DetectDocumentText(googleImage);
             Console.WriteLine($"Text: {text.Text}");
 
-            HtmlGenerator htmlGenerator = new HtmlGenerator();
-            var html = htmlGenerator.GenerateHtmlFromTextAnnotation(text);
-            htmlGenerator.SaveHtmlToFile(html, "hhttmmllTextAnnotation.html");
+            //HtmlGenerator htmlGenerator = new HtmlGenerator();
+            //var html = htmlGenerator.GenerateHtmlFromTextAnnotation(text);
+            //htmlGenerator.SaveHtmlToFile(html, "hhttmmllTextAnnotation.html");
 
             // Упрощенная структура для сериализации
             simplifiedDocument = new SimplifiedDocument

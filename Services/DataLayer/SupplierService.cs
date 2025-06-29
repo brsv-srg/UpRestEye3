@@ -115,6 +115,7 @@ namespace UpRestEye3.Services.DataLayer
 
                 var newSupplierDAO = new SupplierDAO
                 {
+                    Id = supplierDTO.Id,
                     Name = supplierDTO.Name,
                     TaxNumber = supplierDTO.TaxNumber,
                     BankAccount = supplierDTO.BankAccount,
@@ -167,8 +168,7 @@ namespace UpRestEye3.Services.DataLayer
 
                     //newSupplierDAO.Status = SupplierStatus.Changed;
                     _context.Entry(newSupplierDAO).State = EntityState.Modified;
-
-
+                    
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
                     return newSupplierDAO.Id;

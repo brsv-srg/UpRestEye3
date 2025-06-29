@@ -490,29 +490,24 @@
 
 
 								<div class="col-md-4">
-									<div class="mb-3">
 
-										@if (!string.IsNullOrEmpty(scannedImageBase64))
-										{
-											<img src="data:image/png;base64,@scannedImageBase64" alt="Scanned Document" class="img-fluid" />
-										}
-										else
-										{
-											<p><em>Loading scanned document...</em></p>
-										}
-										@if (invoiceFilePaths.Count > 1)
-										{
-											<div class="mb-2 d-flex justify-content-center">
-												@for (int i = 0; i < invoiceFilePaths.Count; i++)
-												{
-													var pageIndex = i;
-													<button type="button" class="btn btn-link mx-1 @(selectedInvoicePage == pageIndex ? "fw-bold text-primary" : "")"
-															@onclick="async () => await OnInvoicePageSelected(pageIndex)">
-														@(pageIndex + 1)
-													</button>
-												}
+									<div class="d-flex flex-column h-100">
+										<div class="flex-grow-1 position-relative overflow-hidden border">
+											<div class="h-100 w-100 position-relative overflow-hidden" id="imageContainer">
+												<img src="data:image/png;base64,@scannedImageBase64" alt="Scanned Document" class="position-absolute transform-origin-top-left" id="zoomableImage" onload="initializeImageHandlers()" />
 											</div>
-										}
+										</div>
+										
+										<div class="d-flex justify-content-center align-items-center p-2 border-top">
+											@for (int i = 0; i < invoiceFilePaths.Count; i++)
+											{
+												var pageIndex = i;
+												<button type="button" class="btn btn-link mx-1 @(selectedInvoicePage == pageIndex ? "fw-bold text-primary" : "")"
+														@onclick="async () => await OnInvoicePageSelected(pageIndex)">
+													@(pageIndex + 1)
+												</button>
+											}
+										</div>
 									</div>
 								</div>
 
@@ -559,6 +554,7 @@
 	}
 </script>
 
+
 <script>
 	function alignTotalPriceSum() {
 		const header = document.getElementById('totalPriceHeader');
@@ -578,10 +574,11 @@
 
 		}
 	}
-
 </script>
+
+
 <script>
-	function initializeSelect2WithLocalData(selector, products, initialValue, dotNetHelper) 
+	function initializeSelect2WithLocalData(selector, products, initialValue, dotNetHelper)
 	{
 
 		console.log("Initializing Select2 for:", selector);
@@ -595,13 +592,9 @@
 
 		console.log("Formatted product data for Select2:", productData);
 
-
-		
-		
-		
 		console.log("Initializing 2 Select2 for:", selector);
 
-		if ($(selector).length > 0) 
+		if ($(selector).length > 0)
 		{
 			console.log("Element found:", selector);
 
@@ -611,33 +604,33 @@
 				,dropdownParent: $('#invoiceModal') // Привязываем выпадающий список к текущему модальному окну
 				,dropdownCssClass: "wider-dropdown"
 			});
-		
+
 			console.log("Select2 initialized successfully for:", selector);
 
 			const isSelect2Initialized = $(selector).data('select2') !== undefined;
 			console.log("Is Select2 initialized:", isSelect2Initialized);
-		} 
+		}
 		else {
 			console.error("Element not found:", selector);
 		}
 
 		// Устанавливаем начальное значение, если оно задано
-		if (initialValue) 
+		if (initialValue)
 		{
 			console.log("Initial value:", initialValue);
 			$(selector).val(initialValue).trigger('change');
 		}
 
 		// Обработка события выбора
-		$(selector).on('select2:select', function (e) 
+		$(selector).on('select2:select', function (e)
 		{
 			const selectedValue = $(this).val();
 			console.log("Selected value:", selectedValue);
-            dotNetHelper.invokeMethodAsync('OnProductSelected', selectedValue, selector);
+			dotNetHelper.invokeMethodAsync('OnProductSelected', selectedValue, selector);
 		});
 	}
-	
-	function isElementInDOM(selector) 
+
+	function isElementInDOM(selector)
 	{
 		return document.querySelector(selector) !== null;
 	}
@@ -645,7 +638,115 @@
 
 </script>
 
+<script>
 
+	function initializeImageHandlers() {
+		console.log("Initializing image handlers...");
+
+		const container = document.getElementById("imageContainer");
+		const image = document.getElementById("zoomableImage");
+
+		if (!container || !image) {
+			console.warn("Container or image not found. Skipping event listener registration.");
+			return;
+		}
+
+		console.log("Container and image found. Setting up handlers...");
+		
+		
+
+		let scale = 1; // Текущий масштаб
+		let originX = 0; // Горизонтальное смещение
+		let originY = 0; // Вертикальное смещение
+		let isDragging = false; // Флаг для отслеживания перетаскивания
+		let isGrabbed = false; // Новый флаг
+		let startX, startY; // Начальные координаты мыши при перетаскивании
+		//container.style.cursor = "grab";
+
+		// Функция для обновления трансформации изображения
+		function updateTransform() {
+			image.style.transform = `scale(${scale}) translate(${originX}px, ${originY}px)`;
+			console.log(`Transform applied: scale(${scale}) translate(${originX}px, ${originY}px)`);
+		}
+
+		// Масштабирование через колесо мыши
+		container.addEventListener("wheel", (e) => {
+			e.preventDefault();
+
+			const delta = e.deltaY > 0 ? -0.1 : 0.1;
+			const newScale = Math.min(Math.max(0.1, scale + delta), 5);
+
+			scale = newScale;
+			updateTransform();
+		});
+
+
+		// Начало перетаскивания
+		container.addEventListener("mousedown", (e) => {
+			e.preventDefault();
+			console.log(`grabbing??: state=${isGrabbed}`);
+			if (!isGrabbed) {
+				console.log(`grabbing: originX=${originX}, originY=${originY}`);
+				isGrabbed = true;
+				container.style.cursor = "grabbing";
+				// Запоминаем смещение относительно текущей позиции
+				startX = e.clientX - originX;
+				startY = e.clientY - originY;
+			} else {
+				console.log(`Stop grabbing: originX=${originX}, originY=${originY}`);
+				isGrabbed = false;
+				container.style.cursor = "grab";
+			}
+		});
+
+		// Перетаскивание
+		container.addEventListener("mousemove", (e) => {
+			console.log(`move - grabbing??: state=${isGrabbed}`);
+			if (!isGrabbed) return;
+
+			originX = e.clientX - startX;
+			originY = e.clientY - startY;
+			console.log(`Mouse move: originX=${originX}, originY=${originY}`);
+			updateTransform();
+		});
+
+
+
+		// Подгонка изображения при загрузке
+		image.addEventListener("load", fitImageToContainer);
+
+		// Обновление размеров при изменении размеров окна
+		window.addEventListener("resize", fitImageToContainer);
+
+		// Функция для подгонки изображения под высоту контейнера
+		function fitImageToContainer() {
+			const containerRect = container.getBoundingClientRect();
+
+			// Проверяем, доступны ли размеры изображения
+			if (!image.naturalWidth || !image.naturalHeight) {
+				console.warn("Image natural dimensions are not available yet.");
+				return;
+			}
+
+			const imageNaturalWidth = image.naturalWidth;
+			const imageNaturalHeight = image.naturalHeight;
+
+			// Рассчитываем масштаб для высоты контейнера
+			scale = containerRect.height / imageNaturalHeight;
+
+			// Центрируем изображение по горизонтали
+			originX = (containerRect.width - imageNaturalWidth * scale) / 2;
+			originY = 0; // Начальное положение по вертикали
+
+			console.log(`Fit image to container: scale=${scale}, originX=${originX}, originY=${originY}`);
+			updateTransform();
+		}
+
+		// Инициализация
+		fitImageToContainer();
+	}
+
+</script>
 
 
 
@@ -1032,6 +1133,7 @@
 		if (scannedImageCache.TryGetValue((invoiceId, pageIndex), out var cachedImage))
 		{
 			scannedImageBase64 = cachedImage;
+			
 			return;
 		}
 
@@ -1046,6 +1148,7 @@
 
 				// Сохраняем изображение в кэш
 				scannedImageCache[(invoiceId, pageIndex)] = scannedImageBase64;
+
 			}
 			else
 			{
@@ -1648,8 +1751,8 @@
 
 		if (response.IsSuccessStatusCode)
 		{
-			await ShowMessage("Invoice updated successfully", "alert-success");
 			InvoiceHelper.CopyInvoice(selectedInvoice, editInvoice);
+			await ShowMessage("Invoice updated successfully", "alert-success");
 		}
 		else
 		{
