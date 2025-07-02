@@ -223,9 +223,11 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
   - Variants (e.g., flavor, cut),
   - Supplemental rows (e.g., batch number, Lote, descriptions).
 - Tables may **continue from one page to the next**, or even start mid-page.
-- Continue extraction until clearly unrelated content begins (e.g., totals, taxes, notes).
+- On each page continue extraction until clearly unrelated content begins (e.g., totals, taxes, notes).
 - Include rows from **all pages** as needed.
 - Merge rows from multiple pages into a single logical table in `ProductRows`, even if they are visually separated.
+- ⚠️**Do not skip any rows that may represent products.**
+
 
 For each row:
 - Preserve:

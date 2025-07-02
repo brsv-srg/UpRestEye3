@@ -92,10 +92,10 @@ namespace UpRestEye3.Services.BusinessLogic
             base.Validate(invoice, customerTaxId);
 
             if (invoice.Products.Any(p => string.IsNullOrEmpty(p.ProductName) ||
-                                           p.ProductTotalValue <= 0 ||
+                                           p.ProductTotalValue < 0 ||
                                            p.TaxCategory == null ||
                                            string.IsNullOrEmpty(p.Unit) ||
-                                           p.Quantity <= 0
+                                           p.Quantity < 0
                                            //|| (!string.IsNullOrEmpty(p.Container) && p.Count == null)
                                            ))
 

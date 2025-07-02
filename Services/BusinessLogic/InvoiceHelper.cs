@@ -419,6 +419,8 @@ namespace UpRestEye3.Services.BusinessLogic
 
 
                 integrationItem.IsAdditionalExpense = false;
+
+                //integrationItem.Amount = item.Quantity;
                 integrationItem.Amount = item.RMSContainer == null ? item.Quantity : item.Quantity * item.RMSContainer.Count;
                 integrationItem.ActualAmount = integrationItem.Amount;
 

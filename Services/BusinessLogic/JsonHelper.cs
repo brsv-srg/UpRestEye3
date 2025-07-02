@@ -517,14 +517,6 @@ namespace UpRestEye3.Services.BusinessLogic
                                     ""type"": ""number"",
                                     ""description"": ""Quantity/volume/units per container (in the specified `Unit`, or in KG for weighed products and in L for liquids)""
                                 }},
-                                ""PricePerUnitKG"": {{ 
-                                    ""type"": ""number"",
-                                    ""description"": ""Price of one measure unit""
-                                }},
-                                ""PricePerContainer"": {{ 
-                                    ""type"": ""number"",
-                                    ""description"": ""Price of one container ""
-                                }},
                                 ""ProductTotalValue"": {{ 
                                     ""type"": ""number"",
                                     ""description"": ""Total cost of the product""

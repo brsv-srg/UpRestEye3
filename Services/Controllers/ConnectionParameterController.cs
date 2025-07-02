@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using UpRestEye3.Models.Account;
 using UpRestEye3.Models.DTO;
@@ -37,3 +39,4 @@ namespace UpRestEye3.Services.Controllers
         }
     }
 }
+

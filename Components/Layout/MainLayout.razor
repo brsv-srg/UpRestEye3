@@ -1,5 +1,7 @@
 ﻿@inherits LayoutComponentBase
 @inject NavigationManager Navigation
+@inject HttpClient Http
+
 
 
 <div class="page">
@@ -13,7 +15,9 @@
                 <Authorized>
                     @* <i class="bi bi-person-header-ico"></i> *@
                     <span class="me-2" >@context.User.Identity.Name</span>
-                    <a href="" title="Logout" @onclick="Logout" @onclick:preventDefault>Logout</a>
+                    <button type="button" class="btn btn-link p-0 border-0" @onclick="async () => await Lom()">Logout</button>
+
+                    @* <a href="#" @onclick="Logout" @onclick:preventDefault>Logout</a> *@
                     @* <i class="bi bi-logout-ico"></i> *@
                     
                 </Authorized>
@@ -36,8 +40,36 @@
 </div>
 
 @code {
-    private async Task Logout()
+    protected override void OnInitialized()
     {
-        Navigation.NavigateTo("Identity/Account/Logout", forceLoad: true);
+        Console.WriteLine("MainLayout initialized");
     }
+    private async Task Lom()
+    {
+        Console.WriteLine("Logout initialized");
+
+    }
+    private async Task Logout2()
+    {
+        Console.WriteLine("Logout initialized");
+        var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var content = new FormUrlEncodedContent(new[]
+        {
+            new KeyValuePair<string, string>("returnUrl", returnUrl)
+        });
+
+        var response = await Http.PostAsync("/Account/Logout", content);
+
+        if (response.IsSuccessStatusCode)
+        {
+            // Перенаправление после выхода
+            Navigation.NavigateTo("/Account/Login");
+        }
+        else
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Logout failed: {error}");
+        }
+    }
+
 }

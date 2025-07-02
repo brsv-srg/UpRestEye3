@@ -216,6 +216,8 @@ void StartInvoiceProcessingQueue(IServiceProvider services)
                     {
                         await hubContext.Clients.All.SendAsync("ReceiveMessage", $"[Thread {i}] Invoice processing started {invoiceId} for consumerId {consumerId}");
                         Console.WriteLine($"[Thread {i}] Invoice processing started {invoiceId} for consumerId {consumerId}");
+
+
                         // Обработка накладной
                         await invoiceProcessor.InvoiceFileProcessAsync(invoiceId, consumerId);
 

@@ -127,58 +127,8 @@ namespace UpRestEye3.Services.Recognition
         }
 
 
-        private const string _systemPromptForParsingLiteralOld = $@"
-You are an AI assistant specialized in extracting structured product data from OCR-recognized Invoices.
-Your task is to extract the list of Grocery Products from the provided OCR Invoice text, and return a well-structured JSON according to the given schema.
 
-### **Processing Guidelines:**
-1. **General Rules**
-    - Ensure strict adherence to the provided JSON structure.
-    - **Do not return JSON schema descriptions**, only the extracted data.
-
-2. **Invoice Information**
-    - The data recognized by OCR consists of: 
-        -- Product table headers in the ProductHeaders block, 
-        -- Table rows with products in the ProductRows block, 
-        -- Headers of the table of tax categories in the TaxCategoriesHeaders block
-        -- List of tax categories in the TaxCategoriesRows block.
-    - All data are accompanied by coordinates of their location on the cheque. The format of coordinates is: (TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY).
-    - The invoice can be on A4 size paper and then it contains detailed data. Or it can be a narrow cashier's cheque from a cash register printer, in which case it contains abbreviated data.
-    - Use the provided coordinates to determine positions and relationships between the fields.
-       
-3. **Product List Headers Extraction**
-    - Identify the main product table headers and their coordinates. 
-    - Headers may include terms like **Code** (if available), **Name**, **Unit**, **Quantity**, **Tax Category** or **IVA**, and **Total Price**, etc. These headers may also appear in Portuguese or as abbreviations.
-    - A single header may consist of multiple words. Use semantic meaning and neighboring words to determine if a header is composite. If so, combine them into one and **recalculate the header’s coordinates** accordingly.
-    - Next, **increase the width of the header**. Adjust the coordinates of each header as follows: **shift the left X coordinates** 3 pixels to the left (Left X - 3), **shift the right X coordinates** to the beginning of the **next right header** (Current Right X = Next Right Left X). 
-
-4. **Product List Extraction**
-    - Place each word in the product line under a matching header by the X coordinate. If necessary, combine the words into one word and recalculate their coordinates. 
-    - Based on the mapping of product row data to headings, and based on the meaning of the heading, extract the following properties for each product:
-        -- Product code and name;
-        -- Measurement unit, container type, quantity per container, and number of containers;
-        -- Tax category and the total cost value of the entire product (unit price multiplied by quantity).
-    - The name of the unit of measure must match one of the entries from the provided dictionary **MeasureUnits** . 
-
-5. **Determination of tax categories**
-    - Each product’s **Tax Category** must match one of the predefined categories and percentage rates:
-    - Valid tax values: `'23'`, `'13'`, `'6'` or the corresponding names: `'Normal'`, `'Intermedia'`, `'Redusido'`, including their common abbreviations (e.g., `'Nor'`, `'Int'`, `'Red'`, etc.).
-    - In some cases, tax categories in the product list are represented by letters or numbers, which are explained in a summary section TaxCategoriesRows. For the product list, use the full tax category names instead of the designations.
-
-6. **Total Verification**
-    - Ensure the sum of all extracted product values matches the given **TotalAmount**, either:
-        -- directly (if **ProductTotalValue** includes tax), or
-        -- as **TotalAmount** - **TotalIVA** (if **ProductTotalValue** excludes tax).
-
-4. **Output** 
-    - Check every extracted product and ensure that the extracted data **matches** the expected values.
-    - Output the extracted products in JSON format** strictly following the response schema.
-    - If there is a discrepancy, return a warning in the **Comments** field.
-";
-
-
-private const string _systemPromptForParsingLiteral = $@"
-
+private const string _systemPromptForParsingLiteral = @"
 You are an AI assistant specialized in extracting structured product data from OCR-recognized Invoices.  
 Your task is to extract only the list of **Grocery Products** from the provided structure `InvoiceTablesData` with OCR Invoice text, and return a well-structured JSON according to the given schema.
 
@@ -220,7 +170,9 @@ Your task is to extract only the list of **Grocery Products** from the provided 
 
 ### 3. 🔍 Product Row Parsing
 
-- Process **every row** in `ProductRows`. **Do not skip damaged or incomplete rows**.
+- Process **every row** in `ProductRows`. 
+  - **Do not skip damaged or incomplete rows**.
+  - **Do not skip any rows that may represent products.**
 
 - ⚠️ Ensure that **no product rows are lost** during parsing:
   - If a row contains **price and quantity**, it must be treated as an **independent product**, even if its name is complex or resembles packaging/description.
@@ -234,9 +186,6 @@ Your task is to extract only the list of **Grocery Products** from the provided 
   - These often have long descriptive names but **must not be skipped** if price and quantity are present.
   - If in doubt — include the row as a separate product rather than risk losing it.
 
-- ✅ Treat **delivery services** as regular products:
-  - If a row includes delivery-related terms (e.g., `ENTREGA`, `DELIVERY`, `DLV`, etc.) in **Portuguese, English, or abbreviations**, and has price/quantity — process it **as a separate product** like any other.
-
 - Match words to headers by:
   - Primary method: X-coordinate position;
   - Secondary method: semantic meaning of the text.
@@ -244,6 +193,11 @@ Your task is to extract only the list of **Grocery Products** from the provided 
 - Merge multi-word values left-to-right, clean whitespace and punctuation.
 - If expected values are missing, attempt to infer them using nearby context.
 - ⚠️ Always copy the **full product name** from OCR — including brand, packaging, size/volume units, and any descriptive details — **without abbreviation or transformation**.
+
+- ✅ Treat **delivery services** as regular products:
+  - If a row includes delivery-related terms (e.g., `ENTREGA`, `DELIVERY`, `DLV`, etc.) in **Portuguese, English, or abbreviations**, and has price/quantity — process it **as a separate product** like any other.
+
+- ✅ If packaging deposit is found as rows in products table (e.g., embalagem, caucionamentos, contentores, packaging), include a single product row with ProductName = ""tara"", sum of such lines, Quantity = 1, Unit = ""pcs"", Container = """", Count = null, and TaxCategory = ""0%"".
 
 ---
 
@@ -258,7 +212,7 @@ Your task is to extract only the list of **Grocery Products** from the provided 
 
 ---
 
-### **Packaging Identification Rules**
+**Packaging Identification Rules**
 
 1. **Direct sale without packaging**  
    If only base quantity and unit is specified (e.g., `1.820 KG`, `3 L`, `15 pcs`) and **no packaging is mentioned**:
@@ -331,6 +285,9 @@ Your task is to extract only the list of **Grocery Products** from the provided 
 - Cross-check against:
   - `TotalAmount` (if tax included)
   - `TotalAmount - TotalIVA` (if excluding tax)
+
+- If there is a discount, always extract and use the final discounted price.
+
 - In the `Comments` field, note:
   - Any automatic corrections
   - Reconstructed or inferred data
@@ -350,8 +307,6 @@ Your task is to extract only the list of **Grocery Products** from the provided 
       ""Quantity"": 1.820,
       ""Container"": """",
       ""Count"": null,
-      ""PricePerUnitKG"": 2.180,
-      ""PricePerContainer"": 3.97,
       ""ProductTotalValue"": 3.97,
       ""TaxCategory"": ""Reduced""
     }},
@@ -362,8 +317,6 @@ Your task is to extract only the list of **Grocery Products** from the provided 
       ""Quantity"": 2,
       ""Container"": ""Box24x0.33L"",
       ""Count"": 24,
-      ""PricePerUnitKG"": 0.560,
-      ""PricePerContainer"": 13.44,
       ""ProductTotalValue"": 26.88,
       ""TaxCategory"": ""Normal""
     }}
@@ -371,6 +324,7 @@ Your task is to extract only the list of **Grocery Products** from the provided 
 }}
 ```
 ";
+
 
 
 
