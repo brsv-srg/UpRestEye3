@@ -33,7 +33,20 @@ namespace UpRestEye3.Models.BLO
         public List<SimplifiedRowPage> Pages { get; set; }
     }
 
+    public class TablesDataDocumentOld
+    {
+        public List<SimplifiedRow> ProductHeaders { get; set; }
+        public List<SimplifiedRow> ProductRows { get; set; }
+        public List<SimplifiedRow> TaxCategoriesHeaders { get; set; }
+        public List<SimplifiedRow> TaxCategoriesRows { get; set; }
+    }
+
     public class TablesDataDocument
+    {
+        public List<TablesDataPage> Pages { get; set; }
+    }
+
+   public class TablesDataPage
     {
         public List<SimplifiedRow> ProductHeaders { get; set; }
         public List<SimplifiedRow> ProductRows { get; set; }

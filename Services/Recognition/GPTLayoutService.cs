@@ -139,7 +139,7 @@ namespace UpRestEye3.Services.Recognition
                     using var contentDocument = JsonDocument.Parse(contentElement.GetString());
                     var rootContent = contentDocument.RootElement;
 
-                    if (rootContent.TryGetProperty("ProductHeaders", out contentElement))
+                    if (rootContent.TryGetProperty("Pages", out contentElement))
                     {
                         var options = JsonHelper.GetSerializerOptions();
 

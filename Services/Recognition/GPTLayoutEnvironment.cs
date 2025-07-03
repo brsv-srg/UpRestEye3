@@ -274,15 +274,16 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 
 ---
 
-### 🛠️ **Extraction Tasks:**
+### 🛠️ **Extraction Tasks: Do it for each Page**
 
 #### 1. **Detect Sections:**
 
 - **For each page** locate and retrieve the product table and tax section. Products or taxes may not be present on individual pages, but make sure to double check.
-- It is important to extract all rows of goods and taxes. If even a single product or tax is missing, then the whole task is not complete.
+- It is important to extract all rows of products and taxes. If even a single product or tax is missing, then the whole task is not complete.
 - It is **better to add extra rows** when in doubt **than to lose the right** ones.
 - **Don't mix up the rows**, it is important to keep the sequence that is given in the coordinates.
 - Ignore unrelated parts such as company details, addresses, notes, footers, etc.
+- Save all found on the page data in the separate Page object of the output JSON structure.
 
 ---
 
@@ -291,7 +292,7 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 - **For each Page** identify and extract the row or **group of visually consecutive rows** containing product table column headers (e.g., `Code`, `Description`, `Qty`, `Unit`, `Price`, `IVA`, `Discount`, `Total`, etc.).
 - Headers may be in **Portuguese, English**, or use common abbreviations (`Cod`, `Qtd`, `UNI`, `IVA`, etc.).
 - **Headers may span multiple lines**. If a column name is split across several rows (e.g., 'Desconto' / 'promocional'), include **all relevant rows**.
-- Store all Headers words in the output `ProductHeaders` array **exactly as recognized**:
+- Store all Headers words found on the Page in the `ProductHeaders` array in the **separate output Page object**, **exactly as recognized**:
   - Preserve original spelling, diacritics, casing, symbols.
   - Save full, unmodified coordinates in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
   - ⚠️ **Do not translate, normalize, or merge** terms.
@@ -306,11 +307,10 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
   - Variants (e.g., flavor, cut),
   - Additional rows (e.g., batch number, Lote, descriptions).
 - Continue extracting **all products** until explicitly unrelated content begins (e.g., totals, taxes, company information, notes).
-- Place all detected rows in the output array `ProductRows` strictly in their order on the page. **Do not mix or rearrange** rows.
+- Place all detected rows found on the Page in the `ProductRows` array in the **separate output Page object**, **strictly in their order** on the page. **Do not mix or rearrange** rows.
 - For each row preserve original sequence of words, symbols and casing, and raw coordinates without changes in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
 - ⚠️ **Do not skip lines that may represent products**.
 - ⚠️ Once product rows are detected, **check that quantities and prices are correctly aligned** and not mistakenly linked to neighboring products, especially if the invoice is garbled.
-- ⚠️ **Remember** the number of rows found on the Page and **remember the total number** of rows on all Pages.
 
 ##### ⚠️ Quantity + Unit Handling:
 - If a **quantity value** (e.g., `3,12`) is **next to** or **preceded/followed** by a unit (e.g., `KG`, `UNI`, `LT`, `UN`, etc.), treat them as a **logically linked pair**.
@@ -318,7 +318,6 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 - Units must **not be confused with headers** or discarded as noise.
 **Examples of valid units (case-insensitive):** `UNI`, `UN`, `KG`, `G`, `L`, `LT`, `PC`, `PACK`, `EMB`, `CX`, `DZ`.
 
-- ⚠️ **After processing all pages**, check that the **number of rows in the output `ProductRows` array** is equal to the **total number of rows** found on all pages.
 - Be careful. If even **one line is lost** from any Page, the whole recognition **task will be thwarted**.
 
 ---
@@ -326,7 +325,7 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 #### 4. **Extract Tax Table Headers:**
 
 - **For each Page** identify and extract the header row(s) for the tax section (e.g., `Incidência`, `Taxa`, `IVA`, `Valor`, `Total`).
-- Store all header words in `TaxCategoriesHeaders`, preserving:
+- Store all header words found on the Page in the `TaxCategoriesHeaders` array in the **separate output Page object**, preserving:
   - Exact text (with all symbols, accents, etc.),
   - Coordinates unmodified in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`..
 - Store only once, even if Tax Table Headers are presented on multiple Pages.
@@ -337,7 +336,7 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 
 - **For each Page** identify and extract all rows that belongs to the tax breakdown table.
 - Use the header layout to guide column matching.
-- Store all detected rows in `TaxCategoriesRows`, preserving full word details and unmodified coordinates in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
+- Store all detected rows found on the Page in the `TaxCategoriesRows` array in the **separate output Page object**, preserving full word details and unmodified coordinates in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
 
 ---
 
@@ -352,6 +351,7 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 
 - Return the result strictly as **JSON**, following the `response_format` schema.
 - **Do not return** the schema or any descriptive text — only the structured data.
+- Check carefully that **all pages and all data** have been processed and saved correctly. **Be very careful**. If **any product or tax line is missing**, the recognition **task has failed**.
 ";
 
 
@@ -498,7 +498,7 @@ For each row:
 - **Do not return** the schema or any descriptive text — only the structured data.
 ";
 
-        private const string _resultSchemeLiteral = @"
+        private const string _resultSchemeLiteralOld = @"
     {
         ""$schema"": ""http://json-schema.org/draft-07/schema#"",
         ""type"": ""object"",
@@ -581,7 +581,97 @@ For each row:
             }
         }
     }";
-        
+
+
+private const string _resultSchemeLiteral = @"
+{
+  ""$schema"": ""http://json-schema.org/draft-07/schema#"",
+  ""type"": ""object"",
+  ""properties"": {
+    ""Pages"": {
+      ""type"": ""array"",
+      ""items"": {
+        ""type"": ""object"",
+        ""properties"": {
+          ""ProductHeaders"": {
+            ""type"": ""array"",
+            ""items"": {
+              ""type"": ""object"",
+              ""properties"": {
+                ""Words"": {
+                  ""type"": ""array"",
+                  ""items"": {
+                    ""type"": ""object"",
+                    ""properties"": {
+                      ""WordText"": { ""type"": ""string"" },
+                      ""WordCoordinates"": { ""type"": ""string"" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          ""ProductRows"": {
+            ""type"": ""array"",
+            ""items"": {
+              ""type"": ""object"",
+              ""properties"": {
+                ""Words"": {
+                  ""type"": ""array"",
+                  ""items"": {
+                    ""type"": ""object"",
+                    ""properties"": {
+                      ""WordText"": { ""type"": ""string"" },
+                      ""WordCoordinates"": { ""type"": ""string"" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          ""TaxCategoriesHeaders"": {
+            ""type"": ""array"",
+            ""items"": {
+              ""type"": ""object"",
+              ""properties"": {
+                ""Words"": {
+                  ""type"": ""array"",
+                  ""items"": {
+                    ""type"": ""object"",
+                    ""properties"": {
+                      ""WordText"": { ""type"": ""string"" },
+                      ""WordCoordinates"": { ""type"": ""string"" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          ""TaxCategoriesRows"": {
+            ""type"": ""array"",
+            ""items"": {
+              ""type"": ""object"",
+              ""properties"": {
+                ""Words"": {
+                  ""type"": ""array"",
+                  ""items"": {
+                    ""type"": ""object"",
+                    ""properties"": {
+                      ""WordText"": { ""type"": ""string"" },
+                      ""WordCoordinates"": { ""type"": ""string"" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+";
+
 
 
     }
