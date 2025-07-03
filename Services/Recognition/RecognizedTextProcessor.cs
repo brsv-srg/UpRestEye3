@@ -27,6 +27,23 @@ namespace UpRestEye3.Services.Recognition
             return resortedDocument;
         }
 
+        public SimpleDocument ProcessTextDocument(SimplifiedDocument document)
+        {
+            var simpleDocument = new SimpleDocument
+            {
+                Pages = document.Pages
+                    .Select(page => new SimplePage
+                    {
+                        Words = page.Blocks
+                            .SelectMany(block => block.Paragraphs)
+                            .SelectMany(paragraph => paragraph.Words)
+                            .ToList()
+                    })
+                    .ToList()
+            };
+
+            return simpleDocument;
+        }
 
         private List<SimplifiedWord> ExtractWords(SimplifiedDocument document)
         {
@@ -242,6 +259,46 @@ namespace UpRestEye3.Services.Recognition
 
             return Math.Abs(actualY - expectedY) < tolerance;
         }
+
+        private bool IsSameLineBack(SimplifiedRow currentLine, SimplifiedWord currentWord, double averageWordHeight)
+        {
+            // Если в строке только одно слово, используем старую логику
+            if (currentLine.Words.Count < 2)
+            {
+                double lineY = currentLine.Words[0].WordCoordinates.TopLeft.Y;
+                double wordY = currentWord.WordCoordinates.TopLeft.Y;
+                return Math.Abs(lineY - wordY) < averageWordHeight * 0.5;
+            }
+
+            // 1. Собираем X и Y для всех слов в строке
+            var xs = currentLine.Words.Select(w => w.WordCoordinates.TopLeft.X).ToArray();
+            var ys = currentLine.Words.Select(w => w.WordCoordinates.TopLeft.Y).ToArray();
+
+            // 2. Линейная регрессия: y = a * x + b
+            double avgX = xs.Average();
+            double avgY = ys.Average();
+            double numerator = 0, denominator = 0;
+            for (int i = 0; i < xs.Length; i++)
+            {
+                numerator += (xs[i] - avgX) * (ys[i] - avgY);
+                denominator += (xs[i] - avgX) * (xs[i] - avgX);
+            }
+            double a = denominator == 0 ? 0 : numerator / denominator; // наклон
+            double b = avgY - a * avgX; // смещение
+
+            // 3. Ожидаемая Y-координата для X текущего слова
+            double expectedY = a * currentWord.WordCoordinates.TopLeft.X + b;
+            double actualY = currentWord.WordCoordinates.TopLeft.Y;
+
+            // 4. Чувствительный порог (можно варьировать)
+            double tolerance = averageWordHeight * 0.5;
+
+            // 5. Проверяем, попадает ли слово в тренд линии
+            return Math.Abs(actualY - expectedY) < tolerance;
+        }
+
+
+
         private List<SimplifiedLinesBlock> GroupLinesIntoBlocks(List<SimplifiedRow> rows, double averageWordHeight)
         {
             var blocks = new List<SimplifiedLinesBlock>();

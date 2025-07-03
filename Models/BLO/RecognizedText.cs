@@ -72,6 +72,16 @@ namespace UpRestEye3.Models.BLO
         public List<SimplifiedWord> Words { get; set; }
     }
 
+    public class SimplePage
+    {
+        public List<SimplifiedWord> Words { get; set; }
+    }
+
+    public class SimpleDocument
+    {
+        public List<SimplePage> Pages { get; set; }
+    }
+
     public class SimplifiedWord
     {
         public string WordText { get; set; }

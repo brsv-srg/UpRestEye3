@@ -14,6 +14,7 @@ namespace UpRestEye3.Services.Recognition
     public interface IGPTLayoutService
     {
         Task<TablesDataDocument> LayoutParsingByLLM(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice);
+        Task<TablesDataDocument> LayoutParsingByLLM2(SimpleDocument invoiceText, InvoiceDTO currentInvoice);
 
     }
 
@@ -32,6 +33,52 @@ namespace UpRestEye3.Services.Recognition
             {
                 // Сериализация тела запроса
                 var jsonBody = _env.GetLayoutRequestBody(invoiceText, currentInvoice);
+
+
+                var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+
+
+                // Конфигурация HTTP-клиента
+                using var httpClient = new HttpClient
+                {
+                    Timeout = TimeSpan.FromMinutes(5) // Increase timeout to 5 minutes
+                };
+
+                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _env.GetApiKey());
+                Console.WriteLine($"Sending request to OpenAI API:..{httpContent.ToString()}");
+                // Отправка POST-запроса
+                var response = await httpClient.PostAsync(_env.GetURL(), httpContent);
+
+                // Проверка ответа
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"OpenAI API error: {errorContent}");
+                }
+
+
+                // Чтение и возврат результата
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                var productTable = ResponseInvoiceParsing(responseContent);
+
+
+                return productTable;
+
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error parsing JSON response to Invoice object", ex);
+            }
+        }
+
+
+        public async Task<TablesDataDocument> LayoutParsingByLLM2(SimpleDocument invoiceText, InvoiceDTO currentInvoice)
+        {
+            try
+            {
+                // Сериализация тела запроса
+                var jsonBody = _env.GetLayoutRequestBody2(invoiceText, currentInvoice);
 
 
                 var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");

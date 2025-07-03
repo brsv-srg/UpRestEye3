@@ -115,8 +115,8 @@ namespace UpRestEye3.Services.BusinessLogic
 
         public async Task<InvoiceDTO?> DeepTextRecognitionAsync(List<Bitmap> sourceImages, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
-            var textByLines = new ResortedSimplifiedDocument()
-            { Pages = new List<SimplifiedRowPage>() };
+            var textByLines = new SimpleDocument()
+            { Pages = new List<SimplePage>() };
 
             var textProcessor = new RecognizedTextProcessor();
 
@@ -128,7 +128,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 if (recognizedText == null)
                     throw new Exception($"Text recognition error: Unable to recognize text in the image");
 
-                textByLines.Pages.AddRange (textProcessor.ProcessSimplifiedDocument(recognizedText).Pages);
+                textByLines.Pages.AddRange (textProcessor.ProcessTextDocument(recognizedText).Pages);
             }
 
             // Сортировка строк
@@ -137,7 +137,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 throw new Exception($"Text recognition error: String sorting error");
 
             // Определение таблицы продуктов    
-            var productTable = await _gptLayout.LayoutParsingByLLM(textByLines, currentInvoice);
+            var productTable = await _gptLayout.LayoutParsingByLLM2(textByLines, currentInvoice);
             if (productTable == null)
                 throw new Exception($"Text recognition error: Invoice text parsing error");
 
