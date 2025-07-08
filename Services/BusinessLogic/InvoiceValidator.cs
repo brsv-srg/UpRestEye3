@@ -74,7 +74,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
             foreach (var tax in invoice.TaxCategories)
             {
-                if (tax.Base <= 0 || tax.IVA < 0 || tax.Total <= 0)
+                if (tax.Base < 0 || tax.IVA < 0 || tax.Total < 0)
                 {
                     invoice.StageStatus = InvoiceStatusEnum.Error;
                     if (!string.IsNullOrEmpty(invoice.Comments))

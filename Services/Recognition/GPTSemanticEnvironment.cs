@@ -79,7 +79,7 @@ namespace UpRestEye3.Services.Recognition
         
 
 
-        public string GetReceiptParsingRequestBody(TablesDataDocument tablesDataDocument, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
+        public string GetReceiptParsingRequestBody(TablesDataPage tablesDataPage, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
             var options = JsonHelper.GetSerializerOptions();
             // Проекция для выбора только нужных полей
@@ -106,7 +106,7 @@ namespace UpRestEye3.Services.Recognition
                         new { role = "system", content = GetSystemPrompt(currentInvoice) },
 
                         new { role = "user", content = "Extract structured data from the following Invoice, use additional information and predefined rules. Return the results in the predefined JSON in the response_format section."},
-                        new { role = "user", content = JsonSerializer.Serialize(new { InvoiceTablesData = tablesDataDocument }, options), },
+                        new { role = "user", content = JsonSerializer.Serialize(new { InvoiceTablesData = tablesDataPage }, options), },
                         new { role = "user", content = GetInvoiceInfForUserPrompt(currentInvoice)},
                         new { role = "user", content = JsonSerializer.Serialize(new { MeasureUnits = selectedMeasureUnits }, options), },
 
@@ -150,14 +150,21 @@ Your task is to extract only the list of **Grocery Products** from the provided 
     `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
   - The document may be a full A4 invoice or a narrow cashier-style receipt.
 
+- **Basic principles of tables processing**:
+  - Based on the coordinates, build a spatial model of tables, correctly define columns and rows.
+  - Rows may be from different Invoice pages and some rows may have different word coordinates. 
+    - Identify such discrepancies and build a model based on relative coordinates - match table and rows endpoints and position internal elements relative to these endpoints.
+  - Double check carefully that **all data** have been processed and saved correctly. **Be very careful**. If **any product or tax line is missing**, the recognition **task has failed**.
+
+
 ---
 
 ### 2. 📌 Product Table Processing
 
 **Header Detection**
-- Identify the main product table headers and their coordinates.
+- Identify the headers of product table columns and their coordinates.
 - Headers may include terms like **Code**, **Name**, **Unit**, **Quantity**, **Tax Category**, **Price per Unit**, **Total Price**, etc.
-- Headers may appear in Portuguese or English or use abbreviations (e.g., `Cod`, `Qtd`, `IVA`, `Desc`, etc.).
+- Headers may appear in Portuguese or English or use abbreviations (e.g., `Cod`, `Qtd`, `IVA`, `Desc`, `Price Uni. wo/IVA`.).
 - Handle headers split across **multiple lines** (e.g., 'Desconto' / 'promocional'):
   - Group vertically stacked words in the same X-zone;
   - Merge into a single logical header and adjust bounding box accordingly.
@@ -172,7 +179,7 @@ Your task is to extract only the list of **Grocery Products** from the provided 
 
 - Process **every row** in `ProductRows`. 
   - **Do not skip damaged or incomplete rows**.
-  - **Do not skip any rows that may represent products.**
+  - **Do not skip any rows that may represent any type of products, even non-food items.**
 
 - ⚠️ Ensure that **no product rows are lost** during parsing:
   - If a row contains **price and quantity**, it must be treated as an **independent product**, even if its name is complex or resembles packaging/description.
@@ -182,13 +189,19 @@ Your task is to extract only the list of **Grocery Products** from the provided 
   - First row contains main values;
   - Following rows may include details such as variant, brand, or packaging.
 
+- Or vice versa, there may be a recognition error in the previous steps and one Product Row input element may contain more than one product from the Invoice:
+  - Follow the semantic and spatial model;
+  - Highlight individual products if they are in the same element;
+  - Do not skip any products.
+
 - Be cautious with **technical or packaging-related products** (e.g., cups, lids, containers, bags):
   - These often have long descriptive names but **must not be skipped** if price and quantity are present.
   - If in doubt — include the row as a separate product rather than risk losing it.
 
 - Match words to headers by:
   - Primary method: X-coordinate position;
-  - Secondary method: semantic meaning of the text.
+  - Secondary method: ordinal position;
+  - Third method: semantic meaning of the text.
 
 - Merge multi-word values left-to-right, clean whitespace and punctuation.
 - If expected values are missing, attempt to infer them using nearby context.
@@ -198,12 +211,14 @@ Your task is to extract only the list of **Grocery Products** from the provided 
   - If a row includes delivery-related terms (e.g., `ENTREGA`, `DELIVERY`, `DLV`, etc.) in **Portuguese, English, or abbreviations**, and has price/quantity — process it **as a separate product** like any other.
 
 - ✅ If packaging deposit is found as rows in products table (e.g., embalagem, caucionamentos, contentores, packaging), include a single product row with ProductName = ""tara"", sum of such lines, Quantity = 1, Unit = ""pcs"", Container = """", Count = null, and TaxCategory = ""0%"".
-
+- Always use the total line value as the ProductTotalValue — this is the full price for the entire quantity, not the unit price (per piece, per kg, etc.).
+- If a discount is present, always use the final discounted amount as the ProductTotalValue.
 ---
+
 
 ### 4. 📦 Packaging & Unit Extraction Logic
 
-**Packaging Fields:**
+**Output Packaging Fields:**
 
 - `**Unit**`: base unit of measure (e.g., `kg`, `l`, `pcs`, `btl`, `unit`)
 - `**Quantity**`: number of units or containers sold
@@ -215,21 +230,25 @@ Your task is to extract only the list of **Grocery Products** from the provided 
 **Packaging Identification Rules**
 
 1. **Direct sale without packaging**  
-   If only base quantity and unit is specified (e.g., `1.820 KG`, `3 L`, `15 pcs`) and **no packaging is mentioned**:
-   - `Unit = kg`, `l`, `pcs`, etc. (base unit)
-   - `Quantity` = base quantity
-   - `Container = """"`
-   - `Count = null`
-   - ⚠️ Do not create a container if none is clearly specified in the invoice text.
+   If only base units are mentioned near the product name or in a separate unit column (e.g., KG, L, pcs, unit), 
+   and the quantity column specifies the corresponding base quantity, 
+   this means that no packaging is indicated for product:
+    - Unit = `kg`, `l`, `pcs`, etc. (the base unit)
+    - Quantity = the base quantity as specified
+    - Container = """" (empty)
+    - Count = null
+   ⚠️ Do not create a container unless packaging is explicitly indicated in the invoice.
 
 2. **pcs/unit + packaging info in product name**  
-   If unit is `pcs` or `unit`, and the **product name includes packaging info** (e.g., `50g`, `250g`, `0.33L`, `1L`, `330ml`) **but no container is explicitly mentioned**:  
-   - `Unit = pcs`, `unit`, etc.  
-   - `Quantity = 1` or as found in the invoice  
-   - `Container = """"`  
-   - `Count = null`  
-   - ✅ Keep the packaging info (e.g., weight/volume) **in the product name** — do not remove or abbreviate it.  
-   - ⚠️ Do not fabricate a container — such packaging info is treated as **a characteristic of the unit**, not a separate container.
+   If the product name explicitly includes a packaging size or weight (e.g., 50g, 250g, 1.7kg, 3kg, 330ml), 
+   and the quantity column specifies the number of such packages, 
+   this means that packaging is indicated as part of the product name, not as a separate container:
+   - Unit = `pcs` or `unit`
+   - Quantity = number of packages as specified in the invoice
+   - Container = """" (empty)
+   - Count = null
+   - ✅ Always keep the packaging information (e.g., weight, volume) **inside the product name** — do not remove, abbreviate, or move it to another field.
+   - ⚠️ Do not create a container in this case — the size or weight is treated as part of the product unit identity, not as a separate packaging layer.
 
 3. **Explicit packaging and multi-packs**  
    If packaging is present (e.g., `Box6kg`, `24x0.33l`, `Emb12x200g`, `Pack 4x1l`):

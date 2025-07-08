@@ -115,10 +115,13 @@ namespace UpRestEye3.Services.BusinessLogic
 
         public async Task<InvoiceDTO?> DeepTextRecognitionAsync(List<Bitmap> sourceImages, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
-            var textByLines = new SimpleDocument()
-            { Pages = new List<SimplePage>() };
-
             var textProcessor = new RecognizedTextProcessor();
+
+            // тут собираем все таблицы с продуктами с нескльких страниц в один документ
+            var allPagesData = new TablesDataDocument()
+            {
+                Pages = new List<TablesDataPage>()
+            };
 
             foreach (var sourceImage in sourceImages)
             {
@@ -127,19 +130,29 @@ namespace UpRestEye3.Services.BusinessLogic
                 
                 if (recognizedText == null)
                     throw new Exception($"Text recognition error: Unable to recognize text in the image");
+                
+                // Берем все страницы из OCR (может быть больше одной страницы). 
+                var pages = textProcessor.ProcessTextDocument(recognizedText);
+                foreach (var page in pages.Pages)
+                {
+                    var layoutResult = await _gptLayout.LayoutParsingByLLM2(page, currentInvoice);
 
-                textByLines.Pages.AddRange (textProcessor.ProcessTextDocument(recognizedText).Pages);
+                    if (layoutResult == null)
+                        throw new Exception($"Text recognition error: Unable to recognize text in the image");
+
+                    // Добавляем страницу с текстом в общий документ
+                    allPagesData.Pages.Add(layoutResult);
+                }
+
+
             }
 
-            // Сортировка строк
+            var productTable = new TablesDataPage();
+            productTable.ProductHeaders = allPagesData.Pages.SelectMany(p => p.ProductHeaders).Distinct().ToList();
+            productTable.ProductRows = allPagesData.Pages.SelectMany(p => p.ProductRows).ToList();
+            productTable.TaxCategoriesHeaders = allPagesData.Pages.SelectMany(p => p.TaxCategoriesHeaders).Distinct().ToList();
+            productTable.TaxCategoriesRows = allPagesData.Pages.SelectMany(p => p.TaxCategoriesRows).ToList();
 
-            if (textByLines.Pages.Count == 0)
-                throw new Exception($"Text recognition error: String sorting error");
-
-            // Определение таблицы продуктов    
-            var productTable = await _gptLayout.LayoutParsingByLLM2(textByLines, currentInvoice);
-            if (productTable == null)
-                throw new Exception($"Text recognition error: Invoice text parsing error");
 
             // Парсинг таблицы продуктов
             currentInvoice = await _gptParser.ReceiptParsingByLLM (productTable, currentInvoice, measUnits);

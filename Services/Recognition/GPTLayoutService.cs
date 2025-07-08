@@ -14,7 +14,7 @@ namespace UpRestEye3.Services.Recognition
     public interface IGPTLayoutService
     {
         Task<TablesDataDocument> LayoutParsingByLLM(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice);
-        Task<TablesDataDocument> LayoutParsingByLLM2(SimpleDocument invoiceText, InvoiceDTO currentInvoice);
+        Task<TablesDataPage> LayoutParsingByLLM2(SimplePage invoicePageText, InvoiceDTO currentInvoice);
 
     }
 
@@ -63,7 +63,7 @@ namespace UpRestEye3.Services.Recognition
                 var productTable = ResponseInvoiceParsing(responseContent);
 
 
-                return productTable;
+                return null; // productTable;
 
             }
             catch (Exception ex)
@@ -73,12 +73,12 @@ namespace UpRestEye3.Services.Recognition
         }
 
 
-        public async Task<TablesDataDocument> LayoutParsingByLLM2(SimpleDocument invoiceText, InvoiceDTO currentInvoice)
+        public async Task<TablesDataPage> LayoutParsingByLLM2(SimplePage invoicePageText, InvoiceDTO currentInvoice)
         {
             try
             {
                 // Сериализация тела запроса
-                var jsonBody = _env.GetLayoutRequestBody2(invoiceText, currentInvoice);
+                var jsonBody = _env.GetLayoutRequestBody2(invoicePageText, currentInvoice);
 
 
                 var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");
@@ -120,7 +120,7 @@ namespace UpRestEye3.Services.Recognition
 
 
         //todo поправить с датой загрузки 
-        private TablesDataDocument ResponseInvoiceParsing(string responseContent)
+        private TablesDataPage ResponseInvoiceParsing(string responseContent)
         {
             try
             {
@@ -139,14 +139,14 @@ namespace UpRestEye3.Services.Recognition
                     using var contentDocument = JsonDocument.Parse(contentElement.GetString());
                     var rootContent = contentDocument.RootElement;
 
-                    if (rootContent.TryGetProperty("Pages", out contentElement))
+                    if (rootContent.TryGetProperty("ProductHeaders", out contentElement))
                     {
                         var options = JsonHelper.GetSerializerOptions();
 
                         Console.WriteLine($"Received response from OpenAI API: {rootContent.GetRawText()}");
 
                         using var tablesDataJsonDocument = JsonDocument.Parse(rootContent.GetRawText());
-                        TablesDataDocument tablesDataDocument = tablesDataJsonDocument.Deserialize<TablesDataDocument>(options);
+                        TablesDataPage tablesDataDocument = tablesDataJsonDocument.Deserialize<TablesDataPage>(options);
 
                         return tablesDataDocument;
                     }

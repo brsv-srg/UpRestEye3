@@ -13,7 +13,7 @@ namespace UpRestEye3.Services.Recognition
 
     public interface IGPTSemanticService
     {
-        Task<InvoiceDTO?> ReceiptParsingByLLM(TablesDataDocument tablesDataDocument, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits);
+        Task<InvoiceDTO?> ReceiptParsingByLLM(TablesDataPage tablesDataDocument, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits);
 
     }
 
@@ -30,7 +30,7 @@ namespace UpRestEye3.Services.Recognition
         
 
 
-        public async Task<InvoiceDTO?> ReceiptParsingByLLM(TablesDataDocument tablesDataDocument, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
+        public async Task<InvoiceDTO?> ReceiptParsingByLLM(TablesDataPage tablesDataDocument, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
 
             // Сериализация тела запроса

@@ -163,7 +163,8 @@ Your goal is to return a stable and structured JSON response that preserves the 
 ## ✅ General Matching Strategy
 
 1. **Preserve Input**  
-   - Copy each 'InvoiceProduct' to the 'InvoiceProduct' field of the output object without modifications.
+   - Copy each input “InvoiceProduct” into the “InvoiceProduct” of the output structure without any changes or omissions.
+   - Save **all lines** in the **same composition and order** as you received the input.
 
 2. **Product Matching Rules**  
    - Match based on semantic similarity of 'ProductName', 'Brand', 'Volume', and key attributes (e.g. 'white wine' ≠ 'red wine').
@@ -179,9 +180,9 @@ Your goal is to return a stable and structured JSON response that preserves the 
 
 3. **Unit Normalization**  
    - Never use packaging-specific units (e.g., 'btl0.75') as a base unit.
-   - The valid base unit is always defined by the `MainUnit` of the matched `RMSProduct`.
+   - The valid base unit is always defined by the 'MainUnit' of the matched 'RMSProduct'.
    - If 'InvoiceProduct.Unit' is compound or irregular, normalize it **via a container**:  
-     - Find or create a container that accurately translates the invoice quantity into the RMSProduct's `MainUnit`.
+     - Find or create a container that accurately translates the invoice quantity into the RMSProduct's 'MainUnit'.
      - For detailed logic, refer to the **📦 Container (Packaging) Matching Logic** section below.
 
 4. **If no match is found — Create new RMSProduct**  
@@ -190,7 +191,8 @@ Your goal is to return a stable and structured JSON response that preserves the 
        - Remove supplier- or brand-specific fragments unless essential to product identity  
        - Keep descriptive attributes (e.g., 'shallot onion', 'butterfly pasta')  
        - If product is a branded item (e.g., 'Coca-Cola') — keep full brand name
-     - 'Description': inferred from category or traits  
+       - Do not use product volume or weight count for name
+     - 'Description': inferred from category or product traits (but do not use product volume or weight count in the description)  
      - 'MainUnit': inferred from similar RMSProducts (e.g. wine → 'L', beer → 'btl', rice → 'kg')  
    - 'Id' and 'Num': null  
    - 'NewRMSProduct = true'
@@ -200,37 +202,37 @@ Your goal is to return a stable and structured JSON response that preserves the 
 
 ## 📦 Container (Packaging) Matching Logic
 
-A **container** represents a standard packaging unit (e.g., 'Box 6KG', '24x0.33L') and connects the invoice packaging format to the base unit of the RMSProduct (`MainUnit`).  
-The container's `Count` must always reflect total **weight**, **volume**, or **piece count** in the `MainUnit` of the RMSProduct.
+A **container** represents a standard packaging unit (e.g., 'Box 6KG', '24x0.33L') and connects the invoice packaging format to the base unit of the RMSProduct ('MainUnit').  
+The container's 'Count' must always reflect total **weight**, **volume**, or **piece count** in the 'MainUnit' of the RMSProduct.
 
 ---
 
 ### 📦 Packaging Cases
 
 1. **No packaging required or present**  
-   - If the invoice product clearly uses a base unit (`kg`, `l`, `pcs`) and:
-     - `InvoiceProduct.Container` is empty or not defined,
-     - `InvoiceProduct.Unit` matches the `RMSProduct.MainUnit`,  
+   - If the invoice product clearly uses a base unit ('kg', 'l', 'pcs') and:
+     - 'InvoiceProduct.Container' is empty or not defined,
+     - 'InvoiceProduct.Unit' matches the 'RMSProduct.MainUnit',  
    - Then the product is mapped **without container**:
-     - Set `RMSContainer = null`  
-     - Set `NewRMSContainer = false`
+     - Set 'RMSContainer = null'  
+     - Set 'NewRMSContainer = false'
 
 2. **Implied packaging from product name only**  
-   - If packaging is not explicitly stated but inferred from `ProductName` (e.g., 'Mint 50G', 'Wine 0.75'), and:
-     - `InvoiceProduct.Unit` is `pcs` or `unit`
-     - `RMSProduct.MainUnit` differs from invoice unit (e.g., `kg`, `l`)
+   - If packaging is not explicitly stated but inferred from 'ProductName' (e.g., 'Mint 50G', 'Wine 0.75'), and:
+     - 'InvoiceProduct.Unit' is 'pcs' or 'unit'
+     - 'RMSProduct.MainUnit' differs from invoice unit (e.g., 'kg', 'l')
    - Then:
-     - Extract packaging unit/value from name (e.g., `50g` → `0.05kg`, `0.75l`)
-     - Convert to RMSProduct's `MainUnit` (e.g., `50g` → `0.05kg`)
-     - Find or create container with matching `Count`
+     - Extract packaging unit/value from name (e.g., '50g' → '0.05kg', '0.75l')
+     - Convert to RMSProduct's 'MainUnit' (e.g., '50g' → '0.05kg')
+     - Find or create container with matching 'Count'
 
 3. **Multi-pack or explicit packaging is indicated**  
    - If packaging is stated (e.g., '8x0.5kg', 'Box 6kg', '24x0.33L') and:
-     - `InvoiceProduct.Unit` refers to container (e.g., boxes, crates)
-     - `RMSProduct.MainUnit` is base unit (`kg`, `l`, `pcs`)
+     - 'InvoiceProduct.Unit' refers to container (e.g., boxes, crates)
+     - 'RMSProduct.MainUnit' is base unit ('kg', 'l', 'pcs')
    - Then:
-     - Derive container info from `InvoiceProduct.Container` or `ProductName`
-     - Calculate total count per container in `MainUnit` (e.g., `8 x 0.5kg = 4.0kg`, `24 x 0.33L = 24pcs`)
+     - Derive container info from 'InvoiceProduct.Container' or 'ProductName'
+     - Calculate total count per container in 'MainUnit' (e.g., '8 x 0.5kg = 4.0kg', '24 x 0.33L = 24pcs')
      - Find or create matching container
 
 ---
@@ -238,29 +240,29 @@ The container's `Count` must always reflect total **weight**, **volume**, or **p
 ### 🧠 Container Matching and Creation Rules
 
 1. **Match existing container**  
-   - Search `RMSProduct.Containers` for container with:
+   - Search 'RMSProduct.Containers' for container with:
      - The **same 'Count'**
-     - Compatible unit with `RMSProduct.MainUnit`
+     - Compatible unit with 'RMSProduct.MainUnit'
    - Name may differ — must represent same meaning or be neutral (e.g., 'Box 4kg', '6x0.75L')
    - If match is found:
      - Reuse it  
-     - Set `NewRMSContainer = false`
+     - Set 'NewRMSContainer = false'
 
 2. **Create new container if needed**  
    - If no matching container exists:
-     - `Name`: descriptive (e.g., 'Box 6x1L', 'Pack 250g')  
-     - `Count`: computed in `RMSProduct.MainUnit`  
-     - `Id`, `Num`: null  
-     - Set `NewRMSContainer = true`
+     - 'Name': descriptive (e.g., 'Box 6x1L', 'Pack 250g')  
+     - 'Count': computed in 'RMSProduct.MainUnit'  
+     - 'Id', 'Num': null  
+     - Set 'NewRMSContainer = true'
 
 3. **Avoid duplication and invalid containers**  
-   - Never create a container if one with same `Count` and unit already exists  
+   - Never create a container if one with same 'Count' and unit already exists  
    - Prefer using containers with neutral names  
 
 ---
 
 ### ✅ Final validation
-- Ensure that `UnitsCount × QuantityOfContainers` equals total RMSProduct quantity in base units (e.g., 8 × 0.5kg = 4.0kg).
+- Ensure that 'UnitsCount × QuantityOfContainers' equals total RMSProduct quantity in base units (e.g., 8 × 0.5kg = 4.0kg).
 
 
 ---
@@ -281,8 +283,8 @@ Choose appropriate 'Storage' from provided 'StorageList', based on product type:
 
 | Product Type                                             | Storage     |
 |----------------------------------------------------------|-------------|
-| Food, groceries, ingredients                             | 'Kitchen'   |
-| Alcohol, drinks, coffee, mixers                          | 'Bar'       |
+| Food, groceries, food ingredients                        | 'Kitchen'   |
+| Alcohol, drinks, coffee, mixers, drinks ingredients      | 'Bar'       |
 | Retail, takeaway, resale items                           | 'Retail'    |
 | Cleaning/technical supplies                              | 'Household' |
 

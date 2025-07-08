@@ -51,13 +51,22 @@ namespace UpRestEye3.Services.Recognition
         }
 
 
-        public string GetUserPrompt(string invoiceText, InvoiceDTO currentInvoice)
+        private string GetUserPrompt(string invoiceText)
         {
             var options = JsonHelper.GetSerializerOptions();
 
             var _invoiceInformationPrompt = $@"\n
 Extract the table of products/services and list of TAXes from this provided OCR invoice text: {invoiceText}.
+    ";
 
+            return _invoiceInformationPrompt;
+        }
+
+        private string GetInvoiceDetails(InvoiceDTO currentInvoice)
+        {
+            var options = JsonHelper.GetSerializerOptions();
+
+            var _invoiceInformationPrompt = $@"
 Use the following **known invoice details** for validation:
     - **InvoiceNumber**: {currentInvoice.InvoiceNumber},
     - **InvoiceDate**: {currentInvoice.InvoiceDate},
@@ -71,10 +80,10 @@ Use the following **known invoice details** for validation:
             return _invoiceInformationPrompt;
         }
 
-        public string GetProductsSchema() => _resultSchemeLiteral;
-       
+        private string GetProductsSchema() => _resultSchemeLiteral;
+
         public string GetURL() => _url;
-        
+
         public string GetApiKey() => _apiKey;
         
         public string GetLayoutRequestBody(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice)
@@ -93,7 +102,8 @@ Use the following **known invoice details** for validation:
                 messages = new object[]
                 {
                         new { role = "system", content = GetSystemPrompt(currentInvoice) }, 
-                        new { role = "user", content = GetUserPrompt(JsonSerializer.Serialize(invoiceText, options), currentInvoice)}  
+                        new { role = "user", content = GetUserPrompt(JsonSerializer.Serialize(invoiceText, options)) },
+                        new { role = "user", content = GetInvoiceDetails(currentInvoice) }  
                 },
                 response_format = new
                 {
@@ -111,7 +121,7 @@ Use the following **known invoice details** for validation:
         }
 
 
-        public string GetLayoutRequestBody2(SimpleDocument invoiceText, InvoiceDTO currentInvoice)
+        public string GetLayoutRequestBody2(SimplePage invoicePageText, InvoiceDTO currentInvoice)
         {
             var options = JsonHelper.GetSerializerOptions();
             // Формируем запрос
@@ -127,7 +137,8 @@ Use the following **known invoice details** for validation:
                 messages = new object[]
                 {
                         new { role = "system", content = GetSystemPrompt(currentInvoice) }, 
-                        new { role = "user", content = GetUserPrompt(JsonSerializer.Serialize(invoiceText, options), currentInvoice)}  
+                        new { role = "user", content = GetUserPrompt(JsonSerializer.Serialize(invoicePageText, options)) },
+                        new { role = "user", content = GetInvoiceDetails(currentInvoice) }
                 },
                 response_format = new
                 {
@@ -256,21 +267,18 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 
 ### 📄 **Input Format:**
 
-- The invoice is provided as a list of Pages.  
-- Each page contains a flat list of recognized `Words`, and each word has:
+- An Invoice may consist of several pages. But each time processing is done on a separate page.
+- Page contains a flat list of recognized `Words`, and each word has:
   - `WordText`
   - `WordCoordinates` in the format:  
     `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`
 
 - ⚠️ There are no pre-grouped blocks or rows.  
-  You must **reconstruct the document layout** by analyzing word positions and coordinates. 
-  The invoice may be skewed or distorted. You **must detect the type of distortion** (e.g., skew angle, perspective shift) and **compensate for it when reconstructing** the structure of product and tax tables.
+  You must **reconstruct the layout** by analyzing word positions and coordinates. 
+  The Invoice may be skewed or distorted. You **must detect the type of distortion** (e.g., skew angle, perspective shift) and **compensate for it when reconstructing** the structure of product and tax tables.
 
   Using this spatial model, **detect the product table** and the **tax section**, including headers and rows for each.  
   Model must infer structure based on layout, spacing, and alignment.
-
-- ⚠️ There may be multiple pages. All analysis **must include all Pages**, processing them in logical order. 
-- Pages might appear out of order — you must infer the correct page sequence based on content and structure (e.g., headers, section titles, continuation of tables).**
 
 ---
 
@@ -278,39 +286,38 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 
 #### 1. **Detect Sections:**
 
-- **For each page** locate and retrieve the product table and tax section. Products or taxes may not be present on individual pages, but make sure to double check.
-- It is important to extract all rows of products and taxes. If even a single product or tax is missing, then the whole task is not complete.
+- Locate and retrieve the product table and tax section on the Page. Products or taxes may not be present on individual pages, but make sure to double check.
+- It is important to extract all rows of products and taxes. If even a single product or tax is missing, then the whole task of Invoice recognizing is not complete.
 - It is **better to add extra rows** when in doubt **than to lose the right** ones.
 - **Don't mix up the rows**, it is important to keep the sequence that is given in the coordinates.
 - Ignore unrelated parts such as company details, addresses, notes, footers, etc.
-- Save all found on the page data in the separate Page object of the output JSON structure.
+- Save all found on the Page data in the output JSON structure.
 
 ---
 
 #### 2. **Extract Product Table Headers:**
 
-- **For each Page** identify and extract the row or **group of visually consecutive rows** containing product table column headers (e.g., `Code`, `Description`, `Qty`, `Unit`, `Price`, `IVA`, `Discount`, `Total`, etc.).
+- Identify and extract the row or **group of visually consecutive rows** containing product table column headers (e.g., `Code`, `Description`, `Qty`, `Unit`, `Price`, `IVA`, `Discount`, `Total`, etc.).
 - Headers may be in **Portuguese, English**, or use common abbreviations (`Cod`, `Qtd`, `UNI`, `IVA`, etc.).
 - **Headers may span multiple lines**. If a column name is split across several rows (e.g., 'Desconto' / 'promocional'), include **all relevant rows**.
-- Store all Headers words found on the Page in the `ProductHeaders` array in the **separate output Page object**, **exactly as recognized**:
+- Store all Headers words found on the Page **""as one line as one row""** in the output `ProductHeaders` array, **exactly as recognized**:
   - Preserve original spelling, diacritics, casing, symbols.
   - Save full, unmodified coordinates in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
   - ⚠️ **Do not translate, normalize, or merge** terms.
-  - Store only once, even if Headers are presented on multiple Pages.
 
 ---
 
 #### 3. **Extract Product Table Rows:**
 
-- **For each Page** identify and extract **all product-related rows** including:
+- Identify and extract **all product-related rows** including:
   - Major product lines,
   - Variants (e.g., flavor, cut),
   - Additional rows (e.g., batch number, Lote, descriptions).
 - Continue extracting **all products** until explicitly unrelated content begins (e.g., totals, taxes, company information, notes).
-- Place all detected rows found on the Page in the `ProductRows` array in the **separate output Page object**, **strictly in their order** on the page. **Do not mix or rearrange** rows.
+- Place all detected product rows found on the Page in the output `ProductRows` array, **strictly in their order** on the Page. **Do not mix or rearrange** rows.
 - For each row preserve original sequence of words, symbols and casing, and raw coordinates without changes in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
 - ⚠️ **Do not skip lines that may represent products**.
-- ⚠️ Once product rows are detected, **check that quantities and prices are correctly aligned** and not mistakenly linked to neighboring products, especially if the invoice is garbled.
+- ⚠️ Once product rows are detected, **check that quantities and prices are correctly aligned** and not mistakenly linked to neighboring products, especially if the Invoice is garbled.
 
 ##### ⚠️ Quantity + Unit Handling:
 - If a **quantity value** (e.g., `3,12`) is **next to** or **preceded/followed** by a unit (e.g., `KG`, `UNI`, `LT`, `UN`, etc.), treat them as a **logically linked pair**.
@@ -318,25 +325,24 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 - Units must **not be confused with headers** or discarded as noise.
 **Examples of valid units (case-insensitive):** `UNI`, `UN`, `KG`, `G`, `L`, `LT`, `PC`, `PACK`, `EMB`, `CX`, `DZ`.
 
-- Be careful. If even **one line is lost** from any Page, the whole recognition **task will be thwarted**.
+- Be careful. If even **one line is lost** from Page, the whole recognition **task will be thwarted**.
 
 ---
 
 #### 4. **Extract Tax Table Headers:**
 
-- **For each Page** identify and extract the header row(s) for the tax section (e.g., `Incidência`, `Taxa`, `IVA`, `Valor`, `Total`).
-- Store all header words found on the Page in the `TaxCategoriesHeaders` array in the **separate output Page object**, preserving:
+- Identify and extract the header row(s) for the tax section (e.g., `Incidência`, `Taxa`, `IVA`, `Valor`, `Total`).
+- Store all Tax Table Header words found on the Invoice Page **as one row** in the output `TaxCategoriesHeaders` array, preserving:
   - Exact text (with all symbols, accents, etc.),
   - Coordinates unmodified in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`..
-- Store only once, even if Tax Table Headers are presented on multiple Pages.
 
 ---
 
 #### 5. **Extract Tax Table Rows:**
 
-- **For each Page** identify and extract all rows that belongs to the tax breakdown table.
+- Identify and extract all rows that belongs to the tax breakdown table.
 - Use the header layout to guide column matching.
-- Store all detected rows found on the Page in the `TaxCategoriesRows` array in the **separate output Page object**, preserving full word details and unmodified coordinates in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
+- Store all detected rows found on the Page in the output `TaxCategoriesRows` array, preserving full word details and unmodified coordinates in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
 
 ---
 
@@ -351,7 +357,7 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 
 - Return the result strictly as **JSON**, following the `response_format` schema.
 - **Do not return** the schema or any descriptive text — only the structured data.
-- Check carefully that **all pages and all data** have been processed and saved correctly. **Be very careful**. If **any product or tax line is missing**, the recognition **task has failed**.
+- Check carefully that **all data** have been processed and saved correctly. **Be very careful**. If **any product or tax line is missing**, the recognition **task has failed**.
 ";
 
 
@@ -498,7 +504,7 @@ For each row:
 - **Do not return** the schema or any descriptive text — only the structured data.
 ";
 
-        private const string _resultSchemeLiteralOld = @"
+        private const string _resultSchemeLiteral = @"
     {
         ""$schema"": ""http://json-schema.org/draft-07/schema#"",
         ""type"": ""object"",
@@ -508,7 +514,6 @@ For each row:
                 ""items"": {
                     ""type"": ""object"",
                     ""properties"": {
-                        ""RowCoordinates"": { ""type"": ""string"" },
                         ""Words"": {
                             ""type"": ""array"",
                             ""items"": {
@@ -527,7 +532,6 @@ For each row:
                 ""items"": {
                     ""type"": ""object"",
                     ""properties"": {
-                        ""RowCoordinates"": { ""type"": ""string"" },
                         ""Words"": {
                             ""type"": ""array"",
                             ""items"": {
@@ -546,7 +550,6 @@ For each row:
                 ""items"": {
                     ""type"": ""object"",
                     ""properties"": {
-                        ""RowCoordinates"": { ""type"": ""string"" },
                         ""Words"": {
                             ""type"": ""array"",
                             ""items"": {
@@ -565,7 +568,6 @@ For each row:
                 ""items"": {
                     ""type"": ""object"",
                     ""properties"": {
-                        ""RowCoordinates"": { ""type"": ""string"" },
                         ""Words"": {
                             ""type"": ""array"",
                             ""items"": {
@@ -583,94 +585,6 @@ For each row:
     }";
 
 
-private const string _resultSchemeLiteral = @"
-{
-  ""$schema"": ""http://json-schema.org/draft-07/schema#"",
-  ""type"": ""object"",
-  ""properties"": {
-    ""Pages"": {
-      ""type"": ""array"",
-      ""items"": {
-        ""type"": ""object"",
-        ""properties"": {
-          ""ProductHeaders"": {
-            ""type"": ""array"",
-            ""items"": {
-              ""type"": ""object"",
-              ""properties"": {
-                ""Words"": {
-                  ""type"": ""array"",
-                  ""items"": {
-                    ""type"": ""object"",
-                    ""properties"": {
-                      ""WordText"": { ""type"": ""string"" },
-                      ""WordCoordinates"": { ""type"": ""string"" }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          ""ProductRows"": {
-            ""type"": ""array"",
-            ""items"": {
-              ""type"": ""object"",
-              ""properties"": {
-                ""Words"": {
-                  ""type"": ""array"",
-                  ""items"": {
-                    ""type"": ""object"",
-                    ""properties"": {
-                      ""WordText"": { ""type"": ""string"" },
-                      ""WordCoordinates"": { ""type"": ""string"" }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          ""TaxCategoriesHeaders"": {
-            ""type"": ""array"",
-            ""items"": {
-              ""type"": ""object"",
-              ""properties"": {
-                ""Words"": {
-                  ""type"": ""array"",
-                  ""items"": {
-                    ""type"": ""object"",
-                    ""properties"": {
-                      ""WordText"": { ""type"": ""string"" },
-                      ""WordCoordinates"": { ""type"": ""string"" }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          ""TaxCategoriesRows"": {
-            ""type"": ""array"",
-            ""items"": {
-              ""type"": ""object"",
-              ""properties"": {
-                ""Words"": {
-                  ""type"": ""array"",
-                  ""items"": {
-                    ""type"": ""object"",
-                    ""properties"": {
-                      ""WordText"": { ""type"": ""string"" },
-                      ""WordCoordinates"": { ""type"": ""string"" }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-";
 
 
 

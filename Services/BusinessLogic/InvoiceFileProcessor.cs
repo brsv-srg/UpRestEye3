@@ -300,7 +300,7 @@ namespace UpRestEye3.Services.BusinessLogic
                         .Where(p => p.RMSProduct?.Name == updatedRMSProduct.Name && p.RMSProduct?.Id == null)
                         .FirstOrDefault();
                     if (rmsToSaveId != null)
-                        rmsToSaveId.Id = (int)updatedRMSProduct.Id;
+                        rmsToSaveId.RMSProduct.Id = (int)updatedRMSProduct.Id;
                 }
 
                 if (newRMSProduct.Status == RMSProductStatusEnum.NewContainer)
@@ -314,7 +314,8 @@ namespace UpRestEye3.Services.BusinessLogic
                     // Проходим по всем продуктам и обновляем контейнеры
                     foreach (var mappedProduct in mappedProducts)
                     {
-                        mappedProduct.RMSContainer.Id = updatedRMSProduct.Containers.FirstOrDefault(c => c.Name == mappedProduct.RMSContainer?.Name).Id;
+                        if (mappedProduct.RMSContainer != null)
+                            mappedProduct.RMSContainer.Id = updatedRMSProduct.Containers.FirstOrDefault(c => c.Name == mappedProduct.RMSContainer?.Name).Id;
 
                     }
                 
