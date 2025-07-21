@@ -156,109 +156,6 @@ Use the following **known invoice details** for validation:
         }
 
 
-
-
-        private const string _systemPromptForParsingLiteralOld = $@"
-You are an AI assistant specialized in extracting structured product and tax data from OCR-recognized invoices.  
-Your task is to analyze the OCR output and extract **product tables** and **tax breakdowns**, returning the result as structured JSON according to the provided `response_format` schema.
-
----
-
-### 📄 **Input Format:**
-
-- The invoice text is provided in a **hierarchical OCR structure**: `Pages → Blocks → Rows → Words`.  
-- Each `Row` consists of `Words`, each with exact `WordText` and `WordCoordinates`.  
-- Coordinates follow the format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.  
-- Rows are grouped by visual alignment along the Y-axis — errors from OCR or scanning are partially corrected.
-- ⚠️ **There may be multiple pages. All analysis must include all `Pages[]`, processing them in logical order. Tables may span across pages. Pages might appear out of order — you must infer the correct page sequence based on content and structure (e.g., headers, section titles, continuation of tables).**
-
----
-
-### 🛠️ **Extraction Tasks:**
-
-#### 1. **Detect Sections:**
-- Locate and isolate the product table and the tax section **across all pages**.
-- The product and tax tables may be split across multiple pages, or appear in unexpected positions.
-- Even if tables are interrupted, repeated, or scattered, identify and reconstruct them correctly.
-- Ignore unrelated parts like addresses, notes, footer, etc.
-
----
-
-#### 2. **Extract Product Table Headers:**
-
-- Identify the row or **group of visually consecutive rows** containing product table column headers (e.g., `Code`, `Description`, `Qty`, `Unit`, `Price`, `IVA`, `Discount`, `Total`, etc.).
-- Search for headers **on all pages**, especially near the start of product sections.
-- Headers may be in **Portuguese, English**, or use common abbreviations (`Cod`, `Qtd`, `UNI`, `IVA`, etc.).
-- **Headers may span multiple lines**. If a column name is split across several rows (e.g., 'Desconto' / 'promocional'), include **all relevant rows**.
-- Store all words in the `ProductHeaders` array **exactly as recognized**:
-  - Preserve original spelling, diacritics, casing, symbols.
-  - Save full, unmodified coordinates in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
-  - **Do not translate, normalize, or merge** terms.
-
----
-
-#### 3. **Extract Product Table Rows:**
-
-- Capture **all product-related rows**, including:
-  - Main product lines,
-  - Variants (e.g., flavor, cut),
-  - Supplemental rows (e.g., batch number, Lote, descriptions).
-- Tables may **continue from one page to the next**, or even start mid-page.
-- On each page continue extraction until clearly unrelated content begins (e.g., totals, taxes, notes).
-- Include rows from **all pages** as needed.
-- Merge rows from multiple pages into a single logical table in `ProductRows`, even if they are visually separated.
-- ⚠️**Do not skip any rows that may represent products.**
-
-
-For each row:
-- Preserve:
-  - Exact sequence of words as recognized,
-  - Original text with symbols and casing,
-  - Raw coordinates without changes in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
-- Add each row to `ProductRows`.
-
-##### ⚠️ Quantity + Unit Handling:
-- If a **quantity value** (e.g., `3,12`) is **next to** or **preceded/followed** by a unit (e.g., `KG`, `UNI`, `LT`, `UN`, etc.), treat them as a **logically linked pair**.
-- Ensure they are both included in the **same product row**, even if slightly misaligned by coordinates.
-- Units must **not be confused with headers** or discarded as noise.
-
-**Examples of valid units (case-insensitive):** `UNI`, `UN`, `KG`, `G`, `L`, `LT`, `PC`, `PACK`, `EMB`, `CX`, `DZ`.
-
----
-
-#### 4. **Extract Tax Table Headers:**
-
-- Identify the header row(s) for the tax section (e.g., `Incidência`, `Taxa`, `IVA`, `Valor`, `Total`).
-- Search **across all pages**, especially near the end of the invoice.
-- Store all header words in `TaxCategoriesHeaders`, preserving:
-  - Exact text (with all symbols, accents, etc.),
-  - Coordinates unmodified in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`..
-
----
-
-#### 5. **Extract Tax Table Rows:**
-
-- Extract each row that belongs to the tax breakdown table.
-- The table may be split or start in the middle of a page.
-- Use the header layout to guide column matching.
-- Store each row in `TaxCategoriesRows`, preserving full word details and unmodified coordinates in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`..
-
----
-
-#### 6. **Correct OCR Errors:**
-
-- Actively detect and correct common OCR mistakes (e.g., `L` instead of `1`, missing accents, fragmented words, misaligned lines).
-- Use visual proximity and contextual clues to reassemble broken rows or fix incorrect groupings.
-
----
-
-#### 7. **Output JSON Format:**
-
-- Return the result strictly as **JSON**, following the `response_format` schema.
-- **Do not return** the schema or any descriptive text — only the structured data.
-
-";
-
         private const string _systemPromptForParsingLiteral = @"
 You are an AI assistant specialized in extracting structured product and tax data from OCR-recognized invoices.  
 Your task is to analyze the OCR output and extract **product tables** and **tax breakdowns**, returning the result as structured JSON according to the provided `response_format` schema.
@@ -360,53 +257,6 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 - Check carefully that **all data** have been processed and saved correctly. **Be very careful**. If **any product or tax line is missing**, the recognition **task has failed**.
 ";
 
-
-
-        private const string _systemPromptForParsingLiteralSpecial01Old = $@"
-You are an AI assistant specialized in extracting structured product data from OCR-recognized invoices.
-Your task is to identify and extract the table of products/services and list of TAXes from the provided OCR invoice text and return a well-structured JSON according to the response_format schema.
-
-### **Input Format:**
-   - The OCR-recognized text is provided in a hierarchical structure: blocks, rows, words.
-   - Words are grouped into rows according to the coordinates of their location in the texture.
-   - Each element has the format coordinates: (TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY).
-   - In the rows, the words that are maximally similar to each other along the Y coordinate are already stacked, taking into account the OCR error. 
-
-### **Task Requirements:**
-1. **Identify the product table and tax list:**
-   - Locate rows containing product table data and tax list items.
-
-2. **Extract product table headers:**
-   - Identify row (or rows) with product column headers: ""Código Artigo"", ""Descrição Artigo"", ""PACK"", ""PR Unit/KG"", ""Unit/KG"", ""Preço U.V."", ""Quant"", ""Valor Total"", ""IvaDD"" 
-   - Put this row (or rows) into the ProductHeaders section in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also with all coordinates exactly without transformations**.
-
-3. **Extract product table rows:**
-   - Identify **all rows** which looks like product items. 
-   **MOST IMPORTANT THING!!!** Identify **all rows** which looks like product items.
-   - Put each row into the ProductRows array in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also with all coordinates exactly without transformations**.
-
-4. **Check all rows of product table again:**
-    - Check everything again. Make sure all the rows with product items are copied, nothing is lost. 
-    - The product list table usually ends close to tax list headers.
-    - Don't stop until you get to the tax categories. Copy all rows that are similar to the product row, but discard the rows without product items. 
-
-5. **Extract tax list headers:**
-   - Identify row with tax list column headers: ""Valor liq."", ""Taxa IVA"", ""Valor IVA"".
-   - Put them into the TaxCategoriesHeaders array in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also with all coordinates exactly without transformations**.
-
-6. **Extract tax list rows:**
-   - Determine all values of the rows and columns in number and order according to the header list.
-   - Put each row into the TaxCategoriesRows array in the response JSON as is - **all words in full, all symbols exactly including diacritics, without any transformations and Unicode shielding, and also with all coordinates exactly without transformations**.
-
-7. **Correct OCR errors:**
-   - Please note and take into account when analyzing that there may be OCR errors and recognition errors, scanning defects, paper breaks and shifts. 
-   - Correct the data if you see that the OCR has made a mistake.
-
-8. **Return structured data in JSON format:**
-   - Output the extracted product table into the JSON format strictly following the response_format schema.
-   - Do not return JSON schema, only the data.
-";
-
         private const string _systemPromptForParsingLiteralSpecial01 = @"
 You are an AI assistant specialized in extracting structured product and tax data from OCR-recognized invoices.  
 Your task is to analyze the OCR output and extract **product tables** and **tax breakdowns**, returning the result as structured JSON according to the provided `response_format` schema.
@@ -467,17 +317,11 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 For each row:
 - Preserve full original text and exact coordinates.
 
-##### ⚠️ Quantity + Unit Handling:
-- If a quantity (e.g., `3,12`) is next to a unit (e.g., `KG`, `UN`), treat them as a pair.
-- Do not drop valid units or confuse them with headers.
-
-**Valid units:** `UNI`, `UN`, `KG`, `G`, `L`, `LT`, `PC`, `PACK`, `EMB`, `CX`, `DZ`
-
 ---
 
 #### 4. **Extract Tax Table Headers:**
 
-- In MAKRO invoices, the tax section usually contains headers like:  
+- The tax section usually contains headers like:  
   ""Valor liq."", ""Taxa IVA"", ""Valor IVA""
 - Store all tax header words in `TaxCategoriesHeaders`, preserving exact spelling and coordinates.
 

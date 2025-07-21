@@ -267,24 +267,17 @@ Your task is to extract only the list of **Grocery Products** from the provided 
 
 **Additional Handling Notes:**
 
-- Normalize and correct OCR errors (`1` vs `l`, `g` vs `G`, etc.)
-- Link related rows where packaging is split across multiple lines
-- Ensure `Quantity`, `Unit`, `Container`, and `Count` form a consistent logical structure for each product
+   - Normalize and correct OCR errors (`1` vs `l`, `g` vs `G`, etc.)
+   - Link related rows where packaging is split across multiple lines
+   - Ensure `Quantity`, `Unit`, `Container`, and `Count` form a consistent logical structure for each product
 
 ---
 
 ### 5. 🧾 Tax Category Mapping
-
-- Each product row may contain a tax code (e.g., `2`, `4`, `5`).
-- Convert to `TaxCategory` using:
-
-  ```
-  2 = 23.00% → ""Normal""
-  4 = 6.00%  → ""Reduced""
-  5 = 13.00% → ""Intermedia""
-  ```
-
-- If the tax code is not listed, resolve it from `TaxCategoriesRows`.
+- The extracted **Tax Category** for each product must match one of the given categories and percentages.
+  - Tax Categories in Product List may be: '23', '13', '6', or corresponding names:  'Normal', 'Intermedia', 'Redusido', or various abbreviations of names (such as 'Nor', 'Int', 'Red', etc.). 
+  - Sometimes tax categories may be designated by numbers or letters, and these designations are used in the Product list and deciphered in the Tax Category summary list. For Product List match and use direct names of Tax Categories rather than designations.
+- Verify that the total sum of extracted products matches the provided **TotalAmount** (if ProductTotalValue include taxes) or **TotalAmount** - **TotalIVA** (if ProductTotalValue doesn't include taxes).
 
 ---
 
@@ -353,14 +346,14 @@ Your task is to extract only the list of Grocery Products from the provided OCR 
 
 ---
 
-### General Processing Rules
+### 1. 🧾 General Processing Rules
 
-1. **Output**
+- **Output**
    - Return only the final structured JSON result.
    - **Do NOT include explanations, schema descriptions, or comments outside JSON.**
    - Ensure strict adherence to the output structure and data types.
 
-2. **Input Format**
+- **Input Format**
    - The input includes:
      - `ProductHeaders`: list of product column headers with coordinates;
      - `ProductRows`: list of recognized words and their positions;
@@ -368,11 +361,17 @@ Your task is to extract only the list of Grocery Products from the provided OCR 
    - All data is provided as OCR output with coordinates: (TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY).
    - The document may be a full A4 invoice or a narrow cashier-style receipt.
 
+- **Basic principles of tables processing**:
+  - Based on the coordinates, build a spatial model of tables, correctly define columns and rows.
+  - Rows may be from different Invoice pages and some rows may have different word coordinates. 
+    - Identify such discrepancies and build a model based on relative coordinates - match table and rows endpoints and position internal elements relative to these endpoints.
+  - Double check carefully that **all data** have been processed and saved correctly. **Be very careful**. If **any product or tax line is missing**, the recognition **task has failed**.
+
 ---
 
-### Product List Extraction
+### 2. 📌 Product Table Processing
 
-3. **Header Detection**
+**Header Detection**
    - Identify the headers in `ProductHeaders` according to the list below, in the same order. 
    - One header may consist of multiple words. Combine adjacent words based on meaning and X-position.
    - Adjust header coordinate areas to improve coverage:
@@ -394,34 +393,104 @@ Your task is to extract only the list of Grocery Products from the provided OCR 
 
 
 
-4. **Product Row Parsing**
-   - **Process every row** in `ProductRows`. **Do not skip any rows**, even if damaged or incomplete.
-   - Match words in each row to the correct column by:
-     - Primary: comparing X-coordinates with headers;
-     - Secondary: interpreting semantics of content.
-   - Based on the mapping of product row data to headings, extract **each field** and put to the corresponding mapped JSON Field in the same sequence as below.
-   - If multiple words belong to the same column, **merge them** and adjust the bounding box.
-   - If a row is missing values, attempt to **infer or repair** them based on context and format.
+### 3. 🔍 Product Row Parsing
+
+- Process **every row** in `ProductRows`. 
+  - **Do not skip damaged or incomplete rows**.
+  - **Do not skip any rows that may represent any type of products, even non-food items.**
+
+- ⚠️ Ensure that **no product rows are lost** during parsing:
+  - If a row contains **price and quantity**, it must be treated as an **independent product**, even if its name is complex or resembles packaging/description.
+  - If a row lacks price or quantity, but is close to a previous product row, treat it as a **continuation** — e.g., additional description, packaging format, lot number, or brand.
+
+- One product may span **multiple consecutive rows**:
+  - First row contains main values;
+  - Following rows may include details such as variant, brand, or packaging.
+
+- Or vice versa, there may be a recognition error in the previous steps and one Product Row input element may contain more than one product from the Invoice:
+  - Follow the semantic and spatial model;
+  - Highlight individual products if they are in the same element;
+  - Do not skip any products.
+
+- Be cautious with **technical or packaging-related products** (e.g., cups, lids, containers, bags):
+  - These often have long descriptive names but **must not be skipped** if price and quantity are present.
+  - If in doubt — include the row as a separate product rather than risk losing it.
+
+- Match words to headers by:
+  - Primary method: X-coordinate position;
+  - Secondary method: ordinal position;
+  - Third method: semantic meaning of the text.
+
+- Merge multi-word values left-to-right, clean whitespace and punctuation.
+- If expected values are missing, attempt to infer them using nearby context.
+- ⚠️ Always copy the **full product name** from OCR — including brand, packaging, size/volume units, and any descriptive details — **without abbreviation or transformation**.
+
+- ✅ Treat **delivery services** as regular products:
+  - If a row includes delivery-related terms (e.g., `ENTREGA`, `DELIVERY`, `DLV`, etc.) in **Portuguese, English, or abbreviations**, and has price/quantity — process it **as a separate product** like any other.
+
+- ✅ If packaging deposit is found as rows in products table (e.g., embalagem, caucionamentos, contentores, packaging), include a single product row with ProductName = ""tara"", sum of such lines, Quantity = 1, Unit = ""pcs"", Container = """", Count = null, and TaxCategory = ""0%"".
+- Always use the total line value as the ProductTotalValue — this is the full price for the entire quantity, not the unit price (per piece, per kg, etc.).
+- If a discount is present, always use the final discounted amount as the ProductTotalValue.
+---
 
 
-5. **Fix OCR Errors**
-   - Actively identify and correct **OCR spelling and number recognition mistakes**:
-     - Examples: `Totai` → `Total`, `1` ↔ `I`, `0` ↔ `O`, `Descriçâo` → `Descrição`
-     - Misread decimals or formatting: `3,4O` → `3.40`
-   - Correct invalid symbols in numeric fields (e.g., letters in price or quantity).
-   - Normalize all values for consistency.
+### 4. 📦 Packaging & Unit Extraction Logic
 
-6. **Rescue Damaged Rows**
-   - If a product row is fragmented or partially unreadable:
-     - **Do not discard it.**
-     - Try to recover as much as possible based on structure and column layout.
-     - Partially filled rows are better than lost rows.
+**Output Packaging Fields:**
+
+- `**Unit**`: base unit of measure (e.g., `kg`, `l`, `pcs`, `btl`, `unit`)
+- `**Quantity**`: number of units or containers sold
+- `**Container**`: packaging name/description (e.g., `Box6kg`, `24x0.33L`, `Pack250g`)
+- `**Count**`: quantity/volume/units per container (in the specified `Unit`, or in KG for weighed products and in L for liquids). Leave blank if no container
 
 ---
 
-### Tax Category Mapping
+**Packaging Identification Rules**
 
-7. **Decipher tax categories**
+- **Direct sale without packaging**  
+   If only base units are mentioned in the 'PACK' column (e.g. 'KG', 'L' or 'PC'), 
+   and in the 'Unit/KG' column and in 'Quant' column specifies the corresponding quantity of KG/L/units, 
+   this means that no packaging is indicated for product:
+    - Unit = `kg`, `l`, `pcs` (the base unit)
+    - Quantity = 'Unit/KG' * 'Quant' ( the total quantity ) 
+    - Container = """" (empty)
+    - Count = null
+   ⚠️ Do not create a container unless packaging is explicitly indicated in the invoice.
+
+- **pcs/unit + packaging info in product name**  
+   If the product name explicitly includes a packaging size or weight (e.g., 50g, 250g, 1.7kg, 3kg, 330ml), 
+   and the 'PACK' column contain 'PC', 'BG' or 'SW', 
+   and the 'Unit/KG' column contain '1',
+   and the 'Quant' column specifies  the number of packages, 
+   this means that **packaging is indicated as part of the product name**, not as a separate container:
+   - Unit = `pcs` 
+   - Quantity = number of packages as specified in the invoice
+   - Container = """" (empty)
+   - Count = null
+   - ✅ Always keep the packaging information (e.g., weight, volume) **inside the product name** — do not remove, abbreviate, or move it to another field.
+   - ⚠️ Do not create a container in this case — the size or weight is treated as part of the product unit identity, not as a separate packaging layer.
+
+- **Explicit packaging and multi-packs**  
+   If packaging is present in 'PACK' column as 'BX', 'CA', etc
+   and the 'Unit/KG' column contain number of items in one package, 
+   and the 'Quant' column specifies  the number of packages, 
+   - `Unit` = smallest measurement unit of product (e.g., 'pcs', 'kg', 'l', 'btl0,33l', etc.)
+   - `Quantity` = value of 'Quant' column 
+   - `Container` = extracted name (`Box6kg`, `24x0.33l`)
+   - `Count` = value of 'Unit/KG' column
+
+- **Non-grocery packaging (disposables, utensils, etc.)**  
+   If the product is a **non-food item** (e.g., packaging, cups, cleaning supplies), and the text contains **container/box/carton** info:
+   - Set `Container` to the box/pack name (e.g., `Box`, `Carton`, `Pack`)
+   - If possible, extract `Count` as the number of items inside from 'Unit/KG' column or from name (e.g., `100 cups`, `50 bags` → `Count = 100`)
+   - If item count is not stated, leave `Count = null`
+
+---
+
+
+### 5. Tax Category Mapping
+
+- **Decipher tax categories**
     - In the IvaDD column of each product row, you will find a tax category code (e.g., 2, 4, 5). These codes correspond to VAT percentages and category names, and must be mapped as follows:
         2 = 23.00% → `Normal`
         4 = 6.00%  → `Reduced`
@@ -433,13 +502,24 @@ Your task is to extract only the list of Grocery Products from the provided OCR 
 
 ---
 
-### Final Validation
+### 6. 🧠 OCR Error Correction & Row Recovery
 
-8. **Verify Totals**
+- Correct common OCR mistakes:
+  - `Totai` → `Total`, `1` ↔ `I`, `0` ↔ `O`, `Descriçâo` → `Descrição`
+  - Numerical corrections: `3,4O` → `3.40`, etc.
+- Do not discard partially recognized rows. Attempt to reconstruct from context and position.
+- Include incomplete rows if any values can be interpreted.
+
+---
+
+### 7. Final Validation
+
+- **Verify Totals**
    - Sum all `ProductTotalValue` values.
    - Confirm that the total matches:
      - `TotalAmount` (if values include tax), or
      - `TotalAmount - TotalIVA` (if values exclude tax).
+   - If there is a discount, always extract and use the final discounted price.
    - Add a `Comments` field to describe:
      - Any automatic corrections;
      - Reconstructed or incomplete rows;
@@ -447,33 +527,29 @@ Your task is to extract only the list of Grocery Products from the provided OCR 
 
 ---
 
-### JSON Output Example
+### 7. JSON Output Example
    json
    {{
      ""Products"": [
        {{
-         ""ProductCode"": ""2880805018206"",
-         ""ProductName"": ""MC 1OMAIE RAMA 1 67/82 V2"",
-         ""Unit"": ""kg"",
-         ""Container"": ""KG"",
-         ""PricePerUnitKG"": 2.180,
-         ""UnitsCount"": 1.820,
-         ""PricePerContainer"": 3.97,
-         ""QuantityOfContainers"": 1,
-         ""ProductTotalValue"": 3.97,
-         ""TaxCategory"": ""Reduced""
+          ""ProductCode"": ""2880805018206"",
+          ""ProductName"": ""MC 1OMAIE RAMA 1 67/82 V2"",
+          ""Unit"": ""kg"",
+          ""Quantity"": 1.820,
+          ""Container"": """",
+          ""Count"": null,
+          ""ProductTotalValue"": 3.97,
+          ""TaxCategory"": ""Reduced""
        }},
        {{
-         ""ProductCode"": ""004321"",
-         ""ProductName"": ""CERV. SUPER BOCK 24X33CL TP"",
-         ""Unit"": ""btl"",
-         ""Container"": ""Box"",
-         ""PricePerUnitKG"": 0.560,
-         ""UnitsCount"": 24,
-         ""PricePerContainer"": 13.44,
-         ""QuantityOfContainers"": 1,
-         ""ProductTotalValue"": 13.44,
-         ""TaxCategory"": ""Normal""
+          ""ProductCode"": ""004321"",
+          ""ProductName"": ""CERV. SUPER BOCK 24X33CL TP"",
+          ""Unit"": ""btl"",
+          ""Quantity"": 2,
+          ""Container"": ""Box24x0.33L"",
+          ""Count"": 24,
+          ""ProductTotalValue"": 26.88,
+          ""TaxCategory"": ""Normal""
        }}
      ]
    }}
