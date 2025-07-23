@@ -30,8 +30,9 @@ namespace UpRestEye3.Models.RMSDTO
         public decimal maxContainerWeight { get; set; } = 0;
         public decimal containerWeight { get; set; } = 0;
         public decimal fullContainerWeight { get; set; } = 0;
+        public bool deleted { get; set; } = false;
 
-    }
+        }
 
 
 

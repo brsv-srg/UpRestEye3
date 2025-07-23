@@ -1133,7 +1133,7 @@
 		if (scannedImageCache.TryGetValue((invoiceId, pageIndex), out var cachedImage))
 		{
 			scannedImageBase64 = cachedImage;
-			
+
 			return;
 		}
 
@@ -1374,7 +1374,7 @@
 				await ShowMessage($"Failed to combine files to one invoice. Status code: {response.StatusCode}", "alert-danger");
 				return;
 			}
-			
+
 			var invoicesIdsList = new List<int?> { invoiceId };
 
 			var request = new SetInvoicesStatusRequest()
@@ -1614,6 +1614,9 @@
 
 		if (product.RMSProduct != null)
 			converterContainer.SetSourceList(product.RMSProduct.Containers);
+		else
+			converterContainer.SetSourceList(new List < RMSContainerDTO >());
+
 	}
 
 	private decimal GetTotalPriceSum()

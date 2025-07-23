@@ -2,9 +2,13 @@
 using iTextSharp.text.pdf;
 using iTextSharp.text.pdf.parser;
 using Microsoft.AspNetCore.StaticFiles;
+using Org.BouncyCastle.Utilities;
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
+using Ghostscript.NET.Rasterizer;
+using PdfSharpCore.Pdf.IO;
+using System.IO;
 using System.IO;
 using System.Runtime.InteropServices;
 using UpRestEye3.Components.Pages;
@@ -30,7 +34,7 @@ public class ImageLoader
             switch (extension)
             {
                 case ".pdf":
-                    images.Add((LoadImageFromPdf(filePath), filePath));
+                    images.Add((LoadImageFromPdfUniversal(filePath), filePath));
                     break;
                 case ".heic":
                     images.Add((LoadImageFromHeic(filePath), filePath));
@@ -43,15 +47,33 @@ public class ImageLoader
         return images;
     }
 
+    private Bitmap LoadImageFromPdfUniversal(string filePath)
+    {
+        //// 1. Пробуем извлечь вложенное изображение
+        //try
+        //{
+        //    var img = LoadImageFromPdf(filePath);
+        //    if (img != null)
+        //        return img;
+        //}
+        //catch
+        //{
+        //    // Игнорируем, если не найдено изображение
+        //}
+
+        // 2. Если не получилось — рендерим страницу как изображение
+        return LoadImageFromPdf2(filePath);
+    }
+
     private Bitmap LoadImageFromPdf(string filePath)
     {
-        using (PdfReader reader = new PdfReader(filePath))
+        using (iTextSharp.text.pdf.PdfReader reader = new iTextSharp.text.pdf.PdfReader(filePath))
         {
             for (int pageNumber = 1; pageNumber <= reader.NumberOfPages; pageNumber++)
             {
                 PdfDictionary pageDict = reader.GetPageN(pageNumber);
-                PdfDictionary resources = (PdfDictionary)PdfReader.GetPdfObject(pageDict.Get(PdfName.RESOURCES));
-                PdfDictionary xObject = (PdfDictionary)PdfReader.GetPdfObject(resources.Get(PdfName.XOBJECT));
+                PdfDictionary resources = (PdfDictionary)iTextSharp.text.pdf.PdfReader.GetPdfObject(pageDict.Get(PdfName.RESOURCES));
+                PdfDictionary xObject = (PdfDictionary)iTextSharp.text.pdf.PdfReader.GetPdfObject(resources.Get(PdfName.XOBJECT));
 
                 if (xObject != null)
                 {
@@ -60,15 +82,15 @@ public class ImageLoader
                         PdfObject obj = xObject.Get(name);
                         if (obj.IsIndirect())
                         {
-                            PdfDictionary dict = (PdfDictionary)PdfReader.GetPdfObject(obj);
-                            PdfName subtype = (PdfName)PdfReader.GetPdfObject(dict.Get(PdfName.SUBTYPE));
+                            PdfDictionary dict = (PdfDictionary)iTextSharp.text.pdf.PdfReader.GetPdfObject(obj);
+                            PdfName subtype = (PdfName)iTextSharp.text.pdf.PdfReader.GetPdfObject(dict.Get(PdfName.SUBTYPE));
 
                             if (PdfName.IMAGE.Equals(subtype))
                             {
                                 int xrefIndex = ((PRIndirectReference)obj).Number;
                                 PdfObject pdfObj = reader.GetPdfObject(xrefIndex);
                                 PdfStream pdfStream = (PdfStream)pdfObj;
-                                byte[] bytes = PdfReader.GetStreamBytesRaw((PRStream)pdfStream);
+                                byte[] bytes = iTextSharp.text.pdf.PdfReader.GetStreamBytesRaw((PRStream)pdfStream);
 
                                 if (bytes != null)
                                 {
@@ -108,6 +130,21 @@ public class ImageLoader
         }
         throw new Exception("No images found in PDF.");
     }
+
+
+
+    private Bitmap LoadImageFromPdf2(string filePath)
+    {
+        int dpi = 150;
+        using (var rasterizer = new GhostscriptRasterizer())
+        {
+            rasterizer.Open(filePath);
+            // Рендерим первую страницу (нумерация с 1)
+            var img = rasterizer.GetPage(dpi, 1);
+            return new Bitmap(img);
+        }
+    }
+
 
     private Bitmap LoadImageFromHeic(string filePath)
     {

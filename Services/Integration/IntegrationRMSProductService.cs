@@ -164,6 +164,11 @@ namespace UpRestEye3.Services.Integration
                 Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }*/
             });
 
+            foreach( var product in products)
+            {
+                product.containers = product.containers.Where(c => c.deleted == false).ToList();
+            }
+
             return products?.Where(p => p.type == "GOODS" || p.type == "SERVICE")?.ToList() ?? new List<GetProductDTO>();
             //return products;
         }

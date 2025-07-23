@@ -239,8 +239,18 @@ namespace UpRestEye3.Services.DataLayer
                                                         !string.IsNullOrEmpty(c.Name) && !string.IsNullOrEmpty(existingContainer.Name) &&
                                                         c.Name == existingContainer.Name)))
                         {
-                            _context.Remove(existingContainer);
-                            _context.Entry(existingContainer).State = EntityState.Deleted;
+
+                            var existingInvoices = await _context.InvoiceProducts.AsNoTracking()
+                                .FirstOrDefaultAsync(p => p.RMSContainerId == existingContainer.Id);
+                            if (existingInvoices != null)
+                            {
+                                newProductDao.Status = RMSProductStatusEnum.NewContainer;
+                            }
+                            else
+                            {
+                                _context.Remove(existingContainer);
+                                _context.Entry(existingContainer).State = EntityState.Deleted;
+                            }
                         }
                     }
 
