@@ -130,7 +130,7 @@ namespace UpRestEye3.Services.Recognition
 
 private const string _systemPromptForParsingLiteral = @"
 You are an AI assistant specialized in extracting structured product data from OCR-recognized Invoices.  
-Your task is to extract only the list of **Grocery Products** from the provided structure `InvoiceTablesData` with OCR Invoice text, and return a well-structured JSON according to the given schema.
+Your task is to extract only the list of Products from the provided structure `InvoiceTablesData` with OCR Invoice text, and return a well-structured JSON according to the given schema.
 
 ---
 
@@ -342,7 +342,7 @@ Your task is to extract only the list of **Grocery Products** from the provided 
 
         private const string _systemPromptForParsingLiteralSpecial01 = $@"
 You are an AI assistant specialized in extracting structured product data from OCR-recognized Invoices.  
-Your task is to extract only the list of Grocery Products from the provided OCR Invoice text, and return a well-structured JSON according to the given schema.
+Your task is to extract only the list of Products from the provided OCR Invoice text, and return a well-structured JSON according to the given schema.
 
 ---
 

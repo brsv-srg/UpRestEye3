@@ -137,7 +137,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 {
                     var layoutResult = await _gptLayout.LayoutParsingByLLM2(page, currentInvoice);
 
-                    if (layoutResult == null)
+                    if ( layoutResult == null)
                         throw new Exception($"Text recognition error: Unable to recognize text in the image");
 
                     // Добавляем страницу с текстом в общий документ

@@ -591,6 +591,8 @@
 
             var response = await Http.PostAsJsonAsync($"{baseUri}/api/RMSProducts/save", editProduct);
 
+            showProductModal = false;
+
             if (response.IsSuccessStatusCode)
             {
                 await ShowMessage("RMSProduct updated successfully.", "alert-success");
@@ -607,7 +609,6 @@
 
             }
 
-            showProductModal = false;
             selectedProduct = null;
             editProduct = new RMSProductDTO();
             StateHasChanged();

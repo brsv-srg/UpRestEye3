@@ -669,47 +669,105 @@
 			console.log(`Transform applied: scale(${scale}) translate(${originX}px, ${originY}px)`);
 		}
 
-		// Масштабирование через колесо мыши
-		container.addEventListener("wheel", (e) => {
-			e.preventDefault();
+        // Масштабирование через колесо мыши только при нажатом Ctrl
+        container.addEventListener("wheel", (e) => {
+            if (!e.ctrlKey) return; // Масштабировать только если зажат Ctrl
+            e.preventDefault();
 
-			const delta = e.deltaY > 0 ? -0.1 : 0.1;
-			const newScale = Math.min(Math.max(0.1, scale + delta), 5);
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            const newScale = Math.min(Math.max(0.1, scale + delta), 5);
 
-			scale = newScale;
-			updateTransform();
-		});
+            scale = newScale;
+            updateTransform();
+        });
 
+
+		// Начало перетаскивания
+		// container.addEventListener("mousedown", (e) => {
+		// 	e.preventDefault();
+		// 	console.log(`grabbing??: state=${isGrabbed}`);
+		// 	if (!isGrabbed) {
+		// 		console.log(`grabbing: originX=${originX}, originY=${originY}`);
+		// 		isGrabbed = true;
+		// 		container.style.cursor = "grabbing";
+		// 		Запоминаем смещение относительно текущей позиции
+		// 		startX = e.clientX - originX;
+		// 		startY = e.clientY - originY;
+		// 	} else {
+		// 		console.log(`Stop grabbing: originX=${originX}, originY=${originY}`);
+		// 		isGrabbed = false;
+		// 		container.style.cursor = "grab";
+		// 	}
+		// });
+
+		// Перетаскивание
+		// container.addEventListener("mousemove", (e) => {
+		// 	console.log(`move - grabbing??: state=${isGrabbed}`);
+		// 	if (!isGrabbed) return;
+
+		// 	originX = e.clientX - startX;
+		// 	originY = e.clientY - startY;
+		// 	console.log(`Mouse move: originX=${originX}, originY=${originY}`);
+		// 	updateTransform();
+		// });
+
+
+
+		// масштабирование
+
+		// 		Перетаскивание
+		// container.addEventListener("mousemove", (e) => {
+		// 	if (!isGrabbed) return;
+		// 	Получаем размеры контейнера и изображения
+		// 	const containerRect = container.getBoundingClientRect();
+		// 	const imageRect = image.getBoundingClientRect();
+
+		// 	Вычисляем смещение мыши относительно контейнера
+		// 	и корректируем с учетом текущего масштаба
+		// 	originX = (e.clientX - containerRect.left - startX) / scale;
+		// 	originY = (e.clientY - containerRect.top - startY) / scale;
+		// 	updateTransform();
+		// });        container.addEventListener("mousedown", (e) => {
+		// 	e.preventDefault();
+		// 	isGrabbed = true;
+		// 	container.style.cursor = "grabbing";
+		// 	const containerRect = container.getBoundingClientRect();
+		// 	startX = (e.clientX - containerRect.left) / scale - originX;
+		// 	startY = (e.clientY - containerRect.top) / scale - originY;
+		// });
 
 		// Начало перетаскивания
 		container.addEventListener("mousedown", (e) => {
 			e.preventDefault();
-			console.log(`grabbing??: state=${isGrabbed}`);
-			if (!isGrabbed) {
-				console.log(`grabbing: originX=${originX}, originY=${originY}`);
-				isGrabbed = true;
-				container.style.cursor = "grabbing";
-				// Запоминаем смещение относительно текущей позиции
-				startX = e.clientX - originX;
-				startY = e.clientY - originY;
-			} else {
-				console.log(`Stop grabbing: originX=${originX}, originY=${originY}`);
+			isGrabbed = true;
+			container.style.cursor = "grabbing";
+			startX = e.clientX - originX;
+			startY = e.clientY - originY;
+		});
+
+		// Перетаскивание
+		container.addEventListener("mousemove", (e) => {
+			if (!isGrabbed) return;
+			originX = e.clientX - startX;
+			originY = e.clientY - startY;
+			updateTransform();
+		});
+
+		// Завершение перетаскивания
+		container.addEventListener("mouseup", (e) => {
+			if (isGrabbed) {
 				isGrabbed = false;
 				container.style.cursor = "grab";
 			}
 		});
 
-		// Перетаскивание
-		container.addEventListener("mousemove", (e) => {
-			console.log(`move - grabbing??: state=${isGrabbed}`);
-			if (!isGrabbed) return;
-
-			originX = e.clientX - startX;
-			originY = e.clientY - startY;
-			console.log(`Mouse move: originX=${originX}, originY=${originY}`);
-			updateTransform();
+		// Для поддержки выхода за пределы контейнера при отпускании мыши
+		document.addEventListener("mouseup", (e) => {
+			if (isGrabbed) {
+				isGrabbed = false;
+				container.style.cursor = "grab";
+			}
 		});
-
 
 
 		// Подгонка изображения при загрузке
@@ -1751,6 +1809,7 @@
 	{
 		var response = await Http.PostAsJsonAsync($"{baseUri}/api/invoices/save", editInvoice);
 
+		showInvoiceModal = false;
 
 		if (response.IsSuccessStatusCode)
 		{
@@ -1762,7 +1821,6 @@
 			var errorContent = await response.Content.ReadAsStringAsync();
 			await ShowMessage($"Invoice update failed. Status code: {response.StatusCode}, Error: {errorContent}", "alert-danger");
 		}
-		showInvoiceModal = false;
 		selectedInvoice = null;
 		editInvoice = new InvoiceDTO();
 	}

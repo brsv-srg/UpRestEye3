@@ -45,7 +45,7 @@ namespace UpRestEye3.Services.Recognition
         public string GetSystemPrompt(InvoiceDTO currentInvoice)
         {
             if (currentInvoice.Supplier.TaxNumber == "502030712")
-                return _systemPromptForParsingLiteralSpecial01;
+                return _systemPromptForParsingLiteralSpecial02;
             else
                 return _systemPromptForParsingLiteral;
         }
@@ -179,16 +179,16 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 
 ---
 
-### 🛠️ **Extraction Tasks: Do it for each Page**
+### 🛠️ **Extraction Tasks: Do it for each page**
 
 #### 1. **Detect Sections:**
 
-- Locate and retrieve the product table and tax section on the Page. Products or taxes may not be present on individual pages, but make sure to double check.
-- It is important to extract all rows of products and taxes. If even a single product or tax is missing, then the whole task of Invoice recognizing is not complete.
-- It is **better to add extra rows** when in doubt **than to lose the right** ones.
+- Locate and retrieve the product table and tax section on the page. Products or taxes may not be present on individual pages, but make sure to double check.
+- It is important to extract all rows and words of products and taxes. If even a single product or tax is missing, then the whole task of Invoice recognizing is not complete.
+- If in doubt, **add that line to the result** so you don't lose important data.
 - **Don't mix up the rows**, it is important to keep the sequence that is given in the coordinates.
 - Ignore unrelated parts such as company details, addresses, notes, footers, etc.
-- Save all found on the Page data in the output JSON structure.
+- Save all found on the page data in the output JSON structure.
 
 ---
 
@@ -197,7 +197,7 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 - Identify and extract the row or **group of visually consecutive rows** containing product table column headers (e.g., `Code`, `Description`, `Qty`, `Unit`, `Price`, `IVA`, `Discount`, `Total`, etc.).
 - Headers may be in **Portuguese, English**, or use common abbreviations (`Cod`, `Qtd`, `UNI`, `IVA`, etc.).
 - **Headers may span multiple lines**. If a column name is split across several rows (e.g., 'Desconto' / 'promocional'), include **all relevant rows**.
-- Store all Headers words found on the Page **""as one line as one row""** in the output `ProductHeaders` array, **exactly as recognized**:
+- Store all Headers words found on the page **""as one line as one row""** in the output `ProductHeaders` array, **exactly as recognized**:
   - Preserve original spelling, diacritics, casing, symbols.
   - Save full, unmodified coordinates in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
   - ⚠️ **Do not translate, normalize, or merge** terms.
@@ -207,13 +207,15 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 #### 3. **Extract Product Table Rows:**
 
 - Identify and extract **all product-related rows** including:
-  - Major product lines,
-  - Variants (e.g., flavor, cut),
-  - Additional rows (e.g., batch number, Lote, descriptions).
-- Continue extracting **all products** until explicitly unrelated content begins (e.g., totals, taxes, company information, notes).
-- Place all detected product rows found on the Page in the output `ProductRows` array, **strictly in their order** on the Page. **Do not mix or rearrange** rows.
-- For each row preserve original sequence of words, symbols and casing, and raw coordinates without changes in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
-- ⚠️ **Do not skip lines that may represent products**.
+  - Main product lines with all information about Product in line: Code, Name, Pack, Price, Quantity, Total, TAX, etc,
+  - Additional rows without prices that provide additional info:
+    - Descriptions,
+    - Supplemental rows (e.g., Lote, reference).
+
+- Continue extracting **all products** until explicitly unrelated content begins (e.g., totals, taxes, company information, notes) or page will be finished).
+- Place all detected product rows found on the page in the output `ProductRows` array, **strictly in their order** on the page. **Do not mix or rearrange** rows.
+- For each row preserve original sequence of **all words, symbols, numbers, etc., and raw coordinates without changes** in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
+- ⚠️ **Do not skip lines and line words that represent products**.
 - ⚠️ Once product rows are detected, **check that quantities and prices are correctly aligned** and not mistakenly linked to neighboring products, especially if the Invoice is garbled.
 
 ##### ⚠️ Quantity + Unit Handling:
@@ -222,14 +224,14 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 - Units must **not be confused with headers** or discarded as noise.
 **Examples of valid units (case-insensitive):** `UNI`, `UN`, `KG`, `G`, `L`, `LT`, `PC`, `PACK`, `EMB`, `CX`, `DZ`.
 
-- Be careful. If even **one line is lost** from Page, the whole recognition **task will be thwarted**.
+- Be careful. If even **one product line or word from product line is lost** from page, the whole recognition **task will be thwarted**.
 
 ---
 
 #### 4. **Extract Tax Table Headers:**
 
 - Identify and extract the header row(s) for the tax section (e.g., `Incidência`, `Taxa`, `IVA`, `Valor`, `Total`).
-- Store all Tax Table Header words found on the Invoice Page **as one row** in the output `TaxCategoriesHeaders` array, preserving:
+- Store all Tax Table Header words found on the Invoice page **as one row** in the output `TaxCategoriesHeaders` array, preserving:
   - Exact text (with all symbols, accents, etc.),
   - Coordinates unmodified in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`..
 
@@ -256,6 +258,104 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 - **Do not return** the schema or any descriptive text — only the structured data.
 - Check carefully that **all data** have been processed and saved correctly. **Be very careful**. If **any product or tax line is missing**, the recognition **task has failed**.
 ";
+
+
+        private const string _systemPromptForParsingLiteralSpecial02 = @"
+You are an AI assistant specialized in extracting structured product and tax data from OCR-recognized invoices.  
+Your task is to analyze the OCR output and extract **product tables** and **tax breakdowns**, returning the result as structured JSON according to the provided `response_format` schema.
+
+---
+
+### 📄 **Input Format:**
+
+- An Invoice may consist of several pages. But each time processing is done on a separate page.
+- Page contains a flat list of recognized `Words`, and each word has:
+  - `WordText`
+  - `WordCoordinates` in the format:  
+    `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`
+
+- ⚠️ There are no pre-grouped blocks or rows.  
+  You must **reconstruct the layout** by analyzing word positions and coordinates. 
+  The Invoice may be skewed or distorted. You **must detect the type of distortion** (e.g., skew angle, perspective shift) and **compensate for it when reconstructing** the structure of product and tax tables.
+
+  Using this spatial model, **detect the product table** and the **tax section**, including headers and rows for each.  
+  Model must infer structure based on layout, spacing, and alignment.
+
+---
+
+### 🛠️ **Extraction Tasks: Do it for each page**
+
+#### 1. **Detect Sections:**
+
+- Locate and retrieve the product table and tax section on the page. Products or taxes may not be present on individual pages, but make sure to double check.
+- It is important to extract all rows of products and taxes. If even a single product or tax is missing, then the whole task of Invoice recognizing is not complete.
+- It is **better to add extra rows** when in doubt **than to lose the right** ones.
+- **Don't mix up the rows**, it is important to keep the sequence that is given in the coordinates.
+- Ignore unrelated parts such as company details, addresses, notes, footers, etc.
+- Save all found on the page data in the output JSON structure.
+
+---
+
+#### 2. **Extract Product Table Headers:**
+
+- Identify and extract the row or **group of visually consecutive rows** containing product table column headers:
+  ""Código Artigo"", ""Descrição Artigo"", ""PACK"", ""PR Unit/KG"", ""Unit/KG"", ""Preço U.V."", ""Quant"", ""Valor Total"", ""IvaDD""
+- According to the spatial model of the invoice, and possible distortions, determine the **extreme left and right boundaries of the product table** by the headings for use when saving product rows.
+- Store all Headers words found on the page **""as one line as one row""** in the output `ProductHeaders` array, **exactly as recognized**:
+  - Preserve original spelling, diacritics, casing, symbols.
+  - Save full, unmodified coordinates in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
+  - ⚠️ **Do not translate, normalize, or merge** terms.
+
+---
+
+#### 3. **Extract Product Table Rows:**
+
+- Identify and extract **all product-related rows**.
+- According to the spatial model, for each row, determine the **complete sequence** of **all words** from the left to the right edge of the product table.
+- ⚠️ **Do not split rows, mix or rearrange words**.
+- Check that all words are correctly associated with the current row in accordance with the spatial model — **nothing is lost, no words are taken from other rows**. 
+
+- Continue extracting **all products rows** until explicitly unrelated content begins (e.g., totals, taxes, company information, notes) or page will be finished).
+- Place all detected product rows and words into the output `ProductRows` array **strictly in their order** on the page, including **word coordinates unchanged** in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`. 
+- ⚠️ **Do not skip, mix or rearrange rows that represent products**.
+
+
+- Be careful. If even **one product line or word from product line is lost** from page, the whole recognition **task will be thwarted**.
+
+---
+
+#### 4. **Extract Tax Table Headers:**
+
+- Identify and extract the header row(s) for the tax section (e.g., `Incidência`, `Taxa`, `IVA`, `Valor`, `Total`).
+- Store all Tax Table Header words found on the Invoice page **as one row** in the output `TaxCategoriesHeaders` array, preserving:
+  - Exact text (with all symbols, accents, etc.),
+  - Coordinates unmodified in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`..
+
+---
+
+#### 5. **Extract Tax Table Rows:**
+
+- Identify and extract all rows that belongs to the tax breakdown table.
+- Use the header layout to guide column matching.
+- Store all detected rows found on the Page in the output `TaxCategoriesRows` array, preserving full word details and unmodified coordinates in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
+
+---
+
+#### 6. **Correct OCR Errors:**
+
+- Actively detect and correct common OCR mistakes (e.g., `L` instead of `1`, missing accents, fragmented words, misaligned lines).
+- Use visual proximity and contextual clues to reassemble broken rows or fix incorrect groupings.
+
+---
+
+#### 7. **Output JSON Format:**
+
+- Return the result strictly as **JSON**, following the `response_format` schema.
+- **Do not return** the schema or any descriptive text — only the structured data.
+- Check carefully that **all data** have been processed and saved correctly. **Be very careful**. If **any product or tax line is missing**, the recognition **task has failed**.
+";
+
+
 
         private const string _systemPromptForParsingLiteralSpecial01 = @"
 You are an AI assistant specialized in extracting structured product and tax data from OCR-recognized invoices.  
