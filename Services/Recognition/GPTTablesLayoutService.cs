@@ -11,74 +11,29 @@ using static Google.Apis.Requests.BatchRequest;
 namespace UpRestEye3.Services.Recognition
 {
 
-    public interface IGPTLayoutService
+    public interface IGPTTablesLayoutService
     {
-        Task<TablesDataDocument> LayoutParsingByLLM(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice);
-        Task<TablesDataPage> LayoutParsingByLLM2(SimplePage invoicePageText, InvoiceDTO currentInvoice);
+        Task<TablesDataPage> LayoutParsingByLLM(SimplePageOfRows invoicePageText, InvoiceDTO currentInvoice);
 
     }
 
-    public class GPTLayoutService : IGPTLayoutService
+    public class GPTTablesLayoutService : IGPTTablesLayoutService
     {
 
-        private readonly GPTLayoutEnvironment _env;
+        private readonly GPTTablesLayoutEnvironment _env;
 
-        public GPTLayoutService()
+        public GPTTablesLayoutService()
         {
-            _env = new GPTLayoutEnvironment();
+            _env = new GPTTablesLayoutEnvironment();
         }
-        public async Task<TablesDataDocument> LayoutParsingByLLM(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice)
+ 
+
+        public async Task<TablesDataPage> LayoutParsingByLLM(SimplePageOfRows invoicePageText, InvoiceDTO currentInvoice)
         {
             try
             {
                 // Сериализация тела запроса
-                var jsonBody = _env.GetLayoutRequestBody(invoiceText, currentInvoice);
-
-
-                var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");
-
-
-                // Конфигурация HTTP-клиента
-                using var httpClient = new HttpClient
-                {
-                    Timeout = TimeSpan.FromMinutes(5) // Increase timeout to 5 minutes
-                };
-
-                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _env.GetApiKey());
-                Console.WriteLine($"Sending request to OpenAI API:..{httpContent.ToString()}");
-                // Отправка POST-запроса
-                var response = await httpClient.PostAsync(_env.GetURL(), httpContent);
-
-                // Проверка ответа
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    throw new Exception($"OpenAI API error: {errorContent}");
-                }
-
-
-                // Чтение и возврат результата
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                var productTable = ResponseInvoiceParsing(responseContent);
-
-
-                return null; // productTable;
-
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error parsing JSON response to Invoice object", ex);
-            }
-        }
-
-
-        public async Task<TablesDataPage> LayoutParsingByLLM2(SimplePage invoicePageText, InvoiceDTO currentInvoice)
-        {
-            try
-            {
-                // Сериализация тела запроса
-                var jsonBody = _env.GetLayoutRequestBody2(invoicePageText, currentInvoice);
+                var jsonBody = _env.GetLayoutRequestBody(invoicePageText, currentInvoice);
 
 
                 var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");

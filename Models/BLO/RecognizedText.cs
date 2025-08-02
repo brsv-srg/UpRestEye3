@@ -78,21 +78,25 @@ namespace UpRestEye3.Models.BLO
         public RectangleCoordinates ParagraphCoordinates { get; set; }
         public List<SimplifiedWord> Words { get; set; }
     }
+    public class SimplePageOfRows
+    {
+        public List<SimplifiedRow> Rows { get; set; }
+    }
 
     public class SimplifiedRow
     {
-        public RectangleCoordinates RowCoordinates { get; set; }
+        //public RectangleCoordinates RowCoordinates { get; set; }
         public List<SimplifiedWord> Words { get; set; }
     }
 
-    public class SimplePage
+    public class SimplePageOfWords
     {
         public List<SimplifiedWord> Words { get; set; }
     }
 
     public class SimpleDocument
     {
-        public List<SimplePage> Pages { get; set; }
+        public List<SimplePageOfWords> Pages { get; set; }
     }
 
     public class SimplifiedWord

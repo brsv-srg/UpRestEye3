@@ -30,7 +30,7 @@ using System.Net.Http.Json;
 
 namespace UpRestEye3.Services.Recognition
 {
-    public class GPTLayoutEnvironment
+    public class GPTTablesLayoutEnvironment
     {
             // TODO Убрать URL в параметры 
         private static readonly string _url = "https://api.openai.com/v1/chat/completions";
@@ -38,7 +38,7 @@ namespace UpRestEye3.Services.Recognition
         private static readonly string _apiKey = "sk-svcacct-NcF9TOe3CkWN0BHA0BDKjap-EDHI0abjP4Az40fjpw5QpqhQtStDuJWojvu9mOoKH6OT3BlbkFJHCJrfsShSxh4n365KhkW6fypNHJzq-qOrA8ulaFqjgM3qXUAFsbARJ0vWvF6JmnFSAA";
 
 
-        public GPTLayoutEnvironment()
+        public GPTTablesLayoutEnvironment()
         {
         }
 
@@ -86,7 +86,7 @@ Use the following **known invoice details** for validation:
 
         public string GetApiKey() => _apiKey;
         
-        public string GetLayoutRequestBody(ResortedSimplifiedDocument invoiceText, InvoiceDTO currentInvoice)
+        public string GetLayoutRequestBody(SimplePageOfRows invoiceText, InvoiceDTO currentInvoice)
         {
             var options = JsonHelper.GetSerializerOptions();
             // Формируем запрос
@@ -121,42 +121,8 @@ Use the following **known invoice details** for validation:
         }
 
 
-        public string GetLayoutRequestBody2(SimplePage invoicePageText, InvoiceDTO currentInvoice)
-        {
-            var options = JsonHelper.GetSerializerOptions();
-            // Формируем запрос
-            var requestBody = new
-            {
-                model = "gpt-4.1",
-                //model = "gpt-4o",
-                //model = "gpt-4o-mini",
 
-                temperature = 0.0,
-                top_p = 1.0,
-                n = 1,
-                messages = new object[]
-                {
-                        new { role = "system", content = GetSystemPrompt(currentInvoice) }, 
-                        new { role = "user", content = GetUserPrompt(JsonSerializer.Serialize(invoicePageText, options)) },
-                        new { role = "user", content = GetInvoiceDetails(currentInvoice) }
-                },
-                response_format = new
-                {
-                    type = "json_schema",
-                    json_schema = new
-                    {
-                        name = "Invoice",
-                        schema = JsonDocument.Parse(GetProductsSchema()).RootElement
-                    }
-                }
-            };
-
-            // Сериализация тела запроса
-            return JsonSerializer.Serialize(requestBody, options);
-        }
-
-
-        private const string _systemPromptForParsingLiteral = @"
+    private const string _systemPromptForParsingLiteral = @"
 You are an AI assistant specialized in extracting structured product and tax data from OCR-recognized invoices.  
 Your task is to analyze the OCR output and extract **product tables** and **tax breakdowns**, returning the result as structured JSON according to the provided `response_format` schema.
 
@@ -165,18 +131,13 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 ### 📄 **Input Format:**
 
 - An Invoice may consist of several pages. But each time processing is done on a separate page.
-- Page contains a flat list of recognized `Words`, and each word has:
+- A page contains a flat list of lines combining recognized `Words` presented on the same line in the invoice.
+- Each `Word` in a line has:
   - `WordText`
   - `WordCoordinates` in the format:  
     `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`
 
-- ⚠️ There are no pre-grouped blocks or rows.  
-  You must **reconstruct the layout** by analyzing word positions and coordinates. 
-  The Invoice may be skewed or distorted. You **must detect the type of distortion** (e.g., skew angle, perspective shift) and **compensate for it when reconstructing** the structure of product and tax tables.
-
-  Using this spatial model, **detect the product table** and the **tax section**, including headers and rows for each.  
-  Model must infer structure based on layout, spacing, and alignment.
-
+- Using this list of lines and words and their coordinates on the page, **define the product table** and **tax section**, including headers and lines for each of them.  
 ---
 
 ### 🛠️ **Extraction Tasks: Do it for each page**
@@ -269,18 +230,13 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 ### 📄 **Input Format:**
 
 - An Invoice may consist of several pages. But each time processing is done on a separate page.
-- Page contains a flat list of recognized `Words`, and each word has:
+- A page contains a flat list of rows combining recognized `Words` presented on the same line in the invoice.
+- Each `Word` in a line has:
   - `WordText`
   - `WordCoordinates` in the format:  
     `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`
 
-- ⚠️ There are no pre-grouped blocks or rows.  
-- You must **reconstruct the layout** by analyzing word positions and coordinates. 
-- The Invoice may be skewed or distorted. You **must detect the type of distortion** (e.g., skew angle, perspective shift) and **compensate for it when reconstructing** the structure of document.
-
-- Using this spatial model, taking into account document distortions, create a list of rows combining words located on the same line of the source document, from the left edge to the right. 
-- ⚠️ Further data processing should be done only on the basis of the constructed lines.
-
+- Using this list of rows, words, and their coordinates on the page, **define the product table** and **tax section**, including headings and rows for each.
 ---
 
 ### 🛠️ **Extraction Tasks: Do it for each page**
@@ -311,14 +267,13 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
 #### 3. **Extract Product Table Rows:**
 
 - Identify and extract **all product-related rows**.
-- According to the spatial model, for each row, determine the **complete sequence** of **all words** from the left to the right edge of the product table.
+- For each row take the **complete sequence** of **all words** from the left to the right edge of the product table.
 - ⚠️ **Do not split rows, mix or rearrange words**.
 - Check that all words are correctly associated with the current row in accordance with the spatial model — **nothing is lost, no words are taken from other rows**. 
 
-- Continue extracting **all products rows** until explicitly unrelated content begins (e.g., totals, taxes, company information, notes) or page will be finished).
-- Place all detected product rows and words into the output `ProductRows` array **strictly in their order** on the page, including **word coordinates unchanged** in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`. 
+- Continue extracting **all products rows** until page will be finished.
+- Place all founded product rows and their words into the output `ProductRows` array **strictly in their order** on the page, including **word coordinates unchanged** in their original format: `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`. 
 - ⚠️ **Do not skip, mix or rearrange rows that represent products**.
-
 
 - Be careful. If even **one product line or word from product line is lost** from page, the whole recognition **task will be thwarted**.
 

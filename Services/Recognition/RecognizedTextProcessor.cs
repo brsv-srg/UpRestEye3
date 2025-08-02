@@ -32,7 +32,7 @@ namespace UpRestEye3.Services.Recognition
             var simpleDocument = new SimpleDocument
             {
                 Pages = document.Pages
-                    .Select(page => new SimplePage
+                    .Select(page => new SimplePageOfWords
                     {
                         Words = page.Blocks
                             .SelectMany(block => block.Paragraphs)
@@ -68,36 +68,7 @@ namespace UpRestEye3.Services.Recognition
             return words.Average(w => w.WordCoordinates.BottomLeft.Y - w.WordCoordinates.TopLeft.Y);
         }
 
-        private List<SimplifiedRow> GroupWordsIntoLines(List<SimplifiedWord> words, double averageWordHeight, double docSlope)
-        {
-            var lines = new List<SimplifiedRow>();
-            words = words.OrderBy(w => w.WordCoordinates.TopLeft.Y).ThenBy(w => w.WordCoordinates.TopLeft.X).ToList();
-
-            var currentLine = new SimplifiedRow { Words = new List<SimplifiedWord>() };
-
-            foreach (var word in words)
-            {
-                if (currentLine.Words.Count == 0 || IsSameLineWithSlope2(currentLine, word, averageWordHeight, docSlope))
-                {
-                    currentLine.Words.Add(word);
-                }
-                else
-                {
-                    currentLine.Words = currentLine.Words.OrderBy(w => w.WordCoordinates.TopLeft.X).ToList();
-                    currentLine.RecalculateCoordinates();
-                    lines.Add(currentLine);
-                    currentLine = new SimplifiedRow { Words = new List<SimplifiedWord> { word } };
-                }
-            }
-            if (currentLine.Words.Count > 0)
-            {
-                currentLine.Words = currentLine.Words.OrderBy(w => w.WordCoordinates.TopLeft.X).ToList();
-                currentLine.RecalculateCoordinates();
-                lines.Add(currentLine);
-            }
-
-            return lines;
-        }
+       
 
         private List<SimplifiedRow> GroupWordsIntoLines2(List<SimplifiedWord> words, double averageWordHeight, double docSlope)
         {
@@ -135,12 +106,12 @@ namespace UpRestEye3.Services.Recognition
                 }
             }
 
-            // Пересчитываем координаты строк
-            foreach (var line in lines)
-            {
-                line.Words = line.Words.OrderBy(w => w.WordCoordinates.TopLeft.X).ToList();
-                line.RecalculateCoordinates();
-            }
+            //// Пересчитываем координаты строк
+            //foreach (var line in lines)
+            //{
+            //    line.Words = line.Words.OrderBy(w => w.WordCoordinates.TopLeft.X).ToList();
+            //    line.RecalculateCoordinates();
+            //}
 
             return lines;
         }
@@ -342,37 +313,37 @@ namespace UpRestEye3.Services.Recognition
 
     }
 
-    public static class SimplifiedLineExtensions
-    {
-        public static void RecalculateCoordinates(this SimplifiedRow row)
-        {
-            if (row.Words.Any())
-            {
-                row.RowCoordinates = new RectangleCoordinates
-                {
-                    TopLeft = new TPoint(row.Words.Min(w => w.WordCoordinates.TopLeft.X), row.Words.Min(w => w.WordCoordinates.TopLeft.Y)),
-                    TopRight = new TPoint(row.Words.Max(w => w.WordCoordinates.TopRight.X), row.Words.Min(w => w.WordCoordinates.TopRight.Y)),
-                    BottomRight = new TPoint(row.Words.Max(w => w.WordCoordinates.BottomRight.X), row.Words.Max(w => w.WordCoordinates.BottomRight.Y)),
-                    BottomLeft = new TPoint(row.Words.Min(w => w.WordCoordinates.BottomLeft.X), row.Words.Max(w => w.WordCoordinates.BottomLeft.Y))
-                };
-            }
-        }
-    }
+    //public static class SimplifiedLineExtensions
+    //{
+    //    public static void RecalculateCoordinates(this SimplifiedRow row)
+    //    {
+    //        if (row.Words.Any())
+    //        {
+    //            row.RowCoordinates = new RectangleCoordinates
+    //            {
+    //                TopLeft = new TPoint(row.Words.Min(w => w.WordCoordinates.TopLeft.X), row.Words.Min(w => w.WordCoordinates.TopLeft.Y)),
+    //                TopRight = new TPoint(row.Words.Max(w => w.WordCoordinates.TopRight.X), row.Words.Min(w => w.WordCoordinates.TopRight.Y)),
+    //                BottomRight = new TPoint(row.Words.Max(w => w.WordCoordinates.BottomRight.X), row.Words.Max(w => w.WordCoordinates.BottomRight.Y)),
+    //                BottomLeft = new TPoint(row.Words.Min(w => w.WordCoordinates.BottomLeft.X), row.Words.Max(w => w.WordCoordinates.BottomLeft.Y))
+    //            };
+    //        }
+    //    }
+    //}
 
     public static class SimplifiedLinesBlockExtensions
     {
         public static void RecalculateCoordinates(this SimplifiedLinesBlock block)
         {
-            if (block.Rows.Any())
-            {
-                block.BlockCoordinates = new RectangleCoordinates
-                {
-                    TopLeft = new TPoint(block.Rows.Min(l => l.RowCoordinates.TopLeft.X), block.Rows.Min(l => l.RowCoordinates.TopLeft.Y)),
-                    TopRight = new TPoint(block.Rows.Max(l => l.RowCoordinates.TopRight.X), block.Rows.Min(l => l.RowCoordinates.TopRight.Y)),
-                    BottomRight = new TPoint(block.Rows.Max(l => l.RowCoordinates.BottomRight.X), block.Rows.Max(l => l.RowCoordinates.BottomRight.Y)),
-                    BottomLeft = new TPoint(block.Rows.Min(l => l.RowCoordinates.BottomLeft.X), block.Rows.Max(l => l.RowCoordinates.BottomLeft.Y))
-                };
-            }
+            //if (block.Rows.Any())
+            //{
+            //    block.BlockCoordinates = new RectangleCoordinates
+            //    {
+            //    //    TopLeft = new TPoint(block.Rows.Min(l => l.Words.TopLeft.X), block.Rows.Min(l => l.RowCoordinates.TopLeft.Y)),
+            //    //    TopRight = new TPoint(block.Rows.Max(l => l.RowCoordinates.TopRight.X), block.Rows.Min(l => l.RowCoordinates.TopRight.Y)),
+            //    //    BottomRight = new TPoint(block.Rows.Max(l => l.RowCoordinates.BottomRight.X), block.Rows.Max(l => l.RowCoordinates.BottomRight.Y)),
+            //    //    BottomLeft = new TPoint(block.Rows.Min(l => l.RowCoordinates.BottomLeft.X), block.Rows.Max(l => l.RowCoordinates.BottomLeft.Y))
+            //    //};
+            //}
         }
     }
 }
