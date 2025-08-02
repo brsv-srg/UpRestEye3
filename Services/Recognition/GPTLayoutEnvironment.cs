@@ -275,11 +275,11 @@ Your task is to analyze the OCR output and extract **product tables** and **tax 
     `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`
 
 - ⚠️ There are no pre-grouped blocks or rows.  
-  You must **reconstruct the layout** by analyzing word positions and coordinates. 
-  The Invoice may be skewed or distorted. You **must detect the type of distortion** (e.g., skew angle, perspective shift) and **compensate for it when reconstructing** the structure of product and tax tables.
+- You must **reconstruct the layout** by analyzing word positions and coordinates. 
+- The Invoice may be skewed or distorted. You **must detect the type of distortion** (e.g., skew angle, perspective shift) and **compensate for it when reconstructing** the structure of document.
 
-  Using this spatial model, **detect the product table** and the **tax section**, including headers and rows for each.  
-  Model must infer structure based on layout, spacing, and alignment.
+- Using this spatial model, taking into account document distortions, create a list of rows combining words located on the same line of the source document, from the left edge to the right. 
+- ⚠️ Further data processing should be done only on the basis of the constructed lines.
 
 ---
 
