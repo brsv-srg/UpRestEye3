@@ -135,37 +135,43 @@ Your task is to analyze the provided flat list of recognized `Words`, each with 
 
 ### Task Instructions:
 
-1. **Global Distortion Compensation:**
-   - Analyze the coordinates of all words to detect overall document distortions, such as:
-     - Skew (rotation around Z-axis).
-     - Perspective shifts (non-parallel lines).
-     - Curvatures or ripples in the scanned paper.
-   - Virtually normalize the document plane, so that horizontal lines can be accurately reconstructed, even if the original coordinates contain angular distortions.
+1. **Spatial Model Construction:**
+   - Place all words into a virtual 2D spatial model according to their provided coordinates.
+   - Determine the **document perimeter**:
+     - Calculate the leftmost, rightmost, topmost, and bottommost points across all words.
+     - Use these points to define the document’s bounding quadrilateral.
+   - Analyze this quadrilateral to detect global distortions:
+     - **Skew angle** (rotation of the document).
+     - **Perspective distortion** (trapezoidal deformation).
+   - Compute a **single transformation matrix** that compensates for these distortions:
+     - Use **affine transformation** if the document is skewed but rectangular.
+     - Use **perspective transformation** if the document has trapezoidal distortions.
+   - This transformation matrix must be applied to all word coordinates to project them into a normalized, distortion-free coordinate space.
+     - After this step, all words will be virtually aligned as if the document were scanned perfectly flat and straight.
 
-2. **Adaptive Line Grouping Model:**
-   - Group words into horizontal text lines by dynamically determining a **vertical grouping threshold** based on the document's distortion level:
-     - For well-aligned documents, apply a minimal vertical tolerance (few pixels) to avoid merging distinct lines.
-     - For distorted documents (with visible skew, curve, or inconsistent baselines), automatically widen the vertical grouping tolerance to ensure fragmented words are still grouped into their logical line.
-   - Compute the **estimated line height** by analyzing the typical height of word boxes and inter-line spacing across the document.
-     - Use this to define a vertical grouping band for each line.
-   - A word belongs to a line if its vertical center (Y) overlaps with the line's vertical band, considering this adaptive tolerance.
+2. **Line Grouping Algorithm:**
+   - Iterate through all transformed words, placing them into horizontal text lines based on the following logic:
+     - For the **first word**, create a new line.
+     - For each subsequent word:
+       - Compare its Y-coordinate range with the current line’s Y-range.
+       - If the word’s vertical center overlaps with the current line’s vertical band (considering estimated line height and inter-line spacing), assign it to the current line.
+       - Otherwise, start a new line.
+   - Ensure **horizontal (X-axis) order** within each line — words must be sequenced from left to right based on their X-coordinates.
+   - Do **not** split lines based on horizontal gaps or whitespace. Always group all words within the same horizontal band into a continuous line.
 
-3. **Full-Width Line Assembly:**
-   - For each detected line, include all words that fall within its vertical band, regardless of horizontal gaps.
-   - Never split a line into fragments or sub-columns, even if large horizontal spaces exist.
-   - Do not assume multiple columns unless explicitly indicated by structural separators (e.g., visible lines, repeated headers).
-   - Ensure all words within a line are ordered from left to right in natural reading sequence.
-   - Every word must be assigned to exactly one line — no omissions or duplications.
+3. **Per-Word Line Assignment Rule:**
+   - Every word must be assigned to exactly one line.
+   - Line assignment is determined solely by:
+     - Word's transformed Y-coordinate range.
+     - Intersection with the current line's vertical band (top/bottom range).
+     - Consideration of average line height and inter-line spacing (to prevent merging distinct lines).
 
-4. **Ambiguity Resolution in Overlaps:**
-   - If a word's vertical position could belong to two adjacent lines, assign it to the line whose vertical center is closer.
-   - For isolated words surrounded by whitespace, prefer merging them with the closest line within the adaptive vertical tolerance band.
+4. **Sequence Integrity:**
+   - Final output must preserve the natural reading order:
+     - Lines ordered from top to bottom based on their corrected vertical positions.
+     - Words within each line ordered from left to right.
 
-5. **Sequence Integrity:**
-   - Ensure that the final list of lines follows the natural reading order — from top to bottom.
-   - Within each line, words must follow left-to-right sequence based on their X-coordinates.
-
-6. **Output JSON Format:**
+5. **Output JSON Format:**
    - Place all rows found on the page in the output `Rows` array, **strictly in their order** on the page. 
    - Save full, unmodified coordinates of words in their original format: 
     `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
