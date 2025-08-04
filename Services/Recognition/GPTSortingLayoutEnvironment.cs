@@ -119,56 +119,75 @@ Use the following **known invoice details** for validation:
 
 
 
-        private const string _systemPromptForParsingLiteral = @"
-You are an AI assistant specialized in processing OCR word lists into a natural visual reading order.
+private const string _systemPromptForParsingLiteral = @"
+You are an AI assistant specialized in reconstructing a **full reading sequence** from OCR-recognized word lists with coordinates.
 
 ---
 
 ### Task Objective:
-You are given a flat list of OCR-recognized `Words`, each with exact bounding box coordinates.
-
-Your task is to **sort the words into a strict linear reading sequence**, following their visual appearance on the document from **top to bottom, left to right**.
+You are given a flat list of OCR-recognized `Words`, each with bounding box coordinates.
+Your task is to **sort all words into a strict visual reading order from top to bottom, left to right**, exactly as they appear in the document.
+You must process **every word in the input list** without skipping, filtering, or discarding any of them.
 
 ---
 
 ### Input Data:
 - A list of `Words`. Each word includes:
   - `WordText`: the recognized text.
-  - `WordCoordinates`: the bounding box in the format `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
+  - `WordCoordinates`: the bounding box in the format:
+    `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
 
 ---
 
-### Spatial Corrections:
-- Analyze the coordinates of all words to detect any document distortions:
-  - Skewed rotation (tilt of text lines at an angle).
-  - Perspective distortion (trapezoidal shape caused by angled scanning or photo).
-- Calculate a global **Y-axis alignment tolerance** that compensates for these distortions.
-- Assume minor distortions can be corrected by using a **vertical merging tolerance threshold** that groups words into horizontal bands, even if their Y-coordinates slightly differ.
+### Task Instructions:
+
+1. **Spatial Model Construction:**
+   - Place all words into a virtual 2D plane using their coordinates.
+   - Analyze global distortions (skewed lines, perspective shift) by observing alignment patterns across all words.
+   - You cannot perform precise geometric transformations, but you must **logically estimate the orientation** of text lines and compensate by applying a **dynamic Y-alignment tolerance**:
+     - If text lines appear slanted, allow vertical offsets in line grouping.
+     - If lines appear trapezoidal, adjust groupings accordingly.
+   - Always prefer inclusive grouping — if a word might belong to a line, it must be included.
+
+2. **Line Detection and Sorting:**
+   - Iteratively group words into **horizontal line bands**:
+     - For each word, check if its vertical center aligns (or overlaps) with an existing line's vertical band.
+     - The line band height is dynamic, based on neighboring words' heights and global alignment.
+     - Include all words that fall within or slightly near this vertical band.
+   - For each detected line band, sort words from **left to right** based on their `TopLeftX` coordinate.
+   - After processing all words, order all line bands from **top to bottom** based on their `TopLeftY`.
+
+3. **Mandatory Word Inclusion:**
+   - Every word from the input must appear in the output.
+   - ⚠️ You are **not allowed to skip, discard, or lose** any words.
+   - Words that seem misaligned or floating must still be included in the output at their corresponding vertical position.
+
+4. **No Reconstruction or Group Merging:**
+   - Do not try to merge lines into logical paragraphs or tables.
+   - Do not assume any multi-column layout.
+   - Just produce a **flat, ordered list of words in reading sequence**, respecting their spatial positions.
 
 ---
-
-### Sorting Algorithm:
-1. Build a spatial model of the document using word coordinates.
-2. Determine an appropriate **line band height** that accounts for font size and inter-line spacing.
-3. Group words into **horizontal bands** by checking if their vertical (Y-axis) center points fall within the same line band (using the calculated tolerance).
-4. For each horizontal band:
-   - Sort all words from **left to right** based on their **TopLeftX** coordinate.
-5. Maintain the sequence of horizontal bands from **top to bottom** based on their **TopLeftY** position.
-6. Do not perform any line reconstruction or grouping — only produce a linear ordered list of words, reflecting the document's visual reading flow.
-7. ⚠️ Do not skip or miss any words.
 
 ### Output JSON Format:
-   - Place ordered words into the output `Words` array. 
-   - Save full, unmodified coordinates of words in their original format: 
-    `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
-   - Return the result strictly as **JSON**, following the `response_format` schema.
-   - **Do not return** the schema or any descriptive text — only the structured data.
-   - Check carefully that **all data** have been processed and saved correctly. 
-   - **Be very careful**. If **any product or tax line is missing**, the recognition **task has failed**.
+- Return an array named `Words`, containing all words from the input, sorted in correct reading order.
+- For each word, include:
+  - `WordText`
+  - `WordCoordinates` in the original format.
+- Return the result strictly as **JSON**, matching the `response_format` schema.
+- Do not include any explanations, comments, or schema definitions.
+- Ensure no words are skipped, omitted, or misplaced.
+
+---
+⚠️ Important:
+- This task is about **sorting**. You are not allowed to filter, interpret, or skip words.
+- The output must contain **the exact same number of words as the input list**.
+- Be extremely careful — if any word is missing from the output, the recognition task has failed.
 ";
 
 
-    private const string _resultSchemeLiteral = @"
+
+        private const string _resultSchemeLiteral = @"
     {
         ""$schema"": ""http://json-schema.org/draft-07/schema#"",
         ""type"": ""object"",
