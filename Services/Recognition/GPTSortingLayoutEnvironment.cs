@@ -30,7 +30,7 @@ using System.Net.Http.Json;
 
 namespace UpRestEye3.Services.Recognition
 {
-    public class GPTRowsLayoutEnvironment
+    public class GPTSortingLayoutEnvironment
     {
             // TODO Убрать URL в параметры 
         private static readonly string _url = "https://api.openai.com/v1/chat/completions";
@@ -38,7 +38,7 @@ namespace UpRestEye3.Services.Recognition
         private static readonly string _apiKey = "sk-svcacct-NcF9TOe3CkWN0BHA0BDKjap-EDHI0abjP4Az40fjpw5QpqhQtStDuJWojvu9mOoKH6OT3BlbkFJHCJrfsShSxh4n365KhkW6fypNHJzq-qOrA8ulaFqjgM3qXUAFsbARJ0vWvF6JmnFSAA";
 
 
-        public GPTRowsLayoutEnvironment()
+        public GPTSortingLayoutEnvironment()
         {
         }
 
@@ -120,63 +120,45 @@ Use the following **known invoice details** for validation:
 
 
         private const string _systemPromptForParsingLiteral = @"
-You are an AI assistant specialized in reconstructing structured text lines from OCR-recognized invoice words.
+You are an AI assistant specialized in processing OCR word lists into a natural visual reading order.
 
-Your task is to analyze the provided flat list of recognized `Words`, each with exact coordinates, and build a structured model of text lines.
+---
+
+### Task Objective:
+You are given a flat list of OCR-recognized `Words`, each with exact bounding box coordinates.
+
+Your task is to **sort the words into a strict linear reading sequence**, following their visual appearance on the document from **top to bottom, left to right**.
 
 ---
 
 ### Input Data:
-- You are given a list of OCR words. Each word includes:
+- A list of `Words`. Each word includes:
   - `WordText`: the recognized text.
-  - `WordCoordinates`: coordinates in the format `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
-
-- The provided word list has been pre-sorted in **visual reading order (top-to-bottom, left-to-right)**.
-- Do not perform a full re-sorting of words. Only use spatial alignment logic to group them into lines.
+  - `WordCoordinates`: the bounding box in the format `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
 
 ---
 
-### Task Instructions:
+### Spatial Corrections:
+- Analyze the coordinates of all words to detect any document distortions:
+  - Skewed rotation (tilt of text lines at an angle).
+  - Perspective distortion (trapezoidal shape caused by angled scanning or photo).
+- Calculate a global **Y-axis alignment tolerance** that compensates for these distortions.
+- Assume minor distortions can be corrected by using a **vertical merging tolerance threshold** that groups words into horizontal bands, even if their Y-coordinates slightly differ.
 
-1. **Spatial Model Construction:**
-   - Place all words into a virtual 2D spatial model according to their provided coordinates.
-   - Determine the **document perimeter**:
-     - Calculate the leftmost, rightmost, topmost, and bottommost points across all words.
-     - Use these points to define the document’s bounding quadrilateral.
-   - Analyze this quadrilateral to detect global distortions:
-     - **Skew angle** (rotation of the document).
-     - **Perspective distortion** (trapezoidal deformation).
-   - Compute a **single transformation matrix** that compensates for these distortions:
-     - Use **affine transformation** if the document is skewed but rectangular.
-     - Use **perspective transformation** if the document has trapezoidal distortions.
-   - This transformation matrix must be applied to all word coordinates to project them into a normalized, distortion-free coordinate space.
-   - After this step, all words should be virtually aligned as if the document were scanned perfectly flat and straight.
+---
 
-2. **Adaptive Line Grouping Model:**
-   - Compute the **estimated line height** by analyzing the typical height of word boxes and inter-line spacing across the document.
-   - Iterate through all **transformed words from step 1**, placing them into horizontal text lines based on the following logic:
-     - For the **first top-left word**, create a new line.
-     - For **each subsequent word**:
-       - Compare its Y-coordinate range with the current line’s Y-range, regardless of X-range gaps.
-       - If the word’s vertical center overlaps with the **current line’s vertical band** (considering coordinates compensation, estimated line height and inter-line spacing), assign it to the current line.
-       - Otherwise, **check the overlap** for **all previously** created lines.
-       - If none of the lines match, start a **new line**.
-   - Ensure **horizontal (X-axis) order** within each line — words must be sequenced from left to right based on their X-coordinates.
-   - Do **not** split lines based on horizontal gaps or whitespace. Always group all words within the same horizontal band into a continuous line.
-   - Every word must be assigned to exactly one line — no omissions or duplications.
+### Sorting Algorithm:
+1. Build a spatial model of the document using word coordinates.
+2. Determine an appropriate **line band height** that accounts for font size and inter-line spacing.
+3. Group words into **horizontal bands** by checking if their vertical (Y-axis) center points fall within the same line band (using the calculated tolerance).
+4. For each horizontal band:
+   - Sort all words from **left to right** based on their **TopLeftX** coordinate.
+5. Maintain the sequence of horizontal bands from **top to bottom** based on their **TopLeftY** position.
+6. Do not perform any line reconstruction or grouping — only produce a linear ordered list of words, reflecting the document's visual reading flow.
+7. ⚠️ Do not skip or miss any words.
 
-3. **Full-Width Line Assembly:**
-   - Each detected line should include **all words** that fall within its vertical band, from left border of document to right border.
-   - Do not assume multiple columns.
-   - ⚠️ Never split a line into fragments or sub-columns, even if large horizontal spaces exist.
-   - ⚠️ Never skip or miss lines or words.
-
-4. **Sequence Integrity:**
-   - Ensure that the final list of lines follows the natural reading order — from top to bottom.
-   - Within each line, words must follow left-to-right sequence based on their X-coordinates.
-
-5. **Output JSON Format:**
-   - Place all lines found on the page in the output `Rows` array, **strictly in their order** on the page. 
+### Output JSON Format:
+   - Place ordered words into the output `Words` array. 
    - Save full, unmodified coordinates of words in their original format: 
     `(TopLeftX, TopLeftY) - (TopRightX, TopRightY) - (BottomRightX, BottomRightY) - (BottomLeftX, BottomLeftY)`.
    - Return the result strictly as **JSON**, following the `response_format` schema.
@@ -191,21 +173,13 @@ Your task is to analyze the provided flat list of recognized `Words`, each with 
         ""$schema"": ""http://json-schema.org/draft-07/schema#"",
         ""type"": ""object"",
         ""properties"": {
-            ""Rows"": {
+            ""Words"": {
                 ""type"": ""array"",
                 ""items"": {
                     ""type"": ""object"",
                     ""properties"": {
-                        ""Words"": {
-                            ""type"": ""array"",
-                            ""items"": {
-                                ""type"": ""object"",
-                                ""properties"": {
-                                    ""WordText"": { ""type"": ""string"" },
-                                    ""WordCoordinates"": { ""type"": ""string"" }
-                                }
-                            }
-                        }
+                        ""WordText"": { ""type"": ""string"" },
+                        ""WordCoordinates"": { ""type"": ""string"" }
                     }
                 }
             }

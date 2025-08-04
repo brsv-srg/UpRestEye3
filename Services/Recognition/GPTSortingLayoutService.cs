@@ -11,77 +11,28 @@ using static Google.Apis.Requests.BatchRequest;
 namespace UpRestEye3.Services.Recognition
 {
 
-    public interface IGPTTablesLayoutService
+    public interface IGPTSortingLayoutService
     {
-        Task<TablesDataPage> RowLayoutParsingByLLM(SimplePageOfRows invoicePageText, InvoiceDTO currentInvoice);
-        Task<TablesDataPage> WordsLayoutParsingByLLM(SimplePageOfWords invoicePageText, InvoiceDTO currentInvoice);
+        Task<SimplePageOfWords> LayoutSortingByLLM(SimplePageOfWords invoicePageText, InvoiceDTO currentInvoice);
 
     }
 
-    public class GPTTablesLayoutService : IGPTTablesLayoutService
+    public class GPTSortingLayoutService : IGPTSortingLayoutService
     {
 
-        private readonly GPTTablesLayoutEnvironment _env;
+        private readonly GPTSortingLayoutEnvironment _env;
 
-        public GPTTablesLayoutService()
+        public GPTSortingLayoutService()
         {
-            _env = new GPTTablesLayoutEnvironment();
+            _env = new GPTSortingLayoutEnvironment();
         }
- 
-
-        public async Task<TablesDataPage> RowLayoutParsingByLLM(SimplePageOfRows invoicePageText, InvoiceDTO currentInvoice)
+       
+        public async Task<SimplePageOfWords> LayoutSortingByLLM(SimplePageOfWords invoicePageText, InvoiceDTO currentInvoice)
         {
             try
             {
                 // Сериализация тела запроса
-                var jsonBody = _env.GetRowsLayoutRequestBody(invoicePageText, currentInvoice);
-
-
-                var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");
-
-
-                // Конфигурация HTTP-клиента
-                using var httpClient = new HttpClient
-                {
-                    Timeout = TimeSpan.FromMinutes(5) // Increase timeout to 5 minutes
-                };
-
-                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _env.GetApiKey());
-                Console.WriteLine($"Sending request to OpenAI API:..{httpContent.ToString()}");
-                // Отправка POST-запроса
-                var response = await httpClient.PostAsync(_env.GetURL(), httpContent);
-
-                // Проверка ответа
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    throw new Exception($"OpenAI API error: {errorContent}");
-                }
-
-
-                // Чтение и возврат результата
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                var productTable = ResponseInvoiceParsing(responseContent);
-
-
-                return productTable;
-
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error parsing JSON response to Invoice object", ex);
-            }
-        }
-
-
-
-        public async Task<TablesDataPage> WordsLayoutParsingByLLM(SimplePageOfWords invoicePageText, InvoiceDTO currentInvoice)
-        {
-            try
-            {
-                // Сериализация тела запроса
-                var jsonBody = _env.GetWordsLayoutRequestBody(invoicePageText, currentInvoice);
+                var jsonBody = _env.GetLayoutRequestBody(invoicePageText, currentInvoice);
 
 
                 var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");
@@ -123,7 +74,7 @@ namespace UpRestEye3.Services.Recognition
 
 
         //todo поправить с датой загрузки 
-        private TablesDataPage ResponseInvoiceParsing(string responseContent)
+        private SimplePageOfWords ResponseInvoiceParsing(string responseContent)
         {
             try
             {
@@ -142,14 +93,14 @@ namespace UpRestEye3.Services.Recognition
                     using var contentDocument = JsonDocument.Parse(contentElement.GetString());
                     var rootContent = contentDocument.RootElement;
 
-                    if (rootContent.TryGetProperty("ProductHeaders", out contentElement))
+                    if (rootContent.TryGetProperty("Words", out contentElement))
                     {
                         var options = JsonHelper.GetSerializerOptions();
 
                         Console.WriteLine($"Received response from OpenAI API: {rootContent.GetRawText()}");
 
                         using var tablesDataJsonDocument = JsonDocument.Parse(rootContent.GetRawText());
-                        TablesDataPage tablesDataDocument = tablesDataJsonDocument.Deserialize<TablesDataPage>(options);
+                        var tablesDataDocument = tablesDataJsonDocument.Deserialize<SimplePageOfWords>(options);
 
                         return tablesDataDocument;
                     }

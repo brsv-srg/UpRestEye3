@@ -25,6 +25,7 @@ namespace UpRestEye3.Services.BusinessLogic
     {
         private readonly ILocalMLService _predictor;
         private readonly IGPTSemanticService _gptParser;
+        private readonly IGPTSortingLayoutService _gptSortLayout;
         private readonly IGPTRowLayoutService _gptRowLayout;
         private readonly IGPTTablesLayoutService _gptTablesLayout;
         private readonly IQRProcessing _qrProcessor;
@@ -32,13 +33,14 @@ namespace UpRestEye3.Services.BusinessLogic
         private readonly ITextRecognition _textRecognizer;
         private readonly IImagePipelineHelper _pipelineHelper;
 
-        public ImageRecognitionService(IQRProcessing qrProcessor, ILocalMLService predictor, IGPTSemanticService gptParser, IGPTRowLayoutService gptRowLayout, IGPTTablesLayoutService gptTablesLayout, IEnumerable<IQRRecognition> qrRecognizers, ITextRecognition textRecognizer, IImagePipelineHelper pipelineHelper)
+        public ImageRecognitionService(IQRProcessing qrProcessor, ILocalMLService predictor, IGPTSemanticService gptParser, IGPTSortingLayoutService gptSortLayout, IGPTRowLayoutService gptRowLayout, IGPTTablesLayoutService gptTablesLayout, IEnumerable<IQRRecognition> qrRecognizers, ITextRecognition textRecognizer, IImagePipelineHelper pipelineHelper)
         {
             _predictor = predictor;
             _qrProcessor = qrProcessor;
             _qrRecognizers = qrRecognizers;
             _textRecognizer = textRecognizer;
             _gptParser = gptParser;
+            _gptSortLayout = gptSortLayout;
             _gptRowLayout = gptRowLayout;
             _gptTablesLayout = gptTablesLayout;
             _pipelineHelper = pipelineHelper;
@@ -137,12 +139,17 @@ namespace UpRestEye3.Services.BusinessLogic
                 var pages = textProcessor.ProcessTextDocument(recognizedText);
                 foreach (var page in pages.Pages)
                 {
-                    var rowLayoutResult = await _gptRowLayout.LayoutParsingByLLM(page, currentInvoice);
+                    var sortingLayoutResult = await _gptSortLayout.LayoutSortingByLLM(page, currentInvoice);
 
-                    if ( rowLayoutResult == null)
+                    if (sortingLayoutResult == null)
                         throw new Exception($"Text recognition error: Unable to recognize text in the image");
 
-                    var tablesLayoutResult = await _gptTablesLayout.LayoutParsingByLLM(rowLayoutResult, currentInvoice);
+                    //var rowLayoutResult = await _gptRowLayout.LayoutParsingByLLM(sortingLayoutResult, currentInvoice);
+
+                    //if ( rowLayoutResult == null)
+                    //    throw new Exception($"Text recognition error: Unable to recognize text in the image");
+
+                    var tablesLayoutResult = await _gptTablesLayout.WordsLayoutParsingByLLM(sortingLayoutResult, currentInvoice);
                     
                     if (tablesLayoutResult == null)
                         throw new Exception($"Text recognition error: Unable to recognize text in the image");
