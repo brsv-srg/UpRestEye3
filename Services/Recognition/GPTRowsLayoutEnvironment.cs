@@ -62,17 +62,25 @@ Extract the rows of words from this provided OCR invoice text: {invoiceText}.
         private string GetInvoiceDetails(InvoiceDTO currentInvoice)
         {
             var options = JsonHelper.GetSerializerOptions();
+            string _invoiceInformationPrompt = string.Empty;
 
-            var _invoiceInformationPrompt = $@"
-Use the following **known invoice details** for validation:
-    - **InvoiceNumber**: {currentInvoice.InvoiceNumber},
-    - **InvoiceDate**: {currentInvoice.InvoiceDate},
-    - **SupplierTaxID**: {currentInvoice.Supplier.TaxNumber},
-    - **ConsumerTaxID**: {currentInvoice.Consumer.TaxNumber},
-    - **TotalAmount**: {currentInvoice.TotalAmount},
-    - **TotalIVA**: {currentInvoice.TotalIVA},
-    - **Tax Categories**: {JsonSerializer.Serialize(currentInvoice.TaxCategories, options)}
-    ";
+            if (currentInvoice.Supplier == null || currentInvoice?.TotalIVA <= 0.0m)
+            {
+                _invoiceInformationPrompt = "Check everything twice. Losing words is unacceptable. Be careful.";
+            }
+            else
+            {
+                _invoiceInformationPrompt = $@"
+            Use the following **known invoice details** for validation:
+                - **InvoiceNumber**: {currentInvoice?.InvoiceNumber ?? ""},
+                - **InvoiceDate**: {currentInvoice?.InvoiceDate.ToString() ?? ""},
+                - **SupplierTaxID**: {currentInvoice?.Supplier?.TaxNumber ?? ""},
+                - **ConsumerTaxID**: {currentInvoice?.Consumer?.TaxNumber ?? ""},
+                - **TotalAmount**: {currentInvoice?.TotalAmount.ToString() ?? ""},
+                - **TotalIVA**: {currentInvoice?.TotalIVA.ToString() ?? ""},
+                - **Tax Categories**: {JsonSerializer.Serialize(currentInvoice?.TaxCategories ?? new List<TaxesDTO>(), options)}
+                ";
+            }
 
             return _invoiceInformationPrompt;
         }

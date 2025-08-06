@@ -110,7 +110,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
 
 
-                    int switchOffset = workingInvoice.StageStatus == InvoiceStatusEnum.Ok ? 0 : 1;
+                    int switchOffset = (workingInvoice.StageStatus == InvoiceStatusEnum.Ok || workingInvoice.StageStatus == InvoiceStatusEnum.NA) ? 0 : 1;
 
 
                     try
@@ -120,7 +120,7 @@ namespace UpRestEye3.Services.BusinessLogic
                             // Распознвание QR-кода
                             case InvoiceStageEnum.New:
                                 workingInvoice = await ProcessQRCodeAsync(workingInvoice, images, scope, hubContext);
-                                if (workingInvoice.StageStatus != InvoiceStatusEnum.Ok)
+                                if (workingInvoice.StageStatus != InvoiceStatusEnum.Ok && workingInvoice.StageStatus != InvoiceStatusEnum.NA)
                                     break;
                                 else
                                     goto case InvoiceStageEnum.QRCodeRecognition;
@@ -199,18 +199,19 @@ namespace UpRestEye3.Services.BusinessLogic
 
             }
 
-            if (basicQRCodes.Count == 0)
-            {
-                throw new Exception("Failed to recognize QR-code.");
-            }
-
-            var basicQRCode = basicQRCodes.FirstOrDefault();
-
             var consumer = await consumerService.GetConsumerDTOByIdAsync((int)invoice.Consumer.Id);
-            if (basicQRCode.CustomerTaxNumber != consumer.TaxNumber)
-                throw new Exception("ConsumerId not match");
+            if (consumer == null)
+                throw new Exception("ConsumerId not found");
 
-            InvoiceHelper.UpdateInvoiceByQR(invoice, basicQRCode, invoice.FilePath);
+            if (basicQRCodes.Count != 0)
+            {
+
+                var basicQRCode = basicQRCodes.FirstOrDefault();
+                if (basicQRCode.CustomerTaxNumber != consumer.TaxNumber)
+                    throw new Exception("ConsumerId not match");
+
+                InvoiceHelper.UpdateInvoiceByQR(invoice, basicQRCode, invoice.FilePath);
+            }
 
             // Валидация накладной после QR
             var validatorQR = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.QRCodeRecognition);

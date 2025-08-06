@@ -43,7 +43,7 @@ namespace UpRestEye3.Services.Recognition
 
         public string GetSystemPrompt(InvoiceDTO currentInvoice)
         {
-            if (currentInvoice.Supplier.TaxNumber == "502030712")
+            if (currentInvoice?.Supplier?.TaxNumber == "502030712")
                 return _systemPromptForParsingLiteralSpecial01;
             else
                 return _systemPromptForParsingLiteral;
@@ -53,18 +53,27 @@ namespace UpRestEye3.Services.Recognition
 
         
         public string GetInvoiceInfForUserPrompt(InvoiceDTO currentInvoice)
-        {        
+        {
             var options = JsonHelper.GetSerializerOptions();
+            string _invoiceInformationPrompt = string.Empty;
 
-            var _invoiceInformationPrompt = $@"**Known invoice details** for validation:
-    - **InvoiceNumber**: {currentInvoice.InvoiceNumber},
-    - **InvoiceDate**: {currentInvoice.InvoiceDate},
-    - **SupplierTaxID**: {currentInvoice.Supplier.TaxNumber},
-    - **ConsumerTaxID**: {currentInvoice.Consumer.TaxNumber},
-    - **TotalAmount**: {currentInvoice.TotalAmount},
-    - **TotalIVA**: {currentInvoice.TotalIVA},
-    - **Tax Categories**: ```json\n{JsonSerializer.Serialize(currentInvoice.TaxCategories, JsonHelper.GetSerializerOptions())}\n```.
-    ";
+            if (currentInvoice.Supplier == null || currentInvoice?.TotalIVA <= 0.0m)
+            {
+                _invoiceInformationPrompt = "Check everything twice. Losing words is unacceptable. Be careful.";
+            }
+            else
+            {
+                _invoiceInformationPrompt = $@"
+            Use the following **known invoice details** for validation:
+                - **InvoiceNumber**: {currentInvoice?.InvoiceNumber ?? ""},
+                - **InvoiceDate**: {currentInvoice?.InvoiceDate.ToString() ?? ""},
+                - **SupplierTaxID**: {currentInvoice?.Supplier?.TaxNumber ?? ""},
+                - **ConsumerTaxID**: {currentInvoice?.Consumer?.TaxNumber ?? ""},
+                - **TotalAmount**: {currentInvoice?.TotalAmount.ToString() ?? ""},
+                - **TotalIVA**: {currentInvoice?.TotalIVA.ToString() ?? ""},
+                - **Tax Categories**: {JsonSerializer.Serialize(currentInvoice?.TaxCategories ?? new List<TaxesDTO>(), options)}
+                ";
+            }
 
             return _invoiceInformationPrompt;
         }

@@ -160,13 +160,26 @@ Your goal is to return a stable and structured JSON response that preserves the 
 
 ---
 
+## 🚩 Critical Rule: Do Not Lose Products
+- ⚠️ Every 'InvoiceProduct' from input **must appear in the output**.
+- ⚠️ If a product cannot be matched to an existing RMSProduct, you must create a new RMSProduct following style and conventions of existing products.
+- ⚠️ **Partial mapping, omissions, or skipped lines are not allowed** — the task is failed if any InvoiceProduct is missing in the output.
+
+---
+
+
 ## ✅ General Matching Strategy
 
 1. **Preserve Input**  
    - Copy each input “InvoiceProduct” into the “InvoiceProduct” of the output structure without any changes or omissions.
    - Save **all lines** in the **same composition and order** as you received the input.
 
-2. **Product Matching Rules**  
+2. **Mandatory Product Mapping**  
+   - Every 'InvoiceProduct' **must be mapped** to an 'RMSProduct'.
+   - ⚠️ It is not allowed to leave any 'InvoiceProduct' unmatched.
+   - If no suitable RMSProduct exists, you must create a new one.
+
+3. **Product Matching Rules**  
    - Match based on semantic similarity of 'ProductName', 'Brand', 'Volume', and key attributes (e.g. 'white wine' ≠ 'red wine').
    - Always compare **product type and form**:
      - Do **not** match fundamentally different product forms (e.g. **fruit** ≠ **fruit juice**, **fresh** ≠ **frozen**, **raw** ≠ **cooked**).
@@ -177,6 +190,12 @@ Your goal is to return a stable and structured JSON response that preserves the 
      - 'pcs', 'unit' → discrete count
    - Be especially cautious when matching products with **different base units**:
      - E.g. **liters vs. kilograms** — match only if it's clearly the same product and unit conversion is justified by context (e.g. **yogurt** in liters vs. kg).
+
+3. **Product Matching Rules**  
+   - Match based on semantic similarity of 'ProductName', 'Brand', 'Volume', and product attributes.
+   - Do **not** match products that differ in form, type, or units (e.g., 'fruit' ≠ 'juice', 'raw' ≠ 'cooked').
+   - Unit consistency is **mandatory** — units must align logically between InvoiceProduct and RMSProduct.
+   - Normalize invoice-specific units to the RMSProduct's 'MainUnit' using container logic if necessary.
 
 3. **Unit Normalization**  
    - Never use packaging-specific units (e.g., 'btl0.75') as a base unit.
@@ -194,8 +213,9 @@ Your goal is to return a stable and structured JSON response that preserves the 
        - Do not use product volume or weight count for name
      - 'Description': inferred from category or product traits (but do not use product volume or weight count in the description)  
      - 'MainUnit': inferred from similar RMSProducts (e.g. wine → 'L', beer → 'btl', rice → 'kg')  
-   - 'Id' and 'Num': null  
-   - 'NewRMSProduct = true'
+     - 'Id' and 'Num': null  
+     - 'NewRMSProduct = true'
+   - The new product must **look identical in style and structure** to existing RMSProducts.
 
 
 ---
@@ -292,6 +312,16 @@ Choose appropriate 'Storage' from provided 'StorageList', based on product type:
 - Match based on product meaning, not literal string
 
 ---
+
+## ⚠️ Validation Rules
+- Ensure:
+  - All input InvoiceProducts are present in the output.
+  - Each InvoiceProduct is mapped to RMSProduct and Container correctly.
+  - Quantities are aligned — (UnitsCount × QuantityOfContainers) must equal the product's total quantity in RMSProduct.MainUnit.
+  - No products or containers are lost or skipped.
+
+---
+
 
 ## 📤 Output Format
 

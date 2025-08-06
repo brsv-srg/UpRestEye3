@@ -6,7 +6,8 @@
         Ok,
         Error,
         Manual,
-        Processing
+        Processing,
+        NA
     }
 
     public enum InvoiceStageEnum

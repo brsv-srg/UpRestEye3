@@ -48,6 +48,19 @@ namespace UpRestEye3.Services.BusinessLogic
         {
             base.Validate(invoice, customerTaxId);
 
+            if (string.IsNullOrEmpty(invoice.Supplier?.TaxNumber) &&
+                (invoice.TotalAmount == null || invoice.TotalAmount <= 0.0m) &&
+                (invoice.TotalIVA == null || invoice.TotalIVA <= 0.0m) &&
+                !invoice.TaxCategories.Any())
+            {
+                invoice.StageStatus = InvoiceStatusEnum.NA;
+                if (!string.IsNullOrEmpty(invoice.Comments))
+                    invoice.Comments += "; ";
+
+                invoice.Comments += "There are no QR code in the document";
+                return;
+            }
+
             if (string.IsNullOrEmpty(invoice.InvoiceNumber) ||
                 invoice.InvoiceDate == default ||
                 string.IsNullOrEmpty(invoice.Consumer?.TaxNumber) ||

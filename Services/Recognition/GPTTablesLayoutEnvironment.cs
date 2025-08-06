@@ -42,17 +42,19 @@ namespace UpRestEye3.Services.Recognition
         {
         }
 
-        private string GetSystemPromptRows(InvoiceDTO currentInvoice)
+        private string GetSystemPromptRows(SimplePageOfRows invoiceText, InvoiceDTO currentInvoice)
         {
-            if (currentInvoice.Supplier.TaxNumber == "502030712")
+            if (currentInvoice?.Supplier?.TaxNumber == "502030712" ||
+                invoiceText.Rows.SelectMany(r => r.Words).Any(w => w.WordText.ToLower().Contains("makro")))
                 return _systemPromptForParsingLiteralSpecialRows;
             else
                 return _systemPromptForParsingLiteralRows;
         }
 
-        private string GetSystemPromptWords(InvoiceDTO currentInvoice)
+        private string GetSystemPromptWords(SimplePageOfWords invoiceText, InvoiceDTO currentInvoice)
         {
-            if (currentInvoice.Supplier.TaxNumber == "502030712")
+            if (currentInvoice?.Supplier?.TaxNumber == "502030712" ||
+                invoiceText.Words.Any(w => w.WordText.ToLower().Contains("makro") ) )
                 return _systemPromptForParsingLiteralSpecialWords;
             else
                 return _systemPromptForParsingLiteralWords;
@@ -71,17 +73,25 @@ Extract the table of products/services and list of TAXes from this provided OCR 
         private string GetInvoiceDetails(InvoiceDTO currentInvoice)
         {
             var options = JsonHelper.GetSerializerOptions();
+            string _invoiceInformationPrompt = string.Empty;
 
-            var _invoiceInformationPrompt = $@"
-Use the following **known invoice details** for validation:
-    - **InvoiceNumber**: {currentInvoice.InvoiceNumber},
-    - **InvoiceDate**: {currentInvoice.InvoiceDate},
-    - **SupplierTaxID**: {currentInvoice.Supplier.TaxNumber},
-    - **ConsumerTaxID**: {currentInvoice.Consumer.TaxNumber},
-    - **TotalAmount**: {currentInvoice.TotalAmount},
-    - **TotalIVA**: {currentInvoice.TotalIVA},
-    - **Tax Categories**: {JsonSerializer.Serialize(currentInvoice.TaxCategories, options)}
-    ";
+            if (currentInvoice.Supplier == null || currentInvoice?.TotalIVA <= 0.0m)
+            {
+                _invoiceInformationPrompt = "Check everything twice. Losing words is unacceptable. Be careful.";
+            }
+            else
+            {
+                _invoiceInformationPrompt = $@"
+            Use the following **known invoice details** for validation:
+                - **InvoiceNumber**: {currentInvoice?.InvoiceNumber ?? ""},
+                - **InvoiceDate**: {currentInvoice?.InvoiceDate.ToString() ?? ""},
+                - **SupplierTaxID**: {currentInvoice?.Supplier?.TaxNumber ?? ""},
+                - **ConsumerTaxID**: {currentInvoice?.Consumer?.TaxNumber ?? ""},
+                - **TotalAmount**: {currentInvoice?.TotalAmount.ToString() ?? ""},
+                - **TotalIVA**: {currentInvoice?.TotalIVA.ToString() ?? ""},
+                - **Tax Categories**: {JsonSerializer.Serialize(currentInvoice?.TaxCategories ?? new List<TaxesDTO>(), options)}
+                ";
+            }
 
             return _invoiceInformationPrompt;
         }
@@ -107,7 +117,7 @@ Use the following **known invoice details** for validation:
                 n = 1,
                 messages = new object[]
                 {
-                        new { role = "system", content = GetSystemPromptRows(currentInvoice) }, 
+                        new { role = "system", content = GetSystemPromptRows(invoiceText, currentInvoice) }, 
                         new { role = "user", content = GetUserPrompt(JsonSerializer.Serialize(invoiceText, options)) },
                         new { role = "user", content = GetInvoiceDetails(currentInvoice) }  
                 },
@@ -142,7 +152,7 @@ Use the following **known invoice details** for validation:
                 n = 1,
                 messages = new object[]
                 {
-                        new { role = "system", content = GetSystemPromptWords(currentInvoice) },
+                        new { role = "system", content = GetSystemPromptWords(invoiceText, currentInvoice) },
                         new { role = "user", content = GetUserPrompt(JsonSerializer.Serialize(invoiceText, options)) },
                         new { role = "user", content = GetInvoiceDetails(currentInvoice) }
                 },

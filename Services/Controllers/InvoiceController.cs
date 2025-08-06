@@ -29,7 +29,7 @@ namespace UpRestEye3.Services.Controllers
         // TODO сделать по ID of Consumer
         // todo сделать создание ActionResult в контроллере 
         [HttpGet("{consumerId}")]
-        public async Task<ActionResult<IEnumerable<InvoiceDTO>>> GetInvoices(int? consumerId, [FromQuery] int? rmsProductId, [FromQuery] int? supplierId )
+        public async Task<ActionResult<IEnumerable<InvoiceDTO>>> GetInvoices(int? consumerId, [FromQuery] int? rmsProductId, [FromQuery] int? supplierId)
         {
 
             rmsProductId = rmsProductId == 0 ? null : rmsProductId;
@@ -48,11 +48,19 @@ namespace UpRestEye3.Services.Controllers
         {
             try
             {
-                CheckQR(invoice);
+                if (CheckQR(invoice))
+                {
+                    // Валидация накладной после QR
+                    var validator = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.QRCodeRecognition);
+                    validator.Validate(invoice, invoice.Consumer.TaxNumber, true);
+                }
+                else
+                {
+                    // Валидация накладной после QR
+                    var validator = InvoiceValidatorBase.CreateValidator(invoice.Stage);
+                    validator.Validate(invoice, invoice.Consumer.TaxNumber, true);
+                }
 
-                // Валидация накладной после QR
-                var validator = InvoiceValidatorBase.CreateValidator(invoice.Stage);
-                validator.Validate(invoice, invoice.Consumer.TaxNumber, true);
 
                 var invoiceId = await _invoiceService.SaveInvoiceAsync(invoice);
                 var updatedInvoice = await _invoiceService.GetInvoiceDTOByIdAsync((int)invoiceId);
@@ -61,8 +69,8 @@ namespace UpRestEye3.Services.Controllers
             catch (Exception e)
             {
                 invoice.StageStatus = InvoiceStatusEnum.Manual;
-                if(!string.IsNullOrEmpty(invoice.Comments))
-                    invoice.Comments += "; " ;
+                if (!string.IsNullOrEmpty(invoice.Comments))
+                    invoice.Comments += "; ";
                 invoice.Comments += e.Message;
 
                 await _invoiceService.SaveInvoiceAsync(invoice);
@@ -90,7 +98,7 @@ namespace UpRestEye3.Services.Controllers
             }
         }
 
-        
+
 
         [HttpPost("process/{consumerId}")]
         public async Task<IActionResult> ProcessSelectedInvoices(int consumerId, [FromBody] List<int> invoiceIds)
@@ -128,16 +136,20 @@ namespace UpRestEye3.Services.Controllers
             }
         }
 
-        private void CheckQR(InvoiceDTO invoice)
+        private bool CheckQR(InvoiceDTO invoice)
         {
-         if (invoice.Stage == InvoiceStageEnum.QRCodeRecognition && invoice.StageStatus != InvoiceStatusEnum.Ok)
-         {
-            if (!string.IsNullOrEmpty(invoice.Comments) && QRCodeData.IsMatchingATQRCode(invoice.Comments))
+            if ((invoice.Stage == InvoiceStageEnum.QRCodeRecognition ||
+                invoice.Stage == InvoiceStageEnum.TextRecognition ||
+                invoice.Stage == InvoiceStageEnum.ProductsMapping) && invoice.StageStatus != InvoiceStatusEnum.Ok)
             {
-                var basicQRCode = new QRCodeData(invoice.Comments);
-                InvoiceHelper.UpdateInvoiceByQR(invoice, basicQRCode, invoice.FilePath);
+                if (!string.IsNullOrEmpty(invoice.Comments) && QRCodeData.IsMatchingATQRCode(invoice.Comments))
+                {
+                    var basicQRCode = new QRCodeData(invoice.Comments);
+                    InvoiceHelper.UpdateInvoiceByQR(invoice, basicQRCode, invoice.FilePath);
+                    return true;
+                }
             }
-         }
+            return false;
         }
     }
 }
