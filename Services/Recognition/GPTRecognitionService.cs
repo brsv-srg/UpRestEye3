@@ -11,30 +11,28 @@ using static Google.Apis.Requests.BatchRequest;
 namespace UpRestEye3.Services.Recognition
 {
 
-    public interface IGPTTablesLayoutService
+    public interface IGPTRecognitionService
     {
-        Task<TablesDataPage> WordsLayoutParsingByLLM(SimplePageOfWords invoicePageText, InvoiceDTO currentInvoice);
+        Task<InvoiceDTO?> RecognitionByLLM(SimpleDocument invoiceDocument, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits);
 
     }
 
-    public class GPTTablesLayoutService : IGPTTablesLayoutService
+    public class GPTRecognitionService : IGPTRecognitionService
     {
 
-        private readonly GPTTablesLayoutEnvironment _env;
+        private readonly GPTRecognitionEnvironment _env;
 
-        public GPTTablesLayoutService()
+        public GPTRecognitionService()
         {
-            _env = new GPTTablesLayoutEnvironment();
+            _env = new GPTRecognitionEnvironment();
         }
- 
-
-
-        public async Task<TablesDataPage> WordsLayoutParsingByLLM(SimplePageOfWords invoicePageText, InvoiceDTO currentInvoice)
+       
+        public async Task<InvoiceDTO?> RecognitionByLLM(SimpleDocument invoiceDocument, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
             try
             {
                 // Сериализация тела запроса
-                var jsonBody = _env.GetWordsLayoutRequestBody(invoicePageText, currentInvoice);
+                var jsonBody = _env.GetRecognitionRequestBody(invoiceDocument, currentInvoice, measUnits);
 
 
                 var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");
@@ -62,11 +60,9 @@ namespace UpRestEye3.Services.Recognition
                 // Чтение и возврат результата
                 var responseContent = await response.Content.ReadAsStringAsync();
 
-                var productTable = ResponseInvoiceParsing(responseContent);
+                currentInvoice.Products = ResponseInvoiceParsing(responseContent);
 
-
-                return productTable;
-
+                return currentInvoice;
             }
             catch (Exception ex)
             {
@@ -76,7 +72,7 @@ namespace UpRestEye3.Services.Recognition
 
 
         //todo поправить с датой загрузки 
-        private TablesDataPage ResponseInvoiceParsing(string responseContent)
+        private List<InvoiceProductDTO> ResponseInvoiceParsing(string responseContent)
         {
             try
             {
@@ -90,28 +86,24 @@ namespace UpRestEye3.Services.Recognition
                     messageElement.TryGetProperty("content", out JsonElement contentElement) &&
                     contentElement.ValueKind == JsonValueKind.String)
                 {
-                    
-
                     using var contentDocument = JsonDocument.Parse(contentElement.GetString());
                     var rootContent = contentDocument.RootElement;
 
-                    if (rootContent.TryGetProperty("ProductHeaders", out contentElement))
+                    if (rootContent.TryGetProperty("Products", out contentElement))
                     {
                         var options = JsonHelper.GetSerializerOptions();
 
                         Console.WriteLine($"Received response from OpenAI API: {rootContent.GetRawText()}");
 
-                        using var tablesDataJsonDocument = JsonDocument.Parse(rootContent.GetRawText());
-                        TablesDataPage tablesDataDocument = tablesDataJsonDocument.Deserialize<TablesDataPage>(options);
+                        using var invoiceDocument = JsonDocument.Parse(rootContent.GetRawText());
+                        InvoiceDTO invoice = invoiceDocument.Deserialize<InvoiceDTO>(options);
 
-                        return tablesDataDocument;
+                        return invoice.Products;
                     }
                     else
                     {
                         throw new Exception("Invoice element not found in JSON response");
                     }
-
-
                 }
                 else
                 {

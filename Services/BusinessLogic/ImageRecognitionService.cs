@@ -24,25 +24,19 @@ namespace UpRestEye3.Services.BusinessLogic
     public class ImageRecognitionService : IImageRecognitionService
     {
         private readonly ILocalMLService _predictor;
-        private readonly IGPTSemanticService _gptParser;
-        private readonly IGPTSortingLayoutService _gptSortLayout;
-        private readonly IGPTRowLayoutService _gptRowLayout;
-        private readonly IGPTTablesLayoutService _gptTablesLayout;
+        private readonly IGPTRecognitionService _gptRecogniser;
         private readonly IQRProcessing _qrProcessor;
         private readonly IEnumerable<IQRRecognition> _qrRecognizers;
         private readonly ITextRecognition _textRecognizer;
         private readonly IImagePipelineHelper _pipelineHelper;
 
-        public ImageRecognitionService(IQRProcessing qrProcessor, ILocalMLService predictor, IGPTSemanticService gptParser, IGPTSortingLayoutService gptSortLayout, IGPTRowLayoutService gptRowLayout, IGPTTablesLayoutService gptTablesLayout, IEnumerable<IQRRecognition> qrRecognizers, ITextRecognition textRecognizer, IImagePipelineHelper pipelineHelper)
+        public ImageRecognitionService(IQRProcessing qrProcessor, ILocalMLService predictor, IGPTRecognitionService gptRecogniser, IEnumerable<IQRRecognition> qrRecognizers, ITextRecognition textRecognizer, IImagePipelineHelper pipelineHelper)
         {
             _predictor = predictor;
             _qrProcessor = qrProcessor;
             _qrRecognizers = qrRecognizers;
             _textRecognizer = textRecognizer;
-            _gptParser = gptParser;
-            _gptSortLayout = gptSortLayout;
-            _gptRowLayout = gptRowLayout;
-            _gptTablesLayout = gptTablesLayout;
+            _gptRecogniser = gptRecogniser;
             _pipelineHelper = pipelineHelper;
         }
 
@@ -119,55 +113,26 @@ namespace UpRestEye3.Services.BusinessLogic
 
         public async Task<InvoiceDTO?> DeepTextRecognitionAsync(List<Bitmap> sourceImages, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
         {
-            var textProcessor = new RecognizedTextProcessor();
+            var textProcessor = new RecognizedTextProcessor();     
 
-            // тут собираем все таблицы с продуктами с нескльких страниц в один документ
-            var allPagesData = new TablesDataDocument()
+            var simplePagesDocument = new SimpleDocument()
             {
-                Pages = new List<TablesDataPage>()
+                Pages = new List<SimplePageOfWords>()
             };
 
             foreach (var sourceImage in sourceImages)
             {
                 // Обращение к внешней OCR
                 var recognizedText = await _textRecognizer.TextRecognize(sourceImage);
-                
+
                 if (recognizedText == null)
                     throw new Exception($"Text recognition error: Unable to recognize text in the image");
-                
                 // Берем все страницы из OCR (может быть больше одной страницы). 
-                var pages = textProcessor.ProcessTextDocument(recognizedText);
-                foreach (var page in pages.Pages)
-                {
-                    var sortingLayoutResult = await _gptSortLayout.LayoutSortingByLLM(page, currentInvoice);
-
-                    if (sortingLayoutResult == null)
-                        throw new Exception($"Text recognition error: Unable to recognize text in the image");
-
-                    //var rowLayoutResult = await _gptRowLayout.LayoutParsingByLLM(sortingLayoutResult, currentInvoice);
-
-                    //if ( rowLayoutResult == null)
-                    //    throw new Exception($"Text recognition error: Unable to recognize text in the image");
-
-                    var tablesLayoutResult = await _gptTablesLayout.WordsLayoutParsingByLLM(sortingLayoutResult, currentInvoice);
-                    
-                    if (tablesLayoutResult == null)
-                        throw new Exception($"Text recognition error: Unable to recognize text in the image");
-
-                    // Добавляем страницу с текстом в общий документ
-                    allPagesData.Pages.Add(tablesLayoutResult);
-                }
+                simplePagesDocument.Pages.AddRange(textProcessor.ProcessTextDocument(recognizedText).Pages.ToList());
             }
 
-            var productTable = new TablesDataPage();
-            productTable.ProductHeaders = allPagesData.Pages.SelectMany(p => p.ProductHeaders).Distinct().ToList();
-            productTable.ProductRows = allPagesData.Pages.SelectMany(p => p.ProductRows).ToList();
-            productTable.TaxCategoriesHeaders = allPagesData.Pages.SelectMany(p => p.TaxCategoriesHeaders).Distinct().ToList();
-            productTable.TaxCategoriesRows = allPagesData.Pages.SelectMany(p => p.TaxCategoriesRows).ToList();
-
-
-            // Парсинг таблицы продуктов
-            currentInvoice = await _gptParser.ReceiptParsingByLLM (productTable, currentInvoice, measUnits);
+            // Семантическое распознавание через LLM
+            currentInvoice = await _gptRecogniser.RecognitionByLLM(simplePagesDocument, currentInvoice, measUnits);
             if (currentInvoice.Products == null || currentInvoice.Products.Count() == 0)
                 throw new Exception($"Text recognition error: Product list text parsing error");
 
