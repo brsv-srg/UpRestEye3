@@ -34,7 +34,7 @@ public class ImageLoader
             switch (extension)
             {
                 case ".pdf":
-                    images.Add((LoadImageFromPdfUniversal(filePath), filePath));
+                    images.AddRange(LoadImageFromPdf(filePath));
                     break;
                 case ".heic":
                     images.Add((LoadImageFromHeic(filePath), filePath));
@@ -47,102 +47,21 @@ public class ImageLoader
         return images;
     }
 
-    private Bitmap LoadImageFromPdfUniversal(string filePath)
-    {
-        //// 1. Пробуем извлечь вложенное изображение
-        //try
-        //{
-        //    var img = LoadImageFromPdf(filePath);
-        //    if (img != null)
-        //        return img;
-        //}
-        //catch
-        //{
-        //    // Игнорируем, если не найдено изображение
-        //}
-
-        // 2. Если не получилось — рендерим страницу как изображение
-        return LoadImageFromPdf2(filePath);
-    }
-
-    private Bitmap LoadImageFromPdf(string filePath)
-    {
-        using (iTextSharp.text.pdf.PdfReader reader = new iTextSharp.text.pdf.PdfReader(filePath))
-        {
-            for (int pageNumber = 1; pageNumber <= reader.NumberOfPages; pageNumber++)
-            {
-                PdfDictionary pageDict = reader.GetPageN(pageNumber);
-                PdfDictionary resources = (PdfDictionary)iTextSharp.text.pdf.PdfReader.GetPdfObject(pageDict.Get(PdfName.RESOURCES));
-                PdfDictionary xObject = (PdfDictionary)iTextSharp.text.pdf.PdfReader.GetPdfObject(resources.Get(PdfName.XOBJECT));
-
-                if (xObject != null)
-                {
-                    foreach (PdfName name in xObject.Keys)
-                    {
-                        PdfObject obj = xObject.Get(name);
-                        if (obj.IsIndirect())
-                        {
-                            PdfDictionary dict = (PdfDictionary)iTextSharp.text.pdf.PdfReader.GetPdfObject(obj);
-                            PdfName subtype = (PdfName)iTextSharp.text.pdf.PdfReader.GetPdfObject(dict.Get(PdfName.SUBTYPE));
-
-                            if (PdfName.IMAGE.Equals(subtype))
-                            {
-                                int xrefIndex = ((PRIndirectReference)obj).Number;
-                                PdfObject pdfObj = reader.GetPdfObject(xrefIndex);
-                                PdfStream pdfStream = (PdfStream)pdfObj;
-                                byte[] bytes = iTextSharp.text.pdf.PdfReader.GetStreamBytesRaw((PRStream)pdfStream);
-
-                                if (bytes != null)
-                                {
-                                    using (MemoryStream ms = new MemoryStream(bytes))
-                                    {
-                                        // Save the MemoryStream content to a file
-                                        string outputFilePath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(filePath), System.IO.Path.GetFileNameWithoutExtension(filePath) + ".png");
-
-                                        // Check if the file already exists and delete it
-                                        if (File.Exists(outputFilePath))
-                                        {
-                                            File.Delete(outputFilePath);
-                                        }
-
-                                        using (FileStream fileStream = new FileStream(outputFilePath, FileMode.Create, FileAccess.Write))
-                                        {
-                                            ms.WriteTo(fileStream);
-                                        }
-
-                                        // Set the file attributes to read-only
-                                        //File.SetAttributes(outputFilePath, FileAttributes.ReadOnly);
-
-                                        // Create Bitmap from the saved file
-
-                                        using (var stream = new FileStream(outputFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                                        {
-                                            return new Bitmap(stream);
-                                        }
-                                    }
-
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        throw new Exception("No images found in PDF.");
-    }
-
-
-
-    private Bitmap LoadImageFromPdf2(string filePath)
+    private List<(Bitmap, string)> LoadImageFromPdf(string filePath)
     {
         int dpi = 150;
+        var bitmaps = new List<(Bitmap, string)>();
         using (var rasterizer = new GhostscriptRasterizer())
         {
             rasterizer.Open(filePath);
-            // Рендерим первую страницу (нумерация с 1)
-            var img = rasterizer.GetPage(dpi, 1);
-            return new Bitmap(img);
+            int pageCount = rasterizer.PageCount;
+            for (int pageNumber = 1; pageNumber <= pageCount; pageNumber++)
+            {
+                var img = rasterizer.GetPage(dpi, pageNumber);
+                bitmaps.Add((new Bitmap(img),filePath));
+            }
         }
+        return bitmaps;
     }
 
 

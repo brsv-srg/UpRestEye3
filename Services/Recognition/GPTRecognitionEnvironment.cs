@@ -112,9 +112,9 @@ Extract the rows of words from this provided OCR invoice text: {invoiceText}.
             // Формируем запрос
             var requestBody = new
             {
-                //model = "gpt-5.1",
+                model = "gpt-5.1",
                 
-                model = "gpt-4.1",
+                //model = "gpt-4.1",
                 //model = "gpt-4o",
                 //model = "gpt-4o-mini",
 
@@ -144,12 +144,7 @@ Extract the rows of words from this provided OCR invoice text: {invoiceText}.
             return JsonSerializer.Serialize(requestBody, options);
         }
 
-        // =============================================================
-        // Unified prompts for steps 01-03 in one pass
-        // Output MUST match _invoiceSchema from GPTSemanticEnvironment.cs (file 03)
-        // =============================================================
-
-        private const string _systemPromptUnified_Universal = @"
+private const string _systemPromptUnified_Universal = @"
 You are an AI assistant specialized in **one-pass, lossless extraction of invoice products and tax categories**
 from a flat OCR word list with coordinates.
 
@@ -228,7 +223,16 @@ The document can be skewed (tilted lines) or mildly perspective-distorted.
     - `ProductCode`: code-like token near left (digits / alphanum).
     - `ProductName`: main description tokens (keep all pack sizes inside name when they are part of identity).
     - `Unit`, `Quantity`, `Container`, `Count`, `ProductTotalValue`, `TaxCategory`.
-    Never invent values; prefer null/empty when unsure.
+    - **`ProductTotalValue` MUST represent the total line amount (final line price, usually from the ""Total""/""Valor Total"" column),**  
+      **and MUST NOT be taken from a unit price column.** If the row contains both unit price and total price, always use the value located in the total/summary column as `ProductTotalValue` and keep unit price only as contextual numeric information.
+
+18. If and only if a row clearly contains both:
+    - a `Quantity` value, and  
+    - a unit price value (price per unit),
+    you MAY verify that `Quantity × UnitPrice ≈ ProductTotalValue` as a consistency check.
+    Use this check **only for validation**:
+    - Never overwrite `ProductTotalValue` using `Quantity × UnitPrice`.
+    - If there is a mismatch, keep the original total from the total/summary column and do NOT drop or modify the row.
 
 ----------------------------------------------------------------
 ## E) TAX LEGEND / TAX SECTION (letters or digits)
@@ -306,7 +310,6 @@ Rules:
 - If totals are present on page, optionally cross-check in Comments.
 ";
 
-
         private const string _systemPromptUnified_Special01_MAKRO = @"
 You are an AI assistant specialized in **one-pass, lossless extraction of MAKRO invoice products and tax categories**
 from a flat OCR word list with coordinates.
@@ -369,19 +372,29 @@ The document can be skewed or mildly perspective-distorted.
     - One product may span several consecutive lines:
       merge as continuation if next lines are directly below and lack prices.
 11. Semantic mapping of MAKRO columns (preserve this meaning):
-    | Header             | Semantic meaning / output |
-    | Código Artigo      | ProductCode               |
-    | Descrição Artigo   | ProductName               |
-    | PACK               | Container or base unit token |
-    | PR Unit/KG         | Price per base unit (when used) |
-    | Unit/KG            | Count (units inside container) |
-    | Preço U.V.         | Price per container (when used) |
-    | Quant              | Quantity (containers or units purchased) |
-    | Valor Total        | ProductTotalValue         |
-    | IvaDD              | TaxCategory code          |
+    | Header             | Semantic meaning / output                    |
+    | Código Artigo      | ProductCode                                  |
+    | Descrição Artigo   | ProductName                                  |
+    | PACK               | Container or base unit token                 |
+    | PR Unit/KG         | UnitPrice (price per base unit or per pack)  |
+    | Unit/KG            | Count (units inside container)               |
+    | Preço U.V.         | Alternative UnitPrice (price per container)  |
+    | Quant              | Quantity (containers or units purchased)     |
+    | Valor Total        | ProductTotalValue                            |
+    | IvaDD              | TaxCategory code                             |
+
+    - **`ProductTotalValue` MUST ALWAYS be taken from the ""Valor Total"" column for that line.**  
+      **Never substitute `PR Unit/KG` or `Preço U.V.` for `ProductTotalValue`, even if they are the only prices available.**
+    - `PR Unit/KG` and `Preço U.V.` are unit prices and MUST be used only as contextual data for validation, not as the final line amount.
 
 12. Quantity-unit pairing:
     if `Quant` is next to a unit token (KG, UNI, UN, LT, etc.) treat as a pair.
+
+13. When all three are present on a row (`Quant`, a unit price from `PR Unit/KG` or `Preço U.V.`, and `Valor Total`):
+    - You MAY verify that `Quant × UnitPrice ≈ Valor Total` as a consistency check.
+    - Use this only for validation:
+      - Do NOT overwrite the value from `Valor Total`.
+      - Even if the check fails, keep the original `Valor Total` as `ProductTotalValue` and do NOT drop or modify the row.
 
 ----------------------------------------------------------------
 ## E) MAKRO PACKAGING RULES (exactly as in former prompt)
@@ -461,8 +474,6 @@ Rules:
 - Preserve order as on the page.
 - If legend decoding or total cross-check required, note in Comments.
 ";
-
-
 
     }
 }
