@@ -144,7 +144,7 @@ Extract the rows of words from this provided OCR invoice text: {invoiceText}.
             return JsonSerializer.Serialize(requestBody, options);
         }
 
-private const string _systemPromptUnified_Universal = @"
+        private const string _systemPromptUnified_Universal = @"
 You are an AI assistant specialized in **one-pass, lossless extraction of invoice products and tax categories**
 from a flat OCR word list with coordinates.
 
@@ -216,6 +216,8 @@ The document can be skewed (tilted lines) or mildly perspective-distorted.
     - First line has core numeric values.
     - Following close lines (no prices) are continuations (description, pack, brand, lot, etc.).
     Merge into the previous product semantically, but NEVER drop lines.
+    If a line does not fit the column structure (for example, it has no product code and no clear price/total amount cell),
+    treat it as a **continuation of the previous product line**, not as a separate product.
 16. Quantity-unit pairing rule:
     if a number is adjacent to a unit token (KG, L, LT, UN, UNI, PC, etc.),
     treat them as a linked pair for the same product.
@@ -223,16 +225,16 @@ The document can be skewed (tilted lines) or mildly perspective-distorted.
     - `ProductCode`: code-like token near left (digits / alphanum).
     - `ProductName`: main description tokens (keep all pack sizes inside name when they are part of identity).
     - `Unit`, `Quantity`, `Container`, `Count`, `ProductTotalValue`, `TaxCategory`.
-    - **`ProductTotalValue` MUST represent the total line amount (final line price, usually from the ""Total""/""Valor Total"" column),**  
-      **and MUST NOT be taken from a unit price column.** If the row contains both unit price and total price, always use the value located in the total/summary column as `ProductTotalValue` and keep unit price only as contextual numeric information.
-
-18. If and only if a row clearly contains both:
-    - a `Quantity` value, and  
-    - a unit price value (price per unit),
-    you MAY verify that `Quantity × UnitPrice ≈ ProductTotalValue` as a consistency check.
-    Use this check **only for validation**:
-    - Never overwrite `ProductTotalValue` using `Quantity × UnitPrice`.
-    - If there is a mismatch, keep the original total from the total/summary column and do NOT drop or modify the row.
+    Never invent values; prefer null/empty when unsure.
+    - When choosing `ProductTotalValue`, always prefer the **final line total** from the column corresponding
+      to ""Total"", ""Amount"", ""Valor Total"" or similar total/amount headers.
+      Do **not** use unit price, tax amount, or quantity as `ProductTotalValue`.
+      If a reliable total column cannot be found for a product, leave `ProductTotalValue` null instead of guessing.
+    - If both `Quantity` and a **UnitPrice** column are clearly present for a product,
+      you MAY check that `Quantity × UnitPrice` approximately equals `ProductTotalValue` to detect misalignment.
+      Perform this validation **only** when both Quantity and UnitPrice are present in that row.
+      If they do not match, still use the value in the **total/amount column** as `ProductTotalValue`
+      and adjust associations between numbers and columns, but do **not** move or reorder rows.
 
 ----------------------------------------------------------------
 ## E) TAX LEGEND / TAX SECTION (letters or digits)
@@ -306,7 +308,8 @@ Return strictly JSON matching the response Invoice Schema:
 Rules:
 - Output ALL products found on the page.
 - Never omit a product line.
-- Preserve semantic meaning; do NOT reorder products.
+- Preserve semantic meaning; do NOT reorder products – product entries must follow
+  exactly the same top-to-bottom order as the original lines in the document image.
 - If totals are present on page, optionally cross-check in Comments.
 ";
 
@@ -351,6 +354,7 @@ The document can be skewed or mildly perspective-distorted.
    - Never split a physical line because of horizontal gaps.
    - Never merge two physical lines; if uncertain, open a new line.
 7. Order lines top→bottom; words inside line left→right.
+   You MUST maintain the original visual order of lines: never reorder rows.
 
 ----------------------------------------------------------------
 ## C) MAKRO PRODUCT TABLE DETECTION
@@ -358,7 +362,7 @@ The document can be skewed or mildly perspective-distorted.
 8. Detect the MAKRO product table header block.
    Expected header terms may include (case-insensitive):
    ""Código Artigo"", ""Descrição Artigo"", ""PACK"", ""PR Unit/KG"",
-   ""Unit/KG"", ""Preço U.V."", ""Quant"", ""Valor Total"", ""IvaDD"".
+   ""Unit/KG"", ""Preço U.V."", ""Quant"", ""Valor Total"", ""Iva"", ""DD"" (discount code).
    Headers may span multiple consecutive lines; treat as one logical header.
 9. From header block infer:
    - Product table left/right boundaries.
@@ -370,31 +374,27 @@ The document can be skewed or mildly perspective-distorted.
 10. Extract ALL product rows after headers until a clearly unrelated section begins.
     - Do not skip damaged/incomplete lines.
     - One product may span several consecutive lines:
-      merge as continuation if next lines are directly below and lack prices.
+      If a line in the product area does NOT follow the normal MAKRO column pattern
+      (for example, it lacks `Quant`/`Valor Total` or only extends the description),
+      treat it as a **continuation of the previous product**, NOT as an independent product.
 11. Semantic mapping of MAKRO columns (preserve this meaning):
-    | Header             | Semantic meaning / output                    |
-    | Código Artigo      | ProductCode                                  |
-    | Descrição Artigo   | ProductName                                  |
-    | PACK               | Container or base unit token                 |
-    | PR Unit/KG         | UnitPrice (price per base unit or per pack)  |
-    | Unit/KG            | Count (units inside container)               |
-    | Preço U.V.         | Alternative UnitPrice (price per container)  |
-    | Quant              | Quantity (containers or units purchased)     |
-    | Valor Total        | ProductTotalValue                            |
-    | IvaDD              | TaxCategory code                             |
+    | Header             | Semantic meaning / output                 |
+    | Código Artigo      | ProductCode                               |
+    | Descrição Artigo   | ProductName                               |
+    | PACK               | Container or base unit token              |
+    | PR Unit/KG         | Price per base unit (when used)           |
+    | Unit/KG            | Count (units inside container)            |
+    | Preço U.V.         | Price per container (when used)           |
+    | Quant              | Quantity (containers or units purchased)  |
+    | Valor Total        | ProductTotalValue (line final total)      |
+    | Iva                | TaxCategory code                          |
+    | DD                 | Discount code reference (for promotions)  |
 
-    - **`ProductTotalValue` MUST ALWAYS be taken from the ""Valor Total"" column for that line.**  
-      **Never substitute `PR Unit/KG` or `Preço U.V.` for `ProductTotalValue`, even if they are the only prices available.**
-    - `PR Unit/KG` and `Preço U.V.` are unit prices and MUST be used only as contextual data for validation, not as the final line amount.
-
+    `ProductTotalValue` MUST always be taken from the **""Valor Total""** column
+    as the final line total for the product. You MUST NEVER take `ProductTotalValue`
+    from `Preço U.V.` or `PR Unit/KG`, even if other fields are missing or ambiguous.
 12. Quantity-unit pairing:
     if `Quant` is next to a unit token (KG, UNI, UN, LT, etc.) treat as a pair.
-
-13. When all three are present on a row (`Quant`, a unit price from `PR Unit/KG` or `Preço U.V.`, and `Valor Total`):
-    - You MAY verify that `Quant × UnitPrice ≈ Valor Total` as a consistency check.
-    - Use this only for validation:
-      - Do NOT overwrite the value from `Valor Total`.
-      - Even if the check fails, keep the original `Valor Total` as `ProductTotalValue` and do NOT drop or modify the row.
 
 ----------------------------------------------------------------
 ## E) MAKRO PACKAGING RULES (exactly as in former prompt)
@@ -431,7 +431,7 @@ The document can be skewed or mildly perspective-distorted.
 ----------------------------------------------------------------
 ## F) MAKRO TAX CATEGORY MAPPING (digits or letters)
 
-13. In IvaDD column, tax may be encoded as digits or letters.
+13. In Iva column, tax may be encoded as digits or letters.
     First apply fixed MAKRO mapping when code is numeric:
       2 = 23.00% → Normal
       4 = 6.00%  → Reduced
@@ -442,13 +442,43 @@ The document can be skewed or mildly perspective-distorted.
 15. If still unclear, keep raw code as TaxCategory.
 
 ----------------------------------------------------------------
-## G) OCR FIXES AND RECOVERY
+## G) MAKRO DISCOUNT LINES (""Leve Mais Pague Menos"")
 
-16. Correct trivial OCR mistakes only when safe.
-17. Prefer inclusion: ambiguous lines attach to nearest plausible product.
+16. At the end of the MAKRO product table there are **discount summary lines**
+    whose description contains the phrase **""Leve Mais Pague Menos""**.
+    Each such line has:
+    - a discount amount (value),
+    - a discount code.
+17. These discount lines are **not independent products** and MUST NOT be added
+    to the `Products` list as separate items. They are used only to adjust product totals.
+18. In the main product table, after the tax code column (`Iva`), there is a `DD` column
+    that may contain a discount code. For each product row:
+    - If the `DD` column contains a code, remember that this product participates
+      in the discount group with that code.
+19. After you have identified all products and all ""Leve Mais Pague Menos"" discount lines:
+    - For each discount code:
+      - Collect all products that reference this code in their `DD` column.
+      - Use each product's original `Valor Total` as its gross line total before discount.
+      - Distribute the discount amount from the corresponding ""Leve Mais Pague Menos"" line
+        proportionally between those products according to their gross `Valor Total` share.
+      - Subtract the allocated discount from each product's `ProductTotalValue`.
+        Final `ProductTotalValue` MUST be the **net amount after discount**.
+      - Ensure that the sum of discounts applied to products with a given code
+        matches the discount amount declared in the corresponding
+        ""Leve Mais Pague Menos"" line (up to minor rounding tolerance).
+20. If you cannot reliably match a discount line to products (missing or unreadable code),
+    leave `ProductTotalValue` unchanged for safety and briefly mention this situation
+    in `Comments`.
 
 ----------------------------------------------------------------
-## H) OUTPUT (Invoice Schema in the response_format section.)
+## H) OCR FIXES AND RECOVERY
+
+21. Correct trivial OCR mistakes only when safe.
+22. Prefer inclusion: ambiguous lines attach to the nearest plausible product.
+23. Never reorder product rows: keep them in the same vertical order as on the original invoice page.
+
+----------------------------------------------------------------
+## I) OUTPUT (Invoice Schema in the response_format section.)
 
 Return strictly JSON matching the response Invoice Schema:
 
@@ -472,8 +502,9 @@ Rules:
 - Output ALL products found on the page.
 - Never omit a product line.
 - Preserve order as on the page.
-- If legend decoding or total cross-check required, note in Comments.
+- If legend decoding or total/discount cross-check is relevant, note it in Comments.
 ";
+
 
     }
 }
