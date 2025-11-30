@@ -50,7 +50,7 @@ namespace UpRestEye3.Services.Controllers
             {
                 if (CheckQR(invoice))
                 {
-                    // Валидация накладной после QR
+                    // Валидация накладной до QR
                     var validator = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.QRCodeRecognition);
                     validator.Validate(invoice, invoice.Consumer.TaxNumber, true);
                 }
