@@ -48,10 +48,13 @@ namespace UpRestEye3.Services.BusinessLogic
                 if (consumer == null)
                     throw new Exception("ConsumerId not found");
 
+                var filePager = new ImageLoader();
+                var pagedFilePaths = filePager.SplitMultiPageFiles(fileFullName);
+
                 var invoice = new InvoiceDTO
                 {
                     InvoiceNumber = fileName,
-                    FilePath = fileFullName,
+                    FilePath = pagedFilePaths,
                     Stage = InvoiceStageEnum.New,
                     StageStatus = InvoiceStatusEnum.Processing
                 };

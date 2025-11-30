@@ -83,7 +83,7 @@ namespace UpRestEye3.Services.Recognition
 
             var requestData = new
             {
-                model = "gpt-4.1",
+                model = "gpt-5.1",
                 //model = "gpt-4o", 
                 //"gpt-4o-mini",
 

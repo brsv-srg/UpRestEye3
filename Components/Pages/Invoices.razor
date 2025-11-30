@@ -822,8 +822,11 @@
 		public int? invoiceId { get; set; } 
 	}
 
+	// Изображения
 	private string? scannedImageBase64;
 	private Dictionary<(int invoiceId, int pageIndex), string> scannedImageCache = new(); // Кэш для изображений
+	private List<string> invoiceFilePaths = new();
+	private int selectedInvoicePage = 0;
 
 
 	// Список инвойсов
@@ -833,8 +836,6 @@
 	// Временная модель для редактирования, чтобы не менять объект из списка напрямую
 	private InvoiceDTO editInvoice = new InvoiceDTO();
 
-	private List<string> invoiceFilePaths = new();
-	private int selectedInvoicePage = 0;
 
 	[Parameter]
 	public int? rmsProductId { get; set; }

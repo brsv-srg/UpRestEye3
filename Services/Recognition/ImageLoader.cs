@@ -13,6 +13,11 @@ using System.IO;
 using System.Runtime.InteropServices;
 using UpRestEye3.Components.Pages;
 
+using System.Drawing.Imaging;
+using Ghostscript.NET.Rasterizer;
+using iTextSharp.text.pdf;
+using iTextSharp.text.pdf.parser;
+
 
 public class ImageLoader
 {
@@ -133,4 +138,89 @@ public class ImageLoader
             return bitmap;
         }
     }
+
+    /// <summary>
+    /// Физически разделяет многостраничные PDF и TIFF на отдельные файлы, возвращает строку с новыми путями.
+    /// </summary>
+    public string SplitMultiPageFiles(string fileList)
+    {
+        var filePaths = fileList.Split("; ", StringSplitOptions.RemoveEmptyEntries);
+        var resultFiles = new List<string>();
+
+        foreach (var filePath in filePaths)
+        {
+            var extension = System.IO.Path.GetExtension(filePath).ToLowerInvariant();
+
+            if (extension == ".pdf")
+            {
+                // PDF: разделить на страницы и сохранить каждую как отдельный PDF
+                using (var reader = new iTextSharp.text.pdf.PdfReader(filePath))
+                {
+                    int pageCount = reader.NumberOfPages;
+                    if (pageCount > 1)
+                    {
+                        for (int page = 1; page <= pageCount; page++)
+                        {
+                            string newFileName = System.IO.Path.Combine(
+                                System.IO.Path.GetDirectoryName(filePath),
+                                $"{System.IO.Path.GetFileNameWithoutExtension(filePath)} page {page}{extension}"
+                            );
+
+                            using (var doc = new iTextSharp.text.Document())
+                            using (var fs = new FileStream(newFileName, FileMode.Create, FileAccess.Write))
+                            {
+                                var pdfCopy = new iTextSharp.text.pdf.PdfCopy(doc, fs);
+                                doc.Open();
+                                var importedPage = pdfCopy.GetImportedPage(reader, page);
+                                pdfCopy.AddPage(importedPage);
+                                doc.Close();
+                            }
+                            resultFiles.Add(newFileName);
+                        }
+                    }
+                    else
+                    {
+                        resultFiles.Add(filePath);
+                    }
+                }
+            }
+            else if (extension == ".tif" || extension == ".tiff")
+            {
+                // TIFF: разделить на страницы и сохранить каждую как отдельный TIFF
+                using (var image = Image.FromFile(filePath))
+                {
+                    int pageCount = image.GetFrameCount(FrameDimension.Page);
+                    if (pageCount > 1)
+                    {
+                        for (int page = 0; page < pageCount; page++)
+                        {
+                            image.SelectActiveFrame(FrameDimension.Page, page);
+                            string newFileName = System.IO.Path.Combine(
+                                System.IO.Path.GetDirectoryName(filePath),
+                                $"{System.IO.Path.GetFileNameWithoutExtension(filePath)} page {page + 1}{extension}"
+                            );
+                            image.Save(newFileName, ImageFormat.Tiff);
+                            resultFiles.Add(newFileName);
+                        }
+                    }
+                    else
+                    {
+                        resultFiles.Add(filePath);
+                    }
+                }
+            }
+            else
+            {
+                // Обычный файл-изображение
+                resultFiles.Add(filePath);
+            }
+        }
+
+        // Собираем обратно в строку
+        return string.Join("; ", resultFiles);
+    }
+
+
+
+
 }
