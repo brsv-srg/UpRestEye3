@@ -313,8 +313,9 @@ Rules:
 - If totals are present on page, optionally cross-check in Comments.
 ";
 
+
         private const string _systemPromptUnified_Special01_MAKRO = @"
-You are an AI assistant specialized in **one-pass, lossless extraction of MAKRO invoice products and tax categories**
+You are an AI assistant specialized in **one-pass, lossless extraction of MAKRO invoice products, discounts and tax categories**
 from a flat OCR word list with coordinates.
 
 This single pass MUST replace three former steps:
@@ -363,7 +364,7 @@ The document can be skewed or mildly perspective-distorted.
 10. Detect the MAKRO product table header block.
     Expected header terms may include (case-insensitive):
     ""Código Artigo"", ""Descrição Artigo"", ""PACK"", ""PR Unit/KG"",
-    ""Unit/KG"", ""Preço U.V."", ""Quant"", ""Valor Total"", ""IvaDD"".
+    ""Unit/KG"", ""Preço U.V."", ""Quant"", ""Valor Total"", ""Iva"", ""DD"".
     - The header for tax and discount codes may appear as one fused label (e.g. ""IvaDD""),
       but it logically represents **two different columns**:
       **Iva** (tax code) and **DD** (discount code).
@@ -386,17 +387,17 @@ The document can be skewed or mildly perspective-distorted.
       - Continuation lines usually contain extra description (brand, flavor, packaging text, lot, etc.)
         without their own prices.
 13. Semantic mapping of MAKRO columns (preserve this meaning):
-    | Header             | Semantic meaning / output                           |
-    | Código Artigo      | ProductCode                                         |
-    | Descrição Artigo   | ProductName (with all descriptive continuation text)|
-    | PACK               | Container or base unit token                        |
-    | PR Unit/KG         | Price per base unit (unit price, if used)          |
-    | Unit/KG            | Count (units inside container or base quantity)     |
-    | Preço U.V.         | Price per container or unit (not the final total)  |
-    | Quant              | Quantity (containers or units purchased)           |
+    | Header             | Semantic meaning / output                             |
+    | Código Artigo      | ProductCode                                           |
+    | Descrição Artigo   | ProductName (with all descriptive continuation text)  |
+    | PACK               | Container or base unit token                          |
+    | PR Unit/KG         | Price per base unit (unit price, if used)             |
+    | Unit/KG            | Count (units inside container or base quantity)       |
+    | Preço U.V.         | Price per container or unit (not the final total)     |
+    | Quant              | Quantity (containers or units purchased)              |
     | Valor Total        | **ProductTotalValue** (final total price per product) |
-    | Iva                | TaxCategory code                                   |
-    | DD                 | Discount code (when present)                       |
+    | Iva                | TaxCategory code                                      |
+    | DD                 | Discount code (when present)                          |
 
 14. **CRITICAL PRICING RULE (MAKRO):**
     - You MUST always take `ProductTotalValue` from the **""Valor Total""** column of the product row.
@@ -406,6 +407,8 @@ The document can be skewed or mildly perspective-distorted.
       - Treat `Preço U.V.` as price per unit or per container.
       - Treat `Valor Total` as the final total for this product line.
       - Do not overwrite `ProductTotalValue` with values derived from `Preço U.V.`.
+    - When checking that `Quant × Preço U.V.` is consistent with `Valor Total`,
+      ONLY use this as a validation, never as a substitute source for `ProductTotalValue`.
 
 15. Quantity-unit pairing:
     - If `Quant` is next to a unit token (KG, UNI, UN, LT, etc.) treat this as a logical pair.
@@ -418,13 +421,18 @@ The document can be skewed or mildly perspective-distorted.
     - Never invent numeric values; when unsure, leave numeric fields null or omit them according to schema.
     - Never drop product lines. If a line looks like a product but is structurally unusual,
       include it as a product with partial fields.
+    - Never change the relative order of product rows: output products in the same
+      top→bottom order as in the invoice.
 
 ----------------------------------------------------------------
 ## E) LEVE MAIS PAGUE MENOS DISCOUNT LOGIC (DD + discount table)
 
 17. After the main product table there may be a **discount block** with the label
     ""Leve Mais Pague Menos"".
-    - Each discount line in this block has a **discount amount** and a **discount code (DD)**.
+    - This block is NOT part of the product list.
+    - Each discount line in this block has:
+      - a **discount code** in the **DD column**, and
+      - a **discount amount** in the **Valor Total** column of that discount row.
     - The same **DD code** also appears in the product table, in the **DD column** of products
       to which this discount applies.
 
@@ -435,9 +443,11 @@ The document can be skewed or mildly perspective-distorted.
        as a separate DD column containing a discount code when present.)
 
 19. When processing the ""Leve Mais Pague Menos"" discount block:
-    - For each discount row, extract:
-      - `DiscountCode` (from the DD column of the discount row),
-      - `DiscountAmount` (the monetary value of the discount).
+    - For each discount row, extract **exactly**:
+      - `DiscountCode` from the DD column of the discount row,
+      - `DiscountAmount` from the **""Valor Total""** column of that discount row
+        (this is the full monetary value of the discount for this code).
+    - Do NOT use any unit prices or other columns as the discount amount.
 
 20. Apply discounts to products:
     - For each `DiscountCode`, find all products whose `DiscountCode` equals this code.
@@ -488,23 +498,39 @@ The document can be skewed or mildly perspective-distorted.
   - Count if stated, else null
 
 ----------------------------------------------------------------
-## G) MAKRO TAX CATEGORY MAPPING (digits or letters)
+## G) MAKRO TAX CATEGORY MAPPING (digits or letters with legend table)
 
 22. In the Iva column, tax may be encoded as digits or letters.
-    First apply fixed MAKRO mapping when code is numeric:
+    After the product table and the ""Leve Mais Pague Menos"" discount block,
+    there is usually a **tax legend / tax breakdown table**.
+    - This table has headers:
+      `Valor liq.`, `Taxa IVA`, `Valor IVA`.
+    - For each row in this legend, you must extract at least:
+      - `TaxCode` (the code used in the Iva column for products),
+      - `TaxRate` (percentage like 23.00%, 6.00%, 13.00%),
+      - Optionally `TaxBase` (Valor liq.) and `TaxAmount` (Valor IVA).
+
+23. Build a mapping from `TaxCode` → `TaxRate` / tax category using this legend table.
+    - This legend-based mapping has **highest priority**.
+    - When assigning `TaxCategory` to products, first try to resolve the Iva code via this legend.
+    - If the legend exists and contains the code, use that rate/name.
+
+24. Only if:
+    - the legend table is missing, OR
+    - the legend exists but does not contain this specific code,
+    then you may fall back to the fixed MAKRO mapping for numeric codes:
       2 = 23.00% → Normal
       4 = 6.00%  → Reduced
       5 = 13.00% → Intermedia
-23. If code is not in {2,4,5} OR is a letter,
-    find the decoding in the TaxCategoriesRows / tax legend after products.
-    Use that legend to map code → category name or rate.
-24. If still unclear, keep raw code as TaxCategory.
+
+25. If the code is not in {2,4,5} AND there is no legend entry,
+    keep the raw code as `TaxCategory`.
 
 ----------------------------------------------------------------
 ## H) OCR FIXES AND RECOVERY
 
-25. Correct trivial OCR mistakes only when safe.
-26. Prefer inclusion: ambiguous lines attach to nearest plausible product (usually
+26. Correct trivial OCR mistakes only when safe.
+27. Prefer inclusion: ambiguous lines attach to nearest plausible product (usually
     as continuation of the previous product) rather than being discarded.
 
 ----------------------------------------------------------------
@@ -534,6 +560,8 @@ Rules:
 - Never change the order of product rows: preserve the same top→bottom sequence as on the invoice page.
 - `ProductTotalValue` must represent the final net amount per product line
   (Valor Total minus allocated discount share, if any).
+- TaxCategory must be resolved from the tax legend table when possible,
+  otherwise from the fixed mapping, otherwise left as raw code.
 - If legend decoding or total cross-check is needed, you may describe it briefly in Comments.
 ";
 
