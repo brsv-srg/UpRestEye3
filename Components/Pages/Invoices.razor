@@ -26,7 +26,12 @@
 
 		<div class="d-flex justify-content-between align-items-center">
 			<h1 class="flex-grow-1 text-nowrap">Invoices</h1>
-			<button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await InitializeDataAsync(null)" title="Read Invoices from DB">
+			
+			<button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await CreateRagAssistantAsync()" title="RAG Assistant">
+				<i class="fa fa-arrows-rotate"></i>
+			</button>
+
+			<button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await InitializeDataAsync()" title="Read Invoices from DB">
 				<i class="fa fa-arrows-rotate"></i>
 			</button>
 
@@ -294,10 +299,13 @@
 																<td class="p-1 text-end pe-5">@product.ProductTotalValue</td>
 																<td class="p-1">@product.TaxCategory</td>
 																@* <td class="p-1">@product.RMSProduct?.Name</td> *@
-																<td class="p-1" style="@(product.RMSProduct?.Status != RMSProductStatusEnum.Synchronized ? "color: red;" : "")">
+																<td class="p-1" style="@(product.RMSProduct?.Status == RMSProductStatusEnum.NewProduct ? "color: red;" : "")">
 																	@product.RMSProduct?.Name
 																</td>
-																<td class="p-1">@product.RMSContainer?.Name</td>
+																@* <td class="p-1">@product.RMSContainer?.Name</td> *@
+																<td class="p-1" style="@(product.RMSProduct?.Status == RMSProductStatusEnum.NewContainer ? "color: red;" : "")">
+																	@product.RMSContainer?.Name
+																</td>
 																<td class="p-1">@product.RMSStorage?.Name</td>
 																<td class="p-1">
 																	<button class="custom-btn" @onclick="async () => EditProduct(product)" disabled="@IsInvoiceReadOnly">
@@ -859,7 +867,8 @@
 	// Временная модель для бэкапа продукта
 	private InvoiceProductDTO? backupProduct;
 
-
+	// Флаг создания RAG ассистента
+	private bool isRagAssistantProcessing = false;
 
 	// Новый продукт
 	private InvoiceProductDTO newProduct = new InvoiceProductDTO();
@@ -1024,6 +1033,7 @@
 			if (editProduct != null)
 			{
 				editProduct.RMSProduct = rmsProducts?.FirstOrDefault(p => p.Id.ToString() == productId);
+				editProduct.RMSContainer = null; // Сбросить выбранный контейнер
 				Console.WriteLine($"Selected Product: {editProduct.RMSProduct?.Name}");
 			}
 		}
@@ -1036,6 +1046,7 @@
 			if (newProduct != null)
 			{
 				newProduct.RMSProduct = rmsProducts?.FirstOrDefault(p => p.Id.ToString() == productId);
+				editProduct.RMSContainer = null; // Сбросить выбранный контейнер
 				Console.WriteLine($"Selected Product: {newProduct.RMSProduct?.Name}");
 			}
 		}
@@ -1167,6 +1178,40 @@
 		catch (Exception ex)
 		{
 			Console.WriteLine($"An error occurred: {ex.Message}");
+		}
+	}
+
+	private async Task CreateRagAssistantAsync()
+	{
+		if (appUser?.ConsumerId == null)
+		{
+			await ShowMessage("Пользователь не определен.", "alert-danger");
+			return;
+		}
+
+		isRagAssistantProcessing = true;
+		try
+		{
+			
+			var response = await Http.PostAsJsonAsync($"{baseUri}/api/ragassistant/create", appUser.ConsumerTaxNumber);
+			                                                          
+			if (response.IsSuccessStatusCode)
+			{
+				await ShowMessage($"Ассистент создан!", "alert-success");
+			}
+			else
+			{
+				var error = await response.Content.ReadAsStringAsync();
+				await ShowMessage($"Ошибка создания ассистента: {error}", "alert-danger");
+			}
+		}
+		catch (Exception ex)
+		{
+			await ShowMessage($"Ошибка: {ex.Message}", "alert-danger");
+		}
+		finally
+		{
+			isRagAssistantProcessing = false;
 		}
 	}
 

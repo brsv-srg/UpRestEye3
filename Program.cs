@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Net;
+using OpenAI;
+
 using UpRestEye3.Components;
 using UpRestEye3.Components.Account;
 using UpRestEye3.Data;
@@ -64,6 +66,15 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddSingleton<IEmailSender<AppUser>, IdentityNoOpEmailSender>();
 builder.Services.AddSingleton<IProcessingLockService, InMemoryProcessingLockService>();
 
+// OpenAI client как Singleton (потокобезопасен)
+builder.Services.AddSingleton(sp =>
+{
+    var apiKey = builder.Configuration["OpenAI:ApiKey"];
+    var client = new OpenAIClient(apiKey);
+    return client;
+});
+
+
 
 // Сервисы логирования
 builder.Logging.ClearProviders();
@@ -105,6 +116,12 @@ builder.Services.AddScoped<IIntegrationInvoiceService, IntegrationInvoiceService
 
 builder.Services.AddScoped<IRMSMeasureUnitService, RMSMeasureUnitService>();
 builder.Services.AddScoped<IRMSAccountsService, RMSAccountsService>();
+
+builder.Services.AddScoped<IRAGFileService, RAGFileService>();
+
+var apiKey = builder.Configuration["OpenAI:ApiKey"];
+builder.Services.AddScoped<IRagAssistantService>(provider =>
+    new RagAssistantService(new HttpClient(), apiKey));
 
 
 
@@ -180,7 +197,6 @@ using (var scope = app.Services.CreateScope())
     await testInvoiceService.RunTests();
     */
 }
-
 
 
 
