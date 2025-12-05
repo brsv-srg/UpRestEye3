@@ -15,6 +15,7 @@ namespace UpRestEye3.Data
         public DbSet<SupplierDAO> Suppliers { get; set; }
         public DbSet<ConsumerDAO> Consumers { get; set; }
         public DbSet<ConnectionParameterDAO> ConnectionParameters { get; set; }
+        public DbSet<RagAssistantDAO> RagAssistant { get; set; }
         public DbSet<RMSProductDAO> RMSProducts { get; set; }
         public DbSet<RMSContainerDAO> Containers { get; set; }
         public DbSet<RMSMeasureUnitDAO> MeasureUnits { get; set; }
@@ -187,6 +188,22 @@ namespace UpRestEye3.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
 
+            ////////////////////////////////////////////////////////////////
+            /// Rag Assistant
+            ////////////////////////////////////////////////////////////////
+
+            modelBuilder.Entity<RagAssistantDAO>()
+                .HasKey(ra => ra.Id);
+
+            modelBuilder.Entity<RagAssistantDAO>()
+                .Property(ra => ra.Id)
+                .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<RagAssistantDAO>()
+                .HasOne(ra => ra.Consumer)
+                .WithOne()
+                .HasForeignKey<RagAssistantDAO>(ra => ra.ConsumerId)
+                .OnDelete(DeleteBehavior.Restrict);
 
 
 

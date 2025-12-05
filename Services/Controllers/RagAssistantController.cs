@@ -14,12 +14,15 @@ namespace UpRestEye3.Services.Controllers
     public class RagAssistantController : ControllerBase
     {
         private readonly IRAGFileService _ragFileService;
-        private readonly IRagAssistantService _ragAssistantService;
+        private readonly IRagAssistantDescriptor _ragAssistantDescriptor;
+        private readonly IRagAssistantDataService _ragAssistantDataService;
 
-        public RagAssistantController(IRAGFileService ragFileService, IRagAssistantService ragAssistantService)
+
+        public RagAssistantController(IRAGFileService ragFileService, IRagAssistantDescriptor ragAssistantDescriptor, IRagAssistantDataService ragAssistantDataService)
         {
             _ragFileService = ragFileService;
-            _ragAssistantService = ragAssistantService;
+            _ragAssistantDescriptor = ragAssistantDescriptor;
+            _ragAssistantDataService = ragAssistantDataService;
         }
 
 
@@ -34,11 +37,11 @@ namespace UpRestEye3.Services.Controllers
             var ragJson = JsonSerializer.Serialize(flatRecords);
 
             // 2. Создание ассистента
-            var result = await _ragAssistantService.CreateForConsumerAsync(
-                ConsumerTaxId,
-                ragJson);
+            var ragAssistantDTO = await _ragAssistantDescriptor.CreateForConsumerAsync(ConsumerTaxId, ragJson);
+            // 3. Сохранение информации об ассистенте в БД
+            await _ragAssistantDataService.SaveRagAssistantAsync(ragAssistantDTO);
 
-            return Ok(result.AssistantId);
+            return Ok(ragAssistantDTO.AssistantId);
         }
 
        
