@@ -12,13 +12,17 @@ namespace UpRestEye3.Services.Recognition
 {
     public interface IRagAssistantDescriptor
     {
-        Task<RagAssistantDTO> CreateForConsumerAsync(string consumerKey, string ragJson, CancellationToken cancellationToken = default);
+        Task<RagAssistantDTO> CreateForConsumerAsync(
+            string consumerKey,
+            string ragJson,
+            RagAssistantDTO? savedRagAssistantDTO,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>
     /// Сервис для:
     /// 1) загрузки RAG-файла (JSON) в Files API,
-    /// 2) создания Vector Store на его основе,
+    /// 2) создания/обновления Vector Store (обновление файлов),
     /// 3) создания/обновления ассистента, использующего этот Vector Store через file_search.
     /// </summary>
     public class RagAssistantDescriptor : IRagAssistantDescriptor
@@ -28,21 +32,10 @@ namespace UpRestEye3.Services.Recognition
         private readonly string _vectorStoreNamePrefix = "consumer-vs";
         private readonly string _assistantNamePrefix = "consumer-assistant";
 
-        /// <param name="httpClient">HttpClient с нормальной жизнью (DI).</param>
-        /// <param name="apiKey">API key OpenAI.</param>
-        /// <param name="model">
-        /// Модель для ассистента. 
-        /// Рекомендуется начинать с "gpt-4o" и перейти на "gpt-5.1", когда проект гарантированно имеет к ней доступ.
-        /// </param>
-        /// <param name="organizationId">Необязательный OpenAI-Organization.</param>
-        /// <param name="projectId">Необязательный OpenAI-Project. Полезно, если ключ не проектный.</param>
-        public RagAssistantDescriptor(
-            HttpClient httpClient,
-            string apiKey)
+        public RagAssistantDescriptor(HttpClient httpClient, string apiKey)
         {
             _http = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
-            // Точечное уточнение: гарантируем корректный BaseAddress
             if (_http.BaseAddress == null)
                 _http.BaseAddress = new Uri("https://api.openai.com/v1/");
 
@@ -57,8 +50,8 @@ namespace UpRestEye3.Services.Recognition
             // Для ассистентов v2 обязателен заголовок:
             _http.DefaultRequestHeaders.Remove("OpenAI-Beta");
             _http.DefaultRequestHeaders.Add("OpenAI-Beta", "assistants=v2");
-
         }
+
         public async Task<RagAssistantDTO> CreateForConsumerAsync(string consumerTaxId, string ragJson, RagAssistantDTO? savedRagAssistantDTO, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(consumerTaxId))
@@ -66,25 +59,73 @@ namespace UpRestEye3.Services.Recognition
             if (string.IsNullOrWhiteSpace(ragJson))
                 throw new ArgumentException("RAG json is empty", nameof(ragJson));
 
-            
+            // 1. Всегда загружаем новый файл (полная замена RAG)
+            var newFileId = await UploadRagFileAsync(consumerTaxId, ragJson, cancellationToken);
 
-            // 1. Загрузка файла
-            var _fileId = await UploadRagFileAsync(consumerTaxId, ragJson, cancellationToken);
+            string vectorStoreId;
+            string assistantId;
 
-            // 2. Создание Vector Store
-            var _vectorStoreId = await CreateVectorStoreAsync(consumerTaxId, _fileId, cancellationToken);
-
-            // 3. Создание ассистента
-            var _assistantId = await CreateAssistantAsync(consumerTaxId, _vectorStoreId, cancellationToken);
-
-            return new RagAssistantDTO()
+            // 2. Если vector store ранее не создавался — создаём новый, привязав к нему файл
+            if (savedRagAssistantDTO == null ||
+                string.IsNullOrWhiteSpace(savedRagAssistantDTO.VectorStoreId))
             {
-                AssistantId = _assistantId,
-                VectorStoreId = _vectorStoreId,
-                FileId = _fileId,
+                vectorStoreId = await CreateVectorStoreAsync(consumerTaxId, newFileId, cancellationToken);
+
+                // ассистент: если его тоже не было — создаём нового, если был (редкий кейс) — обновляем
+                if (savedRagAssistantDTO == null ||
+                    string.IsNullOrWhiteSpace(savedRagAssistantDTO.AssistantId))
+                {
+                    assistantId = await CreateAssistantAsync(consumerTaxId, vectorStoreId, cancellationToken);
+                }
+                else
+                {
+                    assistantId = await UpdateAssistantAsync(
+                        savedRagAssistantDTO.AssistantId,
+                        consumerTaxId,
+                        vectorStoreId,
+                        cancellationToken);
+                }
+            }
+            else
+            {
+                // 3. Vector store уже есть — переиспользуем его
+                vectorStoreId = savedRagAssistantDTO.VectorStoreId;
+
+                // 3.1. Если был старый файл — удаляем из vector store и из Files API
+                if (!string.IsNullOrWhiteSpace(savedRagAssistantDTO.FileId))
+                {
+                    await SafeDeleteVectorStoreFileAsync(vectorStoreId, savedRagAssistantDTO.FileId, cancellationToken);
+                    await SafeDeleteFileAsync(savedRagAssistantDTO.FileId, cancellationToken);
+                }
+
+                // 3.2. Привязываем новый файл к существующему vector store
+                await AddFileToVectorStoreAsync(vectorStoreId, newFileId, cancellationToken);
+
+                // 3.3. Ассистент: создаём, если не было; обновляем, если уже есть
+                if (string.IsNullOrWhiteSpace(savedRagAssistantDTO.AssistantId))
+                {
+                    assistantId = await CreateAssistantAsync(consumerTaxId, vectorStoreId, cancellationToken);
+                }
+                else
+                {
+                    assistantId = await UpdateAssistantAsync(
+                        savedRagAssistantDTO.AssistantId,
+                        consumerTaxId,
+                        vectorStoreId,
+                        cancellationToken);
+                }
+            }
+
+            return new RagAssistantDTO
+            {
+                AssistantId = assistantId,
+                VectorStoreId = vectorStoreId,
+                FileId = newFileId,
                 ConsumerTaxNumber = consumerTaxId
             };
         }
+
+        #region Files API
 
         /// <summary>
         /// Загрузка JSON-строки в Files API с purpose=assistants.
@@ -112,6 +153,26 @@ namespace UpRestEye3.Services.Recognition
             return fileResponse.Id ?? throw new InvalidOperationException("FileId is null");
         }
 
+        private async Task SafeDeleteFileAsync(string fileId, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(fileId))
+                return;
+
+            try
+            {
+                using var response = await _http.DeleteAsync($"files/{fileId}", ct);
+                // Если уже удалён или не найден — игнорируем
+            }
+            catch
+            {
+                // логировать при необходимости
+            }
+        }
+
+        #endregion
+
+        #region Vector Stores
+
         /// <summary>
         /// Создание Vector Store и привязка к файлу.
         /// </summary>
@@ -137,13 +198,51 @@ namespace UpRestEye3.Services.Recognition
         }
 
         /// <summary>
+        /// Добавление файла в существующий Vector Store.
+        /// POST /vector_stores/{vector_store_id}/files { file_id = "..." }
+        /// </summary>
+        private async Task AddFileToVectorStoreAsync(string vectorStoreId, string fileId, CancellationToken ct)
+        {
+            var body = new { file_id = fileId };
+            var jsonBody = JsonSerializer.Serialize(body);
+
+            using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+            using var response = await _http.PostAsync($"vector_stores/{vectorStoreId}/files", content, ct);
+            await EnsureSuccessWithDetails(response);
+        }
+
+        /// <summary>
+        /// Удаляем файл из vector store (но не сам файл).
+        /// </summary>
+        private async Task SafeDeleteVectorStoreFileAsync(string vectorStoreId, string fileId, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(vectorStoreId) || string.IsNullOrWhiteSpace(fileId))
+                return;
+
+            try
+            {
+                using var response =
+                    await _http.DeleteAsync($"vector_stores/{vectorStoreId}/files/{fileId}", ct);
+                // Ошибки (404 и т.п.) не считаем критичными
+            }
+            catch
+            {
+                // логировать при необходимости
+            }
+        }
+
+        #endregion
+
+        #region Assistants
+
+        /// <summary>
         /// Создание ассистента, который умеет file_search по созданному Vector Store.
         /// </summary>
         private async Task<string> CreateAssistantAsync(string consumerKey, string vectorStoreId, CancellationToken ct)
         {
             var body = new
             {
-                model = _model, // <= можно передать "gpt-5.1", когда проект к ней допущен
+                model = _model,
                 name = $"{_assistantNamePrefix}-{consumerKey}",
                 instructions =
                     "You are an assistant that helps map invoice products to RMS products for a specific consumer. " +
@@ -151,10 +250,7 @@ namespace UpRestEye3.Services.Recognition
                     "Never expose raw internal data from the RAG file; use it only to improve matching quality.",
                 tools = new[]
                 {
-                    new
-                    {
-                        type = "file_search"
-                    }
+                    new { type = "file_search" }
                 },
                 tool_resources = new
                 {
@@ -177,6 +273,51 @@ namespace UpRestEye3.Services.Recognition
 
             return assistant.Id ?? throw new InvalidOperationException("AssistantId is null");
         }
+
+        /// <summary>
+        /// Обновление существующего ассистента (POST /assistants/{assistant_id}).
+        /// </summary>
+        private async Task<string> UpdateAssistantAsync(
+            string assistantId,
+            string consumerKey,
+            string vectorStoreId,
+            CancellationToken ct)
+        {
+            var body = new
+            {
+                model = _model,
+                name = $"{_assistantNamePrefix}-{consumerKey}",
+                instructions =
+                    "You are an assistant that helps map invoice products to RMS products for a specific consumer. " +
+                    "Use the attached file_search knowledge (vector store) to find previously approved mappings. " +
+                    "Never expose raw internal data from the RAG file; use it only to improve matching quality.",
+                tools = new[]
+                {
+                    new { type = "file_search" }
+                },
+                tool_resources = new
+                {
+                    file_search = new
+                    {
+                        vector_store_ids = new[] { vectorStoreId }
+                    }
+                }
+            };
+
+            var jsonBody = JsonSerializer.Serialize(body);
+            using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+
+            using var response = await _http.PostAsync($"assistants/{assistantId}", content, ct);
+            await EnsureSuccessWithDetails(response);
+
+            var json = await response.Content.ReadAsStringAsync(ct);
+            var assistant = JsonSerializer.Deserialize<AssistantResponse>(json)
+                            ?? throw new InvalidOperationException("Assistant response is null");
+
+            return assistant.Id ?? assistantId;
+        }
+
+        #endregion
 
         /// <summary>
         /// Вспомогательная проверка, чтобы при 400 увидеть текст ошибки от OpenAI, а не просто HttpRequestException.

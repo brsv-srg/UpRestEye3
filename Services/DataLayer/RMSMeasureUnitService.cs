@@ -23,13 +23,13 @@ namespace UpRestEye3.Services.DataLayer
 
         public async Task<List<RMSMeasureUnitDTO>> GetUnitsByConsumerIdAsync(int consumerId)
         {
-            var products = await _context.MeasureUnits
+            var units = await _context.MeasureUnits
                 .AsNoTracking()
                 .Include(p => p.Consumer)
                 .Where(p => p.ConsumerId == consumerId)
                 .ToListAsync();
 
-            return products.Select(p => new RMSMeasureUnitDTO()
+            return units.Select(p => new RMSMeasureUnitDTO()
             {
                 Id = p.Id,
                 ConsumerId = p.ConsumerId,

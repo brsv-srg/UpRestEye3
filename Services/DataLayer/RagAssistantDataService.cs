@@ -10,6 +10,7 @@ namespace UpRestEye3.Services.DataLayer
     public interface IRagAssistantDataService
     {
         Task<RagAssistantDTO?> GetRagAssistantDTOByCustomerIdAsync(int customerId);
+        Task<RagAssistantDTO?> GetRagAssistantDTOByCustomerIdAsync(string consumerTaxNumber);
         Task<RagAssistantDTO?> SaveRagAssistantAsync(RagAssistantDTO assistant);
 
     }
