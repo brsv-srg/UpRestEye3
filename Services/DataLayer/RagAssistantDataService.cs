@@ -42,6 +42,16 @@ namespace UpRestEye3.Services.DataLayer
             } : null;
         }
 
+        public async Task<RagAssistantDTO?> GetRagAssistantDTOByCustomerIdAsync(string consumerTaxNumber)
+        {
+            var consumerId = await _consumerService.GetConsumerIdAsync(consumerTaxNumber);
+            if (consumerId == null)
+            {
+                return null;
+            }
+            return await GetRagAssistantDTOByCustomerIdAsync((int)consumerId);
+        }
+
         public async Task<RagAssistantDTO?> SaveRagAssistantAsync(RagAssistantDTO assistant)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();

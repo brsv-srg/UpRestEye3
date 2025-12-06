@@ -36,9 +36,13 @@ namespace UpRestEye3.Services.Controllers
             var flatRecords = await _ragFileService.GenerateRAGFileAsync(ConsumerTaxId);
             var ragJson = JsonSerializer.Serialize(flatRecords);
 
-            // 2. Создание ассистента
-            var ragAssistantDTO = await _ragAssistantDescriptor.CreateForConsumerAsync(ConsumerTaxId, ragJson);
-            // 3. Сохранение информации об ассистенте в БД
+            // 2. Чтение идентификаторов RAG ассистента 
+            var savedAssistant = await _ragAssistantDataService.GetRagAssistantDTOByCustomerIdAsync (ConsumerTaxId);
+
+            // 3. Создание ассистента
+            var ragAssistantDTO = await _ragAssistantDescriptor.CreateForConsumerAsync(ConsumerTaxId, ragJson, savedAssistant);
+
+            // 4. Сохранение информации об ассистенте в БД
             await _ragAssistantDataService.SaveRagAssistantAsync(ragAssistantDTO);
 
             return Ok(ragAssistantDTO.AssistantId);

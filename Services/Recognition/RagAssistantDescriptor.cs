@@ -59,12 +59,14 @@ namespace UpRestEye3.Services.Recognition
             _http.DefaultRequestHeaders.Add("OpenAI-Beta", "assistants=v2");
 
         }
-        public async Task<RagAssistantDTO> CreateForConsumerAsync(string consumerTaxId, string ragJson, CancellationToken cancellationToken = default)
+        public async Task<RagAssistantDTO> CreateForConsumerAsync(string consumerTaxId, string ragJson, RagAssistantDTO? savedRagAssistantDTO, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(consumerTaxId))
                 throw new ArgumentException("consumerKey is required", nameof(consumerTaxId));
             if (string.IsNullOrWhiteSpace(ragJson))
                 throw new ArgumentException("RAG json is empty", nameof(ragJson));
+
+            
 
             // 1. Загрузка файла
             var _fileId = await UploadRagFileAsync(consumerTaxId, ragJson, cancellationToken);
