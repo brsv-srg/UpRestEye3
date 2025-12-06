@@ -105,7 +105,7 @@ builder.Services.AddScoped<IGPTMappingService, GPTMappingService>();
 builder.Services.AddScoped<IImagePipelineHelper, ImagePipelineHelper>();
 builder.Services.AddScoped<IProductMappingService, ProductMappingService>();
 builder.Services.AddScoped<IConnectionParameterService, ConnectionParameterService>();
-builder.Services.AddScoped<IRagAssistantDataService, RagAssistantDataService>();
+builder.Services.AddScoped<IRagDataService, RagDataService>();
 
 builder.Services.AddScoped<IRMSProductService, RMSProductService>();
 
@@ -120,8 +120,8 @@ builder.Services.AddScoped<IRMSAccountsService, RMSAccountsService>();
 builder.Services.AddScoped<IRAGFileService, RAGFileService>();
 
 var apiKey = builder.Configuration["OpenAI:ApiKey"];
-builder.Services.AddScoped<IRagAssistantDescriptor>(provider =>
-    new RagAssistantDescriptor(new HttpClient(), apiKey));
+builder.Services.AddScoped<IRagManager>(provider =>
+    new RagManager(new HttpClient(), apiKey));
 
 
 

@@ -220,7 +220,7 @@ The document can be skewed (tilted lines) or mildly perspective-distorted.
     - `Unit`, `Quantity`, `Container`, `Count`, `ProductTotalValue`, `TaxCategory`.
     Never invent values; prefer null/empty when unsure.
     - When choosing `ProductTotalValue`, always prefer the **final line total** from the column corresponding
-      to ""Total"", ""Amount"", ""Valor Total"" or similar total/amount headers.
+      to `Total`, `Amount`, `Valor Total` or similar total/amount headers.
       Do **not** use unit price, tax amount, or quantity as `ProductTotalValue`.
       If a reliable total column cannot be found for a product, leave `ProductTotalValue` null instead of guessing.
     - If both `Quantity` and a **UnitPrice** column are clearly present for a product,
@@ -376,7 +376,7 @@ The document can be skewed or mildly perspective-distorted.
       - If a line does NOT contain required numeric pattern (Quant, Valor Total, price columns),
         but is directly below the previous product, treat it as a **continuation** of the previous product.
 13. Semantic mapping of MAKRO columns:
-    | Header             | Meaning / output                                |
+    | Header             | Meaning / output                                 |
     | Código Artigo      | ProductCode                                      |
     | Descrição Artigo   | ProductName (with continuation lines merged)     |
     | PACK               | Container or base unit token                     |
@@ -398,6 +398,9 @@ The document can be skewed or mildly perspective-distorted.
     - Fill numeric fields only when certain.
     - Never invent numbers.
     - Never omit a product.
+    - When the value in DD column is present, immediately store that DD value
+      together with this product (e.g. as `Product.DiscountCode`) for
+      later discount processing.
 
 ----------------------------------------------------------------
 ## E) PACKAGING RULES (moved up here as requested)
@@ -435,28 +438,19 @@ The document can be skewed or mildly perspective-distorted.
 ----------------------------------------------------------------
 ## F) LEVE MAIS PAGUE MENOS DISCOUNT LOGIC (DD + discount table)
 
-18. After all product rows have been extracted, you MUST detect and parse the
-    **Leve Mais Pague Menos** discount block, which appears AFTER the product table.
+18. Detect the `Leve Mais Pague Menos` discount block after product rows.
+    `Leve Mais Pague Menos` is a discount block, which appears AFTER the product table.
     Each discount-row in this block contains:
       - A **discount code (DD)** in the DD column,
       - A **discount amount** in the **Valor Total** column (this is the *total discount*
         associated with this code).
+19. Build an explicit list of discount entries: 
+      - [ { discount code in the `DD` column -> `DiscountCode`, 
+            discount amount in the `Valor Total` column -> `DiscountAmount`}]
 
-19. While processing product rows (Section D):
-    - If a product row contains a DD code immediately after the Iva column,
-      you MUST store this value as `DiscountCode` in memory:
-        • Store per-product: `product.DiscountCode`
-        • Maintain a list of all discount codes found in products.
-    - This MUST be done **during** the product-row stage, NOT later.
-
-20. When processing the discount block (after finishing all product rows):
-    - Build an explicit list of discount entries:
-        [
-           { ""DiscountCode"": string, ""DiscountAmount"": number },
-           ...
-        ]
-    - DiscountCode for discount lines is the value in DD column.
-    - DiscountAmount for discount lines is taken strictly from **Valor Total**.
+20. By this point, every product row that contained a DD column already has its
+discount code stored (e.g. `Product.DiscountCode`). Use these stored codes
+to match products to discount lines in the `Leve Mais Pague Menos` block.
 
 21. APPLYING DISCOUNTS (mandatory, precise):
     For each discount entry:
@@ -497,7 +491,9 @@ The document can be skewed or mildly perspective-distorted.
 ## H) OCR FIXES AND RECOVERY
 
 26. Correct trivial OCR mistakes only when safe.
-27. Prefer inclusion of ambiguous lines as continuation rather than omission.
+27. Include ALL products. Prefer inclusion of ambiguous lines as continuation rather than omission.
+
+
 
 ----------------------------------------------------------------
 ## I) OUTPUT (Invoice Schema in the response_format section.)

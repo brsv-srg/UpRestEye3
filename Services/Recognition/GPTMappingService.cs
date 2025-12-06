@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using OpenAI.VectorStores;
+using System.Drawing;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -15,7 +16,7 @@ namespace UpRestEye3.Services.Recognition
 
     public interface IGPTMappingService
     {
-        Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages);
+        Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages, string vectorStoreId);
 
     }
 
@@ -31,12 +32,12 @@ namespace UpRestEye3.Services.Recognition
 
 
 
-        public async Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages)
+        public async Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages, string vectorStoreId)
         {
 
             try
             {
-                var jsonBody = _env.GetReceiptMappingRequestBody(currentInvoice, conParam, measUnits, storages);
+                var jsonBody = _env.GetReceiptMappingRequestBody(currentInvoice, conParam, measUnits, storages, vectorStoreId);
 
 
                 // Сериализация тела запроса
@@ -123,8 +124,65 @@ namespace UpRestEye3.Services.Recognition
 
             return null;
         }
-
         private MatchedInvoiceProducts ResponseParsing(string responseContent)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(responseContent);
+                var root = document.RootElement;
+
+                // CHANGED: схема ответа Responses, а не ChatCompletions
+                // Ожидаем:
+                // output[0].content[0].text – строка с JSON по JSON Schema
+                if (!root.TryGetProperty("output", out var outputArray) ||
+                    outputArray.ValueKind != JsonValueKind.Array ||
+                    outputArray.GetArrayLength() == 0)
+                {
+                    throw new Exception("No output in Responses API response");
+                }
+
+                var firstOutput = outputArray[0];
+
+                if (!firstOutput.TryGetProperty("content", out var contentArray) ||
+                    contentArray.ValueKind != JsonValueKind.Array ||
+                    contentArray.GetArrayLength() == 0)
+                {
+                    throw new Exception("No content in Responses API output");
+                }
+
+                var firstContent = contentArray[0];
+
+                if (!firstContent.TryGetProperty("text", out var textElement) ||
+                    !textElement.TryGetProperty("text", out var innerTextElement))
+                {
+                    throw new Exception("Structured text not found in Responses API output");
+                }
+
+                var jsonText = innerTextElement.GetString();
+                if (string.IsNullOrWhiteSpace(jsonText))
+                    throw new Exception("Empty JSON text in Responses API output");
+
+                using var contentDoc = JsonDocument.Parse(jsonText);
+                var rootContent = contentDoc.RootElement;
+
+                if (!rootContent.TryGetProperty("MatchedInvoiceProducts", out _))
+                {
+                    throw new Exception("MatchedInvoiceProducts property not found in structured JSON");
+                }
+
+                var options = JsonHelper.GetSerializerOptions();
+                var matched = JsonSerializer.Deserialize<MatchedInvoiceProducts>(rootContent, options);
+
+                return matched ?? new MatchedInvoiceProducts();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error parsing Responses API structured JSON", ex);
+            }
+        }
+
+
+        private MatchedInvoiceProducts ResponseParsingOld(string responseContent)
         {
             try
             {
@@ -138,9 +196,9 @@ namespace UpRestEye3.Services.Recognition
                     messageElement.TryGetProperty("content", out JsonElement contentElement) &&
                     contentElement.ValueKind == JsonValueKind.String)
                 {
-                    
-                
-                
+
+
+
                     using var contentDocument = JsonDocument.Parse(contentElement.GetString());
                     var rootContent = contentDocument.RootElement;
 
@@ -151,7 +209,7 @@ namespace UpRestEye3.Services.Recognition
                         Console.WriteLine($"Received response from OpenAI API: {rootContent.GetRawText()}");
 
                         using var matchedProductsDocument = JsonDocument.Parse(rootContent.GetRawText());
-                        var matchedProducts = JsonSerializer.Deserialize<MatchedInvoiceProducts>(contentElement,options);
+                        var matchedProducts = JsonSerializer.Deserialize<MatchedInvoiceProducts>(contentElement, options);
 
                         return matchedProducts ?? new MatchedInvoiceProducts();
 
@@ -171,6 +229,7 @@ namespace UpRestEye3.Services.Recognition
                 throw new Exception("Error parsing JSON response to Invoice object", ex);
             }
         }
+
 
     }
 }

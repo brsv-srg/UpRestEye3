@@ -10,12 +10,12 @@ using UpRestEye3.Models.DTO;
 
 namespace UpRestEye3.Services.Recognition
 {
-    public interface IRagAssistantDescriptor
+    public interface IRagManager
     {
-        Task<RagAssistantDTO> CreateForConsumerAsync(
+        Task<RagManagementDTO> CreateForConsumerAsync(
             string consumerKey,
             string ragJson,
-            RagAssistantDTO? savedRagAssistantDTO,
+            RagManagementDTO? savedRagAssistantDTO,
             CancellationToken cancellationToken = default);
     }
 
@@ -25,14 +25,14 @@ namespace UpRestEye3.Services.Recognition
     /// 2) создания/обновления Vector Store (обновление файлов),
     /// 3) создания/обновления ассистента, использующего этот Vector Store через file_search.
     /// </summary>
-    public class RagAssistantDescriptor : IRagAssistantDescriptor
+    public class RagManager : IRagManager
     {
         private readonly HttpClient _http;
         private readonly string _model;
         private readonly string _vectorStoreNamePrefix = "consumer-vs";
         private readonly string _assistantNamePrefix = "consumer-assistant";
 
-        public RagAssistantDescriptor(HttpClient httpClient, string apiKey)
+        public RagManager(HttpClient httpClient, string apiKey)
         {
             _http = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
@@ -42,7 +42,6 @@ namespace UpRestEye3.Services.Recognition
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ArgumentNullException(nameof(apiKey));
 
-            _model = "gpt-4.1";
 
             _http.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", apiKey);
@@ -52,7 +51,7 @@ namespace UpRestEye3.Services.Recognition
             _http.DefaultRequestHeaders.Add("OpenAI-Beta", "assistants=v2");
         }
 
-        public async Task<RagAssistantDTO> CreateForConsumerAsync(string consumerTaxId, string ragJson, RagAssistantDTO? savedRagAssistantDTO, CancellationToken cancellationToken = default)
+        public async Task<RagManagementDTO> CreateForConsumerAsync(string consumerTaxId, string ragJson, RagManagementDTO? savedRagAssistantDTO, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(consumerTaxId))
                 throw new ArgumentException("consumerKey is required", nameof(consumerTaxId));
@@ -71,20 +70,7 @@ namespace UpRestEye3.Services.Recognition
             {
                 vectorStoreId = await CreateVectorStoreAsync(consumerTaxId, newFileId, cancellationToken);
 
-                // ассистент: если его тоже не было — создаём нового, если был (редкий кейс) — обновляем
-                if (savedRagAssistantDTO == null ||
-                    string.IsNullOrWhiteSpace(savedRagAssistantDTO.AssistantId))
-                {
-                    assistantId = await CreateAssistantAsync(consumerTaxId, vectorStoreId, cancellationToken);
-                }
-                else
-                {
-                    assistantId = await UpdateAssistantAsync(
-                        savedRagAssistantDTO.AssistantId,
-                        consumerTaxId,
-                        vectorStoreId,
-                        cancellationToken);
-                }
+                
             }
             else
             {
@@ -101,24 +87,11 @@ namespace UpRestEye3.Services.Recognition
                 // 3.2. Привязываем новый файл к существующему vector store
                 await AddFileToVectorStoreAsync(vectorStoreId, newFileId, cancellationToken);
 
-                // 3.3. Ассистент: создаём, если не было; обновляем, если уже есть
-                if (string.IsNullOrWhiteSpace(savedRagAssistantDTO.AssistantId))
-                {
-                    assistantId = await CreateAssistantAsync(consumerTaxId, vectorStoreId, cancellationToken);
-                }
-                else
-                {
-                    assistantId = await UpdateAssistantAsync(
-                        savedRagAssistantDTO.AssistantId,
-                        consumerTaxId,
-                        vectorStoreId,
-                        cancellationToken);
-                }
+                
             }
 
-            return new RagAssistantDTO
+            return new RagManagementDTO
             {
-                AssistantId = assistantId,
                 VectorStoreId = vectorStoreId,
                 FileId = newFileId,
                 ConsumerTaxNumber = consumerTaxId

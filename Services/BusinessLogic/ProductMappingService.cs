@@ -15,7 +15,7 @@ namespace UpRestEye3.Services.BusinessLogic
 
     public interface IProductMappingService
     {
-        Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages);
+        Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages, string vectorStoreId);
     }
 
     // Класс обработки изображения
@@ -28,7 +28,7 @@ namespace UpRestEye3.Services.BusinessLogic
             _gptParser = gptParser;
         }
 
-        public async Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages)
+        public async Task<(InvoiceDTO, List<RMSProductDTO> newRmsProducts)> MappingToRMSProductsAsync(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages, string vectorStoreId)
         {
             try
             {
@@ -36,7 +36,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 var currentConsumerId = currentInvoice.Consumer.Id;
                 var currentConsumerTaxId = currentInvoice.Consumer.TaxNumber;
 
-                var mappingResult = await _gptParser.ReceiptMappingByLLM(currentInvoice, conParam, measUnits, storages);
+                var mappingResult = await _gptParser.ReceiptMappingByLLM(currentInvoice, conParam, measUnits, storages, vectorStoreId);
 
                 // Если Invoice замеплен и есть новые продукты, то связываем их с Invoice Products
                 if (mappingResult != null)

@@ -78,6 +78,8 @@ namespace UpRestEye3.Services.Recognition
                 .GroupBy(x => new
                 {
                     SupplierName = x.Invoice.Supplier.Name,
+                    SupplierTaxNumber = x.Invoice.Supplier.TaxNumber,
+                    ProductId = x.Product.Id,
                     ProductName = x.Product.ProductName,
                     Unit = x.Product.Unit,
                     Container = x.Product.Container
@@ -93,6 +95,7 @@ namespace UpRestEye3.Services.Recognition
                     {
                         mappedRmsProduct = new RAGRMSProductDTO
                         {
+                            Id = (int)latest.Product.RMSProduct.Id,
                             Name = latest.Product.RMSProduct.Name,
                             MainUnit = unitList.FirstOrDefault(u => u.EntityExtGuid == latest.Product.RMSProduct.MainUnit)?.Name ?? string.Empty,
                             Containers = latest.Product.RMSContainer != null
@@ -100,6 +103,7 @@ namespace UpRestEye3.Services.Recognition
                                 {
                             new RAGRMSContainerDTO
                             {
+                                Id = (int)latest.Product.RMSContainer.Id,
                                 Name = latest.Product.RMSContainer.Name,
                                 Count = latest.Product.Count ?? 0
                             }
@@ -112,6 +116,7 @@ namespace UpRestEye3.Services.Recognition
                     {
                         mappedRmsContainer = new RAGRMSContainerDTO
                         {
+                            Id = (int)latest.Product.RMSContainer.Id,
                             Name = latest.Product.RMSContainer.Name,
                             Count = latest.Product.RMSContainer.Count
 
@@ -120,13 +125,15 @@ namespace UpRestEye3.Services.Recognition
 
                     return new RAGFlatRecordDTO
                     {
+                        SupplierTaxNumber = g.Key.SupplierTaxNumber,
                         SupplierName = g.Key.SupplierName,
                         InvoiceProductName = g.Key.ProductName,
+                        InvoiceProductId = g.Key.ProductId,
                         InvoiceUnit = g.Key.Unit,
                         InvoiceContainer = g.Key.Container ?? string.Empty,
                         MappedRmsProduct = mappedRmsProduct,
                         MappedRMSContainer = mappedRmsContainer,
-                        Comment = latest.Product.Comments
+                        RecordType = "Mapping catalog"
                     };
                 })
                 .ToList();
@@ -161,6 +168,7 @@ namespace UpRestEye3.Services.Recognition
                 {
                     // Для чистого RMS-каталога нет конкретного поставщика/инвойса
                     SupplierName = string.Empty,
+                    SupplierTaxNumber = string.Empty,
                     InvoiceProductName = string.Empty,
                     InvoiceUnit = string.Empty,         // или другое поле, если MainUnit называется иначе
                     InvoiceContainer = string.Empty,
@@ -180,7 +188,7 @@ namespace UpRestEye3.Services.Recognition
                     },
 
                     MappedRMSContainer = null,
-                    Comment = "RMS catalog product"
+                    RecordType = "RMS catalog product"
                 })
                 // фильтруем, чтобы не дублировать уже существующие в flatRecords RMS-продукты
                 .Where(r =>

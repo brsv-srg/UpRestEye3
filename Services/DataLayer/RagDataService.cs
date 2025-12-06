@@ -7,35 +7,35 @@ using UpRestEye3.Models.DTO;
 
 namespace UpRestEye3.Services.DataLayer
 {
-    public interface IRagAssistantDataService
+    public interface IRagDataService
     {
-        Task<RagAssistantDTO?> GetRagAssistantDTOByCustomerIdAsync(int customerId);
-        Task<RagAssistantDTO?> GetRagAssistantDTOByCustomerIdAsync(string consumerTaxNumber);
-        Task<RagAssistantDTO?> SaveRagAssistantAsync(RagAssistantDTO assistant);
+        Task<RagManagementDTO?> GetRagDTOByCustomerIdAsync(int customerId);
+        Task<RagManagementDTO?> GetRagDTOByCustomerIdAsync(string consumerTaxNumber);
+        Task<RagManagementDTO?> SaveRagAsync(RagManagementDTO assistant);
 
     }
 
 
-    public class RagAssistantDataService : IRagAssistantDataService
+    public class RagDataService : IRagDataService
     {
         private readonly ApplicationDbContext _context;
         private readonly IConsumerService _consumerService;
 
-        public RagAssistantDataService(ApplicationDbContext context, IConsumerService consumerService)
+        public RagDataService(ApplicationDbContext context, IConsumerService consumerService)
         {
             _context = context;
             _consumerService = consumerService;
         }
 
-        public async Task<RagAssistantDTO?> GetRagAssistantDTOByCustomerIdAsync(int consumerId)
+        public async Task<RagManagementDTO?> GetRagDTOByCustomerIdAsync(int consumerId)
         {
-            var raDao = await _context.RagAssistant
+            var raDao = await _context.RagData
                 .Include(ra => ra.Consumer)
                 .FirstOrDefaultAsync(ra => ra.ConsumerId == consumerId);
 
-            return raDao != null ? new RagAssistantDTO
+            return raDao != null ? new RagManagementDTO
             {
-                AssistantId = raDao.AssistantId,
+                Id = raDao.Id,
                 VectorStoreId = raDao.VectorStoreId,
                 FileId = raDao.FileId,
                 ConsumerTaxNumber = raDao.Consumer.TaxNumber,
@@ -43,17 +43,17 @@ namespace UpRestEye3.Services.DataLayer
             } : null;
         }
 
-        public async Task<RagAssistantDTO?> GetRagAssistantDTOByCustomerIdAsync(string consumerTaxNumber)
+        public async Task<RagManagementDTO?> GetRagDTOByCustomerIdAsync(string consumerTaxNumber)
         {
             var consumerId = await _consumerService.GetConsumerIdAsync(consumerTaxNumber);
             if (consumerId == null)
             {
                 return null;
             }
-            return await GetRagAssistantDTOByCustomerIdAsync((int)consumerId);
+            return await GetRagDTOByCustomerIdAsync((int)consumerId);
         }
 
-        public async Task<RagAssistantDTO?> SaveRagAssistantAsync(RagAssistantDTO assistant)
+        public async Task<RagManagementDTO?> SaveRagAsync(RagManagementDTO assistant)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
@@ -69,40 +69,37 @@ namespace UpRestEye3.Services.DataLayer
                     throw new Exception("Consumer not found");
                 }
 
-                var ragAssistant = await _context.RagAssistant
+                var ragData = await _context.RagData
                     .AsNoTracking()
                     .Include(ra => ra.Consumer)
                     .FirstOrDefaultAsync(ra => ra.ConsumerId == consumerId);
-                if (ragAssistant == null)
+                if (ragData == null)
                 {
-                    ragAssistant = new RagAssistantDAO
+                    ragData = new RagDataDAO
                     {
                         ConsumerId = consumerId,
-                        AssistantId = assistant.AssistantId,
                         VectorStoreId = assistant.VectorStoreId,
                         FileId = assistant.FileId
                     };
-                    _context.RagAssistant.Add(ragAssistant);
+                    _context.RagData.Add(ragData);
                 }
                 else
                 {
-                    ragAssistant.AssistantId = assistant.AssistantId;
-                    ragAssistant.VectorStoreId = assistant.VectorStoreId;
-                    ragAssistant.FileId = assistant.FileId;
-                    ragAssistant.UpdatedAt = DateTime.UtcNow;
-                    _context.Entry(ragAssistant).State = EntityState.Modified;
+                    ragData.VectorStoreId = assistant.VectorStoreId;
+                    ragData.FileId = assistant.FileId;
+                    ragData.UpdatedAt = DateTime.UtcNow;
+                    _context.Entry(ragData).State = EntityState.Modified;
                 }
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return new RagAssistantDTO
+                return new RagManagementDTO
                 {
                     ConsumerTaxNumber = consumerTaxNumber,
-                    AssistantId = ragAssistant.AssistantId,
-                    VectorStoreId = ragAssistant.VectorStoreId,
-                    FileId = ragAssistant.FileId,
-                    UpdatedAt = ragAssistant.UpdatedAt
+                    VectorStoreId = ragData.VectorStoreId,
+                    FileId = ragData.FileId,
+                    UpdatedAt = ragData.UpdatedAt
                 };
             }
             catch (Exception e)

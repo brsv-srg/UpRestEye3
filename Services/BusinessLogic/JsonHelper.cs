@@ -605,77 +605,108 @@ namespace UpRestEye3.Services.BusinessLogic
 
 
         private const string _mappedProductsSchema = $@"
-          {{
-            ""$schema"": ""http://json-schema.org/draft-07/schema#"",
-            ""type"": ""object"",
-            ""properties"": 
-            {{
-                ""MatchedInvoiceProducts"": 
-                {{
-                    ""type"": ""array"",
-                    ""items"": {{
-                        ""type"": ""object"",
-                        ""properties"": {{
-                            ""InvoiceProduct"": {{
-                                ""type"": ""object"",
-                                ""description"": ""Invoice product"",
-                                ""properties"": {{
-                                    ""Id"": {{ ""type"": ""integer"", ""description"": ""ID of the invoice product"" }},
-                                    ""ProductCode"": {{ ""type"": ""string"", ""description"": ""Product code from the supplier"" }},
-                                    ""ProductName"": {{ ""type"": ""string"", ""description"": ""Product name from the supplier"" }},
-                                    ""Unit"": {{ ""type"": ""string"", ""description"": ""Main unit of measurement of product (`kg`, `l`, `pcs`, `unit` etc.)"" }},
-                                    ""Quantity"": {{ ""type"": ""number"", ""description"": ""Number of units or containers sold"" }},
-                                    ""Container"": {{ ""type"": ""string"", ""description"": ""Packaging name/description (e.g., `Box6kg`, `24x0.33L`, `Pack250g`, `Btl 0.75l`)"" }},
-                                    ""Count"": {{ ""type"": ""number"", ""description"": ""Quantity/volume/units per container (in the specified `Unit`, or in KG for weighed products and in L for liquids)"" }} 
-                                    
-                                }}
-                            }},
-                            ""RMSProduct"": {{
-                                ""type"": ""object"",
-                                ""description"": ""A matched (if found) or new product from the restaurant system"",
-                                ""properties"": {{
-                                    ""Id"": {{ ""type"": [""integer"",""null""], ""description"": ""ID of the RMS product"" }},
-                                    ""Name"": {{ ""type"": ""string"", ""description"": ""The name of the product in the restaurant system"" }},
-                                    ""Description"": {{ ""type"": ""string"", ""description"": ""The description of the product in the restaurant system"" }},
-                                    ""Num"": {{ ""type"": [""string"",""null""], ""description"": ""Product item in the restaurant system"" }},
-                                    ""MainUnit"": {{ ""type"": ""string"", ""description"": ""Unit of measurement"" }},
-                                    ""Containers"": {{
-                                        ""type"": ""array"",
-                                        ""description"": ""List of containers for the RMS product"",
-                                        ""items"": {{
-                                            ""type"": ""object"",
-                                            ""properties"": {{
-                                                ""Id"": {{ ""type"": [""integer"",""null""], ""description"": ""Container ID"" }},
-                                                ""Num"": {{ ""type"": [""string"",""null""], ""description"": ""Container item in the restaurant system"" }},
-                                                ""Name"": {{ ""type"": ""string"", ""description"": ""Container name in the restaurant system"" }},
-                                                ""Count"": {{ ""type"": ""number"", ""description"": ""Quantity, volume"" }}
-                                            }}
-                                        }}
-                                    }}
-                                }}
-                            }},
-                            ""RMSContainer"": {{
-                                ""type"": ""object"",
-                                ""description"": ""Mapping of the RMS container"",
-                                ""properties"": {{
-                                    ""Id"": {{ ""type"": [""integer"",""null""], ""description"": ""Container ID"" }},
-                                    ""Num"": {{ ""type"": [""string"",""null""], ""description"": ""Container item in the restaurant system"" }},
-                                    ""Name"": {{ ""type"": ""string"", ""description"": ""Container name in the restaurant system"" }},
-                                    ""Count"": {{ ""type"": ""number"", ""description"": ""Quantity, volume"" }}
-                                }}
-                            }},
-                            ""NewRMSProduct"": {{ ""type"": ""boolean"", ""description"": ""Whether a new product has been created"" }},
-                            ""NewRMSContainer"": {{ ""type"": ""boolean"", ""description"": ""Whether a new container has been created"" }},
-                            ""Storage"": {{ ""type"": ""string"", ""description"": ""The warehouse where the product should go"" }},
-
-                            ""Comments"": {{ ""type"": ""string"", ""description"": ""Comments about the mapping"" }}
-                        }},
-                        ""required"": [""InvoiceProduct"", ""RMSProduct"", ""RMSContainer"", ""NewRMSProduct"", ""NewRMSContainer"", ""Storage"", ""Comments""],
-                        ""additionalProperties"": false
-                    }}
-                }}
-            }}
-        }}";
+{{
+  ""$schema"": ""http://json-schema.org/draft-07/schema#"",
+  ""type"": ""object"",
+  ""properties"": 
+  {{
+      ""MatchedInvoiceProducts"": 
+      {{
+          ""type"": ""array"",
+          ""items"": {{
+              ""type"": ""object"",
+              ""properties"": {{
+                  ""InvoiceProduct"": {{
+                      ""type"": ""object"",
+                      ""description"": ""Invoice product"",
+                      ""properties"": {{
+                          ""Id"":         {{ ""type"": ""integer"", ""description"": ""ID of the invoice product"" }},
+                          ""ProductCode"":{{ ""type"": ""string"",  ""description"": ""Product code from the supplier"" }},
+                          ""ProductName"":{{ ""type"": ""string"",  ""description"": ""Product name from the supplier"" }},
+                          ""Unit"":       {{ ""type"": ""string"",  ""description"": ""Main unit of measurement of product (`kg`, `l`, `pcs`, `unit` etc.)"" }},
+                          ""Quantity"":   {{ ""type"": ""number"",  ""description"": ""Number of units or containers sold"" }},
+                          ""Container"":  {{ ""type"": ""string"",  ""description"": ""Packaging name/description (e.g., `Box6kg`, `24x0.33L`, `Pack250g`, `Btl 0.75l`)"" }},
+                          ""Count"":      {{ ""type"": ""number"",  ""description"": ""Quantity/volume/units per container (in the specified `Unit`, or in KG for weighed products and in L for liquids)"" }} 
+                      }},
+                      ""required"": [
+                          ""Id"",
+                          ""ProductCode"",
+                          ""ProductName"",
+                          ""Unit"",
+                          ""Quantity"",
+                          ""Container"",
+                          ""Count""
+                      ],
+                      ""additionalProperties"": false
+                  }},
+                  ""RMSProduct"": {{
+                      ""type"": ""object"",
+                      ""description"": ""A matched (if found) or new product from the restaurant system"",
+                      ""properties"": {{
+                          ""Id"":         {{ ""type"": [""integer"",""null""], ""description"": ""ID of the RMS product"" }},
+                          ""Name"":       {{ ""type"": ""string"",            ""description"": ""The name of the product in the restaurant system"" }},
+                          ""Description"":{{ ""type"": ""string"",            ""description"": ""The description of the product in the restaurant system"" }},
+                          ""Num"":        {{ ""type"": [""string"",""null""], ""description"": ""Product item in the restaurant system"" }},
+                          ""MainUnit"":   {{ ""type"": ""string"",            ""description"": ""Unit of measurement"" }},
+                          ""Containers"": {{
+                              ""type"": ""array"",
+                              ""description"": ""List of containers for the RMS product"",
+                              ""items"": {{
+                                  ""type"": ""object"",
+                                  ""properties"": {{
+                                      ""Id"":    {{ ""type"": [""integer"",""null""], ""description"": ""Container ID"" }},
+                                      ""Num"":   {{ ""type"": [""string"",""null""],  ""description"": ""Container item in the restaurant system"" }},
+                                      ""Name"":  {{ ""type"": ""string"",             ""description"": ""Container name in the restaurant system"" }},
+                                      ""Count"": {{ ""type"": ""number"",             ""description"": ""Quantity, volume"" }}
+                                  }},
+                                  ""required"": [ ""Id"", ""Num"", ""Name"", ""Count"" ],
+                                  ""additionalProperties"": false
+                              }}
+                          }}
+                      }},
+                      ""required"": [
+                          ""Id"",
+                          ""Name"",
+                          ""Description"",
+                          ""Num"",
+                          ""MainUnit"",
+                          ""Containers""
+                      ],
+                      ""additionalProperties"": false
+                  }},
+                  ""RMSContainer"": {{
+                      ""type"": ""object"",
+                      ""description"": ""Mapping of the RMS container"",
+                      ""properties"": {{
+                          ""Id"":    {{ ""type"": [""integer"",""null""], ""description"": ""Container ID"" }},
+                          ""Num"":   {{ ""type"": [""string"",""null""],  ""description"": ""Container item in the restaurant system"" }},
+                          ""Name"":  {{ ""type"": ""string"",             ""description"": ""Container name in the restaurant system"" }},
+                          ""Count"": {{ ""type"": ""number"",             ""description"": ""Quantity, volume"" }}
+                      }},
+                      ""required"": [ ""Id"", ""Num"", ""Name"", ""Count"" ],
+                      ""additionalProperties"": false
+                  }},
+                  ""NewRMSProduct"":   {{ ""type"": ""boolean"", ""description"": ""Whether a new product has been created"" }},
+                  ""NewRMSContainer"": {{ ""type"": ""boolean"", ""description"": ""Whether a new container has been created"" }},
+                  ""Storage"":         {{ ""type"": ""string"",  ""description"": ""The warehouse where the product should go"" }},
+                  ""Comments"":        {{ ""type"": ""string"",  ""description"": ""Comments about the mapping"" }}
+              }},
+              ""required"": [
+                  ""InvoiceProduct"",
+                  ""RMSProduct"",
+                  ""RMSContainer"",
+                  ""NewRMSProduct"",
+                  ""NewRMSContainer"",
+                  ""Storage"",
+                  ""Comments""
+              ],
+              ""additionalProperties"": false
+          }}
+      }}
+  }},
+  ""required"": [ ""MatchedInvoiceProducts"" ],
+  ""additionalProperties"": false
+}}";
 
     }
 }

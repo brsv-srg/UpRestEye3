@@ -267,6 +267,7 @@ namespace UpRestEye3.Services.BusinessLogic
             var invoiceProcessor = scope.ServiceProvider.GetRequiredService<IProductMappingService>();
             var invoiceService = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
             var conParamService = scope.ServiceProvider.GetRequiredService<IConnectionParameterService>();
+            var ragService = scope.ServiceProvider.GetRequiredService<IRagDataService>();
 
             invoice.Stage = InvoiceStageEnum.ProductsMapping;
             invoice.StageStatus = InvoiceStatusEnum.Processing;
@@ -277,8 +278,9 @@ namespace UpRestEye3.Services.BusinessLogic
             var measureUnits = await measureService.GetUnitsByConsumerIdAsync((int)invoice.Consumer.Id);
             var storages = await rmsAccountService.GetAccountsByConsumerIdAsync((int)invoice.Consumer.Id);
             var conParam = await conParamService.GetConnectionParameterDTOByCustomerIdAsync((int)invoice.Consumer.Id);
+            var ragVectorStoreId = await ragService.GetRagDTOByCustomerIdAsync((int)invoice.Consumer.Id);
 
-            var mappingResult = await invoiceProcessor.MappingToRMSProductsAsync(invoice, rmsProducts, conParam, measureUnits, storages);
+            var mappingResult = await invoiceProcessor.MappingToRMSProductsAsync(invoice, rmsProducts, conParam, measureUnits, storages, ragVectorStoreId.VectorStoreId);
             var mappedInvoice = mappingResult.Item1;
             var newRmsProducts = mappingResult.Item2;
 
