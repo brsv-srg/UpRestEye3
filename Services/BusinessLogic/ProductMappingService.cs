@@ -36,7 +36,7 @@ namespace UpRestEye3.Services.BusinessLogic
                 var currentConsumerId = currentInvoice.Consumer.Id;
                 var currentConsumerTaxId = currentInvoice.Consumer.TaxNumber;
 
-                var mappingResult = await _gptParser.ReceiptMappingByLLM(currentInvoice, rmsProducts, conParam, measUnits, storages);
+                var mappingResult = await _gptParser.ReceiptMappingByLLM(currentInvoice, conParam, measUnits, storages);
 
                 // Если Invoice замеплен и есть новые продукты, то связываем их с Invoice Products
                 if (mappingResult != null)

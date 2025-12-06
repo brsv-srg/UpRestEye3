@@ -15,7 +15,7 @@ namespace UpRestEye3.Services.Recognition
 
     public interface IGPTMappingService
     {
-        Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages);
+        Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages);
 
     }
 
@@ -31,12 +31,12 @@ namespace UpRestEye3.Services.Recognition
 
 
 
-        public async Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, List<RMSProductDTO> supplierProducts, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages)
+        public async Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages)
         {
 
             try
             {
-                var jsonBody = _env.GetReceiptMappingRequestBody2(currentInvoice, supplierProducts, conParam, measUnits, storages);
+                var jsonBody = _env.GetReceiptMappingRequestBody(currentInvoice, conParam, measUnits, storages);
 
 
                 // Сериализация тела запроса

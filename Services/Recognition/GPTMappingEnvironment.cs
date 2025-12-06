@@ -33,7 +33,7 @@ namespace UpRestEye3.Services.Recognition
 
 
 
-        public string GetReceiptMappingRequestBody2(InvoiceDTO currentInvoice, List<RMSProductDTO> rmsProducts, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> _measUnits, List<RMSAccountDTO> storages)
+        public string GetReceiptMappingRequestBody(InvoiceDTO currentInvoice, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> _measUnits, List<RMSAccountDTO> storages)
         {
             var options = JsonHelper.GetSerializerOptions();
 
@@ -48,21 +48,7 @@ namespace UpRestEye3.Services.Recognition
                 Count = p.Count,
                 Quantity = p.Quantity
             }));
-            var _rmsProducts = new List<RMSProductMappingDTO>(rmsProducts.Select(p => new RMSProductMappingDTO()
-            {
-                Id = p.Id,
-                Name = p.Name,
-                Description = p.Description,
-                Num = p.Num,
-                MainUnit = _measUnits.FirstOrDefault(mu => mu.EntityExtGuid == p.MainUnit)?.Name ?? "pcs", 
-                Containers = new List<RMSContainerMappingDTO>(p.Containers.Select(c => new RMSContainerMappingDTO()
-                {
-                    Id = c.Id,
-                    Num = c.Num,
-                    Name = c.Name,
-                    Count = c.Count
-                }))
-            }));
+           
 
             // Проекция для выбора только нужных полей
             var _storages = storages.Select(s => new
@@ -108,14 +94,7 @@ namespace UpRestEye3.Services.Recognition
                         content = JsonSerializer.Serialize(new { InvoiceProducts = _invoiceProducts}, options),
 
                     },
-
-                    new
-                    {
-                        role = "user",
-                        content = JsonSerializer.Serialize(new { RMSProducts = _rmsProducts }, options),
-
-                    },
-
+               
 
                     new
                     {
