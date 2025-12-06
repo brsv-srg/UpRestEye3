@@ -244,13 +244,7 @@ namespace UpRestEye3.Services.BusinessLogic
             await invoiceService.SaveInvoiceAsync(invoice);
             await hubContext.Clients.All.SendAsync("ReceiveMessage", "Invoice text recognizing started..");
 
-
-            var measUnits = await rmsMeasureUnitsService.GetUnitsByConsumerIdAsync((int)invoice.Consumer.Id);
-            if (measUnits == null)
-                throw new Exception("Failed to get measure units.");
-
-
-            invoice = await imageProcessor.DeepTextRecognitionAsync(images, invoice, measUnits);
+            invoice = await imageProcessor.DeepTextRecognitionAsync(images, invoice);
 
             var validatorText = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.TextRecognition);
             validatorText.Validate(invoice, invoice.Consumer.TaxNumber);

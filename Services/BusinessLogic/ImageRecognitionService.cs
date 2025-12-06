@@ -15,7 +15,7 @@ namespace UpRestEye3.Services.BusinessLogic
     {
         Task<(QRCodeData, Bitmap)> BasicQRRecognitionAsync(Bitmap sourceImage, string imagePath);
         Task<(QRCodeData, Bitmap)> DeepQRRecognitionAsync(Bitmap sourceImage, string imagePath);
-        Task<InvoiceDTO?> DeepTextRecognitionAsync(List<Bitmap> sourceImages, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits);
+        Task<InvoiceDTO?> DeepTextRecognitionAsync(List<Bitmap> sourceImages, InvoiceDTO currentInvoice);
       
 
     }
@@ -111,7 +111,7 @@ namespace UpRestEye3.Services.BusinessLogic
         }
 
 
-        public async Task<InvoiceDTO?> DeepTextRecognitionAsync(List<Bitmap> sourceImages, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
+        public async Task<InvoiceDTO?> DeepTextRecognitionAsync(List<Bitmap> sourceImages, InvoiceDTO currentInvoice)
         {
             var textProcessor = new RecognizedTextProcessor();     
 
@@ -132,7 +132,7 @@ namespace UpRestEye3.Services.BusinessLogic
             }
 
             // Семантическое распознавание через LLM
-            currentInvoice = await _gptRecogniser.RecognitionByLLM(simplePagesDocument, currentInvoice, measUnits);
+            currentInvoice = await _gptRecogniser.RecognitionByLLM(simplePagesDocument, currentInvoice);
             if (currentInvoice.Products == null || currentInvoice.Products.Count() == 0)
                 throw new Exception($"Text recognition error: Product list text parsing error");
 

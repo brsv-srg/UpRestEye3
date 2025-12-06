@@ -13,7 +13,7 @@ namespace UpRestEye3.Services.Recognition
 
     public interface IGPTRecognitionService
     {
-        Task<InvoiceDTO?> RecognitionByLLM(SimpleDocument invoiceDocument, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits);
+        Task<InvoiceDTO?> RecognitionByLLM(SimpleDocument invoiceDocument, InvoiceDTO currentInvoice);
 
     }
 
@@ -27,12 +27,12 @@ namespace UpRestEye3.Services.Recognition
             _env = new GPTRecognitionEnvironment();
         }
        
-        public async Task<InvoiceDTO?> RecognitionByLLM(SimpleDocument invoiceDocument, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
+        public async Task<InvoiceDTO?> RecognitionByLLM(SimpleDocument invoiceDocument, InvoiceDTO currentInvoice)
         {
             try
             {
                 // Сериализация тела запроса
-                var jsonBody = _env.GetRecognitionRequestBody(invoiceDocument, currentInvoice, measUnits);
+                var jsonBody = _env.GetRecognitionRequestBody(invoiceDocument, currentInvoice);
 
 
                 var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");

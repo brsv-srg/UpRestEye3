@@ -98,16 +98,10 @@ Extract the rows of words from this provided OCR invoice text: {invoiceText}.
 
         public string GetApiKey() => _apiKey;
         
-        public string GetRecognitionRequestBody(SimpleDocument invoiceDocument, InvoiceDTO currentInvoice, List<RMSMeasureUnitDTO> measUnits)
+        public string GetRecognitionRequestBody(SimpleDocument invoiceDocument, InvoiceDTO currentInvoice)
         {
             var options = JsonHelper.GetSerializerOptions();
-            // Проекция для выбора только нужных полей
-            var selectedMeasureUnits = measUnits.Select(mu => new
-            {
-                mu.Id,
-                mu.Name,
-                mu.Description
-            }).ToList();
+            
 
             // Формируем запрос
             var requestBody = new
@@ -126,7 +120,6 @@ Extract the rows of words from this provided OCR invoice text: {invoiceText}.
                         new { role = "system", content = GetSystemPrompt(currentInvoice) }, 
                         new { role = "user", content = GetUserPrompt(JsonSerializer.Serialize(invoiceDocument, options)) },
                         new { role = "user", content = GetInvoiceDetails(currentInvoice) },
-                        new { role = "user", content = JsonSerializer.Serialize(new { MeasureUnits = selectedMeasureUnits }, options), },
                 },
                 response_format = new
                 {
