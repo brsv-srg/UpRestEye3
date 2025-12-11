@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using UpRestEye3.Data;
+using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DTO;
 
 
@@ -56,7 +57,9 @@ namespace UpRestEye3.Services.Recognition
 
             // Получаем все Invoice с продуктами и поставщиками для текущего Consumer
             var invoices = await _dbContext.Invoices
-                .Where(inv => inv.Consumer.TaxNumber == currentConsumerTaxId)
+                .Where(inv => inv.Consumer.TaxNumber == currentConsumerTaxId
+                    && (inv.Stage == InvoiceStageEnum.ProductsMapping && inv.StageStatus == InvoiceStatusEnum.Ok
+                        || inv.Stage == InvoiceStageEnum.SavingToSystem && inv.StageStatus == InvoiceStatusEnum.Ok))
                 .Include(inv => inv.Supplier)
                 .Include(inv => inv.Products)
                     .ThenInclude(p => p.RMSProduct)
@@ -79,7 +82,6 @@ namespace UpRestEye3.Services.Recognition
                 {
                     SupplierName = x.Invoice.Supplier.Name,
                     SupplierTaxNumber = x.Invoice.Supplier.TaxNumber,
-                    ProductId = x.Product.Id,
                     ProductName = x.Product.ProductName,
                     Unit = x.Product.Unit,
                     Container = x.Product.Container
@@ -93,23 +95,24 @@ namespace UpRestEye3.Services.Recognition
                     RAGRMSProductDTO? mappedRmsProduct = null;
                     if (latest.Product.RMSProduct != null)
                     {
+                        
                         mappedRmsProduct = new RAGRMSProductDTO
                         {
                             Id = (int)latest.Product.RMSProduct.Id,
                             Name = latest.Product.RMSProduct.Name,
                             MainUnit = unitList.FirstOrDefault(u => u.EntityExtGuid == latest.Product.RMSProduct.MainUnit)?.Name ?? string.Empty,
-                            Containers = latest.Product.RMSContainer != null
-                                ? new List<RAGRMSContainerDTO>
-                                {
-                            new RAGRMSContainerDTO
-                            {
-                                Id = (int)latest.Product.RMSContainer.Id,
-                                Name = latest.Product.RMSContainer.Name,
-                                Count = latest.Product.Count ?? 0
-                            }
-                                }
+                            Containers = latest.Product.RMSProduct.Containers != null
+                                ? latest.Product.RMSProduct.Containers
+                                    .Select(c => new RAGRMSContainerDTO
+                                    {
+                                        Id = (int)c.Id,
+                                        Name = c.Name,
+                                        Count = c.Count
+                                    })
+                                    .ToList()
                                 : new List<RAGRMSContainerDTO>()
                         };
+
                     }
                     RAGRMSContainerDTO? mappedRmsContainer = null;
                     if (latest.Product.RMSContainer != null)
@@ -125,15 +128,15 @@ namespace UpRestEye3.Services.Recognition
 
                     return new RAGFlatRecordDTO
                     {
-                        SupplierTaxNumber = g.Key.SupplierTaxNumber,
-                        SupplierName = g.Key.SupplierName,
-                        InvoiceProductName = g.Key.ProductName,
-                        InvoiceProductId = g.Key.ProductId,
-                        InvoiceUnit = g.Key.Unit,
-                        InvoiceContainer = g.Key.Container ?? string.Empty,
+                        SupplierTaxNumber = latest.Invoice.Supplier.TaxNumber, // g.Key.SupplierTaxNumber,
+                        SupplierName = latest.Invoice.Supplier.Name, // g.Key.SupplierName,
+                        InvoiceProductName = latest.Product.ProductName, // g.Key.ProductName,
+                        InvoiceProductId = latest.Product.Id, // g.Key.ProductId,
+                        InvoiceUnit = latest.Product.Unit, // g.Key.Unit,
+                        InvoiceContainer = latest.Product.Container ?? string.Empty, // g.Key.Container ?? string.Empty,
                         MappedRmsProduct = mappedRmsProduct,
                         MappedRMSContainer = mappedRmsContainer,
-                        RecordType = "Mapping catalog"
+                        RecordType = "Mapping Catalog"
                     };
                 })
                 .ToList();
@@ -143,26 +146,13 @@ namespace UpRestEye3.Services.Recognition
             // НОВЫЙ БЛОК: добавляем полный каталог RMS-продуктов для Consumer
             // ---------------------------------------------------------------------
 
-            // 1. Собираем ключи RMS-продуктов, которые уже присутствуют в flatRecords (по имени + MainUnit)
-            var existingRmsKeys = flatRecords
-                .Where(r => r.MappedRmsProduct != null)
-                .Select(r => new
-                {
-                    Name = r.MappedRmsProduct!.Name,
-                    MainUnit = r.MappedRmsProduct!.MainUnit
-                })
-                .Distinct()
-                .ToHashSet();
-
-            // 2. Загружаем все RMS-продукты для текущего Consumer
-            // ПРЕДПОЛОЖЕНИЕ: у вас есть DbSet<RMSProduct> RMSProducts
-            // и у RMSProduct есть Consumer, Name, MainUnit, Containers (коллекция RMSContainer)
+            // 1. Берем все RMS-продукты для текущего Consumer
             var rmsProducts = await _dbContext.RMSProducts
-                .Where(p => p.Consumer.TaxNumber == currentConsumerTaxId)
+                .Where(p => p.Consumer.TaxNumber == currentConsumerTaxId && p.Status == RMSProductStatusEnum.Synchronized)
                 .Include(p => p.Containers) // если навигационное свойство называется иначе — поправьте
                 .ToListAsync();
 
-            // 3. Преобразуем каждую RMS-позицию в RAGFlatRecordDTO (без привязки к Supplier/Invoice)
+            // 2. Преобразуем каждую RMS-позицию в RAGFlatRecordDTO (без привязки к Supplier/Invoice)
             var catalogRecords = rmsProducts
                 .Select(rms => new RAGFlatRecordDTO
                 {
@@ -175,12 +165,14 @@ namespace UpRestEye3.Services.Recognition
 
                     MappedRmsProduct = new RAGRMSProductDTO
                     {
+                        Id = (int)rms.Id,
                         Name = rms.Name,
                         MainUnit = unitList.FirstOrDefault(u => u.EntityExtGuid == rms.MainUnit)?.Name ?? string.Empty,
 
                         Containers = rms.Containers?
                             .Select(c => new RAGRMSContainerDTO
                             {
+                                Id = (int)c.Id,
                                 Name = c.Name,
                                 Count = c.Count
                             })
@@ -188,17 +180,8 @@ namespace UpRestEye3.Services.Recognition
                     },
 
                     MappedRMSContainer = null,
-                    RecordType = "RMS catalog product"
-                })
-                // фильтруем, чтобы не дублировать уже существующие в flatRecords RMS-продукты
-                .Where(r =>
-                    r.MappedRmsProduct != null &&
-                    !existingRmsKeys.Contains(new
-                    {
-                        Name = r.MappedRmsProduct.Name,
-                        MainUnit = r.MappedRmsProduct.MainUnit
-                    }))
-                .ToList();
+                    RecordType = "RMS Product Catalog"
+                }).ToList();
 
             flatRecords.AddRange(catalogRecords);
 

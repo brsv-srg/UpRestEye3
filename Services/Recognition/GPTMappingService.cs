@@ -124,7 +124,126 @@ namespace UpRestEye3.Services.Recognition
 
             return null;
         }
+
+
+
         private MatchedInvoiceProducts ResponseParsing(string responseContent)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(responseContent);
+                var root = document.RootElement;
+
+                // 1. Берём массив output
+                if (!root.TryGetProperty("output", out var outputArray) ||
+                    outputArray.ValueKind != JsonValueKind.Array ||
+                    outputArray.GetArrayLength() == 0)
+                {
+                    throw new Exception("OpenAI response does not contain non-empty 'output' array.");
+                }
+
+                // 2. Ищем объект типа message
+                JsonElement? messageElement = null;
+                foreach (var item in outputArray.EnumerateArray())
+                {
+                    if (item.TryGetProperty("type", out var typeEl) &&
+                        typeEl.ValueKind == JsonValueKind.String &&
+                        typeEl.GetString() == "message")
+                    {
+                        messageElement = item;
+                        break;
+                    }
+                }
+
+                if (messageElement is null)
+                    throw new Exception("OpenAI response does not contain 'message' output.");
+
+                var msg = messageElement.Value;
+
+                if (!msg.TryGetProperty("content", out var contentArray) ||
+                    contentArray.ValueKind != JsonValueKind.Array ||
+                    contentArray.GetArrayLength() == 0)
+                {
+                    throw new Exception("OpenAI response 'message' does not contain non-empty 'content' array.");
+                }
+
+                // 3. Внутри content ищем блок с type == "output_text"
+                JsonElement? outputTextElement = null;
+                foreach (var contentItem in contentArray.EnumerateArray())
+                {
+                    if (contentItem.TryGetProperty("type", out var ctType) &&
+                        ctType.ValueKind == JsonValueKind.String &&
+                        ctType.GetString() == "output_text")
+                    {
+                        outputTextElement = contentItem;
+                        break;
+                    }
+                }
+
+                if (outputTextElement is null)
+                    throw new Exception("OpenAI response 'content' does not contain 'output_text' item.");
+
+                var ot = outputTextElement.Value;
+
+                if (!ot.TryGetProperty("text", out var textElement))
+                {
+                    throw new Exception("OpenAI 'output_text' does not contain 'text' field.");
+                }
+
+                string? jsonPayload;
+
+                if (textElement.ValueKind == JsonValueKind.String)
+                {
+                    // текущий формат Response API — text сразу строка с JSON
+                    jsonPayload = textElement.GetString();
+                }
+                else if (textElement.ValueKind == JsonValueKind.Object &&
+                         textElement.TryGetProperty("text", out var innerText) &&
+                         innerText.ValueKind == JsonValueKind.String)
+                {
+                    // запасной вариант, если когда-то будет обёртка { "text": "..." }
+                    jsonPayload = innerText.GetString();
+                }
+                else
+                {
+                    throw new Exception("OpenAI 'output_text.text' is not a string.");
+                }
+
+                if (string.IsNullOrWhiteSpace(jsonPayload))
+                {
+                    throw new Exception("OpenAI 'output_text.text' is null or empty.");
+                }
+
+                // 4. Парсим JSON, который вернула модель (это уже наш payload по схеме)
+                using var payloadDoc = JsonDocument.Parse(jsonPayload);
+                var payloadRoot = payloadDoc.RootElement;
+
+                if (!payloadRoot.TryGetProperty("MatchedInvoiceProducts", out var matchedArray) ||
+                    matchedArray.ValueKind != JsonValueKind.Array)
+                {
+                    throw new Exception("Parsed payload JSON does not contain 'MatchedInvoiceProducts' array.");
+                }
+
+                var options = JsonHelper.GetSerializerOptions();
+
+                // 5. Десериализуем массив в ваш тип-список
+                var list = JsonSerializer.Deserialize<MatchedInvoiceProducts>(
+                               matchedArray.GetRawText(), // только массив
+                               options)
+                           ?? new MatchedInvoiceProducts();
+
+                return list;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error parsing JSON response to MatchedInvoiceProducts object", ex);
+            }
+        }
+
+
+
+
+        private MatchedInvoiceProducts ResponseParsingOld(string responseContent)
         {
             try
             {
@@ -182,7 +301,7 @@ namespace UpRestEye3.Services.Recognition
         }
 
 
-        private MatchedInvoiceProducts ResponseParsingOld(string responseContent)
+        private MatchedInvoiceProducts ResponseParsingOld2(string responseContent)
         {
             try
             {

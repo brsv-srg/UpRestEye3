@@ -55,7 +55,7 @@ namespace UpRestEye3.Services.BusinessLogic
                         RMSProductDTO mappedRmsProduct = null;
 
                         // Если RMSProduct новый, добавляем его в список новых продуктов 
-                        if (mappedProducts.NewRMSProduct)
+                        if (mappedProducts.NewRMSProduct || mappedProducts.RMSProduct.Id == null)
                         {
                             // Создаем замапленный RMSProduct
                             mappedRmsProduct = new RMSProductDTO()
@@ -85,7 +85,8 @@ namespace UpRestEye3.Services.BusinessLogic
 
                         RMSContainerDTO mappedRMSContainer = null;
                         // Если контейнер задан, то создаем его
-                        if (mappedProducts.RMSContainer != null)
+                        if (mappedProducts.RMSContainer != null && 
+                            !string.IsNullOrEmpty(mappedProducts.RMSContainer.Name))
                         {
 
                             // Если контейнер новый и его еще нет в RMSProduct, то добавляем его в RMSProduct

@@ -36,6 +36,13 @@ namespace UpRestEye3.Services.Controllers
             var flatRecords = await _ragFileService.GenerateRAGFileAsync(ConsumerTaxId);
             var ragJson = JsonSerializer.Serialize(flatRecords);
 
+            // Сохранение ragJson в файл для анализа
+            var fileName = $"RAG_{ConsumerTaxId}_{DateTime.UtcNow:yyyyMMddHHmmss}.json";
+            var exeDirectory = AppContext.BaseDirectory;
+            var filePath = Path.Combine(exeDirectory, fileName);
+            await System.IO.File.WriteAllTextAsync(filePath, ragJson);
+
+
             // 2. Чтение идентификаторов векторого RAG хранилища 
             var savedRagData = await _ragDataService.GetRagDTOByCustomerIdAsync (ConsumerTaxId);
 
