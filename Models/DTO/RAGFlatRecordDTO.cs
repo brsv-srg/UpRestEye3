@@ -1,8 +1,9 @@
 namespace UpRestEye3.Models.DTO
 {
-    public class RAGFlatRecordDTO
+    public class RAGMappingRecordDTO
     {
         public string RecordType { get; set; } = string.Empty;
+        public string EmbeddingText { get; set; } = string.Empty;
         public string SupplierName { get; set; } = string.Empty;
         public string SupplierTaxNumber { get; set; } = string.Empty;
         public int? InvoiceProductId { get; set; }
@@ -13,6 +14,13 @@ namespace UpRestEye3.Models.DTO
         public RAGRMSContainerDTO? MappedRMSContainer { get; set; }
 
     }
+
+    public class RAGProductsRecordDTO: RAGRMSProductDTO
+    {
+        public string RecordType { get; set; } = string.Empty;
+        public string EmbeddingText { get; set; } = string.Empty;
+    }
+
 
     public class RAGRMSProductDTO
     {
@@ -29,16 +37,6 @@ namespace UpRestEye3.Models.DTO
         public decimal Count { get; set; }
     }
 
-    public class RAGSupplierDTO
-    {
-        public SupplierDTO Supplier { get; set; }
-        public List<InvoiceProductDTO> Products { get; set; } = [];
-    }
-
-    public class RAGFileDTO
-    {
-        public List<RAGSupplierDTO> Suppliers { get; set; } = [];
-    }
 
 
 }

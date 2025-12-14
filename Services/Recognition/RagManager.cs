@@ -12,11 +12,20 @@ namespace UpRestEye3.Services.Recognition
 {
     public interface IRagManager
     {
-        Task<RagManagementDTO> CreateForConsumerAsync(
+        Task<RagManagementDTO> CreateMappingVectorAsync(
             string consumerKey,
             string ragJson,
             RagManagementDTO? savedRagAssistantDTO,
             CancellationToken cancellationToken = default);
+
+        Task<RagManagementDTO> CreateProductsVectorAsync(
+            string consumerKey,
+            string ragJson,
+            RagManagementDTO? savedRagAssistantDTO,
+            CancellationToken cancellationToken = default);
+
+
+
     }
 
     /// <summary>
@@ -51,7 +60,7 @@ namespace UpRestEye3.Services.Recognition
             _http.DefaultRequestHeaders.Add("OpenAI-Beta", "assistants=v2");
         }
 
-        public async Task<RagManagementDTO> CreateForConsumerAsync(string consumerTaxId, string ragJson, RagManagementDTO? savedRagAssistantDTO, CancellationToken cancellationToken = default)
+        public async Task<RagManagementDTO> CreateMappingVectorAsync(string consumerTaxId, string ragJson, RagManagementDTO? savedRagAssistantDTO, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(consumerTaxId))
                 throw new ArgumentException("consumerKey is required", nameof(consumerTaxId));
@@ -59,43 +68,96 @@ namespace UpRestEye3.Services.Recognition
                 throw new ArgumentException("RAG json is empty", nameof(ragJson));
 
             // 1. Всегда загружаем новый файл (полная замена RAG)
-            var newFileId = await UploadRagFileAsync(consumerTaxId, ragJson, cancellationToken);
+            var newFileId = await UploadMappingRagAsync(consumerTaxId, ragJson, cancellationToken);
+
+            string vectorStoreId;
+            string assistantId;
+             
+
+            // 2. Если vector store ранее не создавался — создаём новый, привязав к нему файл
+            if (savedRagAssistantDTO == null ||
+                string.IsNullOrWhiteSpace(savedRagAssistantDTO.MappingVectorStoreId))
+            {
+                vectorStoreId = await CreateVectorStoreAsync(consumerTaxId, newFileId, cancellationToken);
+                return new RagManagementDTO
+                {
+                    MappingVectorStoreId = vectorStoreId,
+                    MappingFileId = newFileId,
+                    ConsumerTaxNumber = consumerTaxId
+                };
+
+            }
+            else
+            {
+                // 3. Vector store уже есть — переиспользуем его
+                vectorStoreId = savedRagAssistantDTO.MappingVectorStoreId;
+
+                // 3.1. Если был старый файл — удаляем из vector store и из Files API
+                if (!string.IsNullOrWhiteSpace(savedRagAssistantDTO.MappingFileId))
+                {
+                    await SafeDeleteVectorStoreFileAsync(vectorStoreId, savedRagAssistantDTO.MappingFileId, cancellationToken);
+                    await SafeDeleteFileAsync(savedRagAssistantDTO.MappingFileId, cancellationToken);
+                }
+
+                // 3.2. Привязываем новый файл к существующему vector store
+                await AddFileToVectorStoreAsync(vectorStoreId, newFileId, cancellationToken);
+
+                savedRagAssistantDTO.MappingVectorStoreId = vectorStoreId;
+                savedRagAssistantDTO.MappingFileId = newFileId;
+                return savedRagAssistantDTO;
+
+            }
+
+        }
+
+
+        public async Task<RagManagementDTO> CreateProductsVectorAsync(string consumerTaxId, string ragJson, RagManagementDTO? savedRagAssistantDTO, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(consumerTaxId))
+                throw new ArgumentException("consumerKey is required", nameof(consumerTaxId));
+            if (string.IsNullOrWhiteSpace(ragJson))
+                throw new ArgumentException("RAG json is empty", nameof(ragJson));
+
+            // 1. Всегда загружаем новый файл (полная замена RAG)
+            var newFileId = await UploadProductsRagAsync(consumerTaxId, ragJson, cancellationToken);
 
             string vectorStoreId;
             string assistantId;
 
             // 2. Если vector store ранее не создавался — создаём новый, привязав к нему файл
             if (savedRagAssistantDTO == null ||
-                string.IsNullOrWhiteSpace(savedRagAssistantDTO.VectorStoreId))
+                string.IsNullOrWhiteSpace(savedRagAssistantDTO.ProductsVectorStoreId))
             {
                 vectorStoreId = await CreateVectorStoreAsync(consumerTaxId, newFileId, cancellationToken);
+                return new RagManagementDTO
+                {
+                    ProductsVectorStoreId = vectorStoreId,
+                    ProductsFileId = newFileId,
+                    ConsumerTaxNumber = consumerTaxId
+                };
 
-                
             }
             else
             {
                 // 3. Vector store уже есть — переиспользуем его
-                vectorStoreId = savedRagAssistantDTO.VectorStoreId;
+                vectorStoreId = savedRagAssistantDTO.ProductsVectorStoreId;
 
                 // 3.1. Если был старый файл — удаляем из vector store и из Files API
-                if (!string.IsNullOrWhiteSpace(savedRagAssistantDTO.FileId))
+                if (!string.IsNullOrWhiteSpace(savedRagAssistantDTO.ProductsFileId))
                 {
-                    await SafeDeleteVectorStoreFileAsync(vectorStoreId, savedRagAssistantDTO.FileId, cancellationToken);
-                    await SafeDeleteFileAsync(savedRagAssistantDTO.FileId, cancellationToken);
+                    await SafeDeleteVectorStoreFileAsync(vectorStoreId, savedRagAssistantDTO.ProductsFileId, cancellationToken);
+                    await SafeDeleteFileAsync(savedRagAssistantDTO.ProductsFileId, cancellationToken);
                 }
 
                 // 3.2. Привязываем новый файл к существующему vector store
                 await AddFileToVectorStoreAsync(vectorStoreId, newFileId, cancellationToken);
 
-                
+                savedRagAssistantDTO.ProductsVectorStoreId = vectorStoreId;
+                savedRagAssistantDTO.ProductsFileId = newFileId;
+                return savedRagAssistantDTO;
+
             }
 
-            return new RagManagementDTO
-            {
-                VectorStoreId = vectorStoreId,
-                FileId = newFileId,
-                ConsumerTaxNumber = consumerTaxId
-            };
         }
 
         #region Files API
@@ -103,14 +165,37 @@ namespace UpRestEye3.Services.Recognition
         /// <summary>
         /// Загрузка JSON-строки в Files API с purpose=assistants.
         /// </summary>
-        private async Task<string> UploadRagFileAsync(string consumerKey, string ragJson, CancellationToken ct)
+        private async Task<string> UploadMappingRagAsync(string consumerKey, string ragJson, CancellationToken ct)
         {
             using var content = new MultipartFormDataContent();
 
             var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(ragJson));
             fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-            var fileName = $"{consumerKey}-product-mapping-rag.json";
+            var fileName = $"{consumerKey}-mapping-rag.json";
+
+            content.Add(fileContent, "file", fileName);
+            content.Add(new StringContent("assistants"), "purpose");
+
+            using var response = await _http.PostAsync("files", content, ct);
+            await EnsureSuccessWithDetails(response);
+
+            var json = await response.Content.ReadAsStringAsync(ct);
+
+            var fileResponse = JsonSerializer.Deserialize<FileUploadResponse>(json)
+                               ?? throw new InvalidOperationException("File upload response is null");
+
+            return fileResponse.Id ?? throw new InvalidOperationException("FileId is null");
+        }
+
+        private async Task<string> UploadProductsRagAsync(string consumerKey, string ragJson, CancellationToken ct)
+        {
+            using var content = new MultipartFormDataContent();
+
+            var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(ragJson));
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+            var fileName = $"{consumerKey}-products-rag.json";
 
             content.Add(fileContent, "file", fileName);
             content.Add(new StringContent("assistants"), "purpose");

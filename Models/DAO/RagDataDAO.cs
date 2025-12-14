@@ -9,8 +9,12 @@
         public int Id { get; set; }
         public int? ConsumerId { get; set; }
         public ConsumerDAO? Consumer { get; set; }
-        public string VectorStoreId { get; set; } = string.Empty;
-        public string FileId { get; set; } = string.Empty;
+        public string MappingVectorStoreId { get; set; } = string.Empty;
+        public string MappingFileId { get; set; } = string.Empty;
+        
+        public string ProductsVectorStoreId { get; set; } = string.Empty;
+        public string ProductsFileId { get; set; } = string.Empty;
+
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 

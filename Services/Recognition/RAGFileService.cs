@@ -13,15 +13,15 @@ namespace UpRestEye3.Services.Recognition
 
     public interface IRAGFileService
     {
-        Task<List<RAGFlatRecordDTO>> GenerateRAGFileAsync(string currentConsumerTaxId);
-        Task<List<RAGFlatRecordDTO>> LoadRAGFlatRecordsAsync(string path);
+        Task<List<RAGMappingRecordDTO>> GenerateMappingRAGFileAsync(string currentConsumerTaxId);
+        Task<List<RAGProductsRecordDTO>> GenerateProductsRAGFileAsync(string currentConsumerTaxId);
+        
     }
 
     public class RAGFileService : IRAGFileService
     {
         private readonly ApplicationDbContext _dbContext;
         private readonly HttpClient _httpClient;
-        public RAGFileDTO? RAGData { get; private set; }
 
         public RAGFileService(ApplicationDbContext dbContext, HttpClient httpClient)
         {
@@ -30,7 +30,7 @@ namespace UpRestEye3.Services.Recognition
         }
 
 
-        public async Task<List<RAGFlatRecordDTO>> GenerateRAGFileAsync(string currentConsumerTaxId)
+        public async Task<List<RAGMappingRecordDTO>> GenerateMappingRAGFileAsync(string currentConsumerTaxId)
         {
 
 
@@ -125,8 +125,18 @@ namespace UpRestEye3.Services.Recognition
 
                         };
                     }
+                    // Формируем строку с контейнерами
+                    var containersText = mappedRmsProduct != null && mappedRmsProduct.Containers.Any()
+                        ? string.Join("; ", mappedRmsProduct.Containers.Select(c => $"[Id: {c.Id}, Name: {c.Name}, Count: {c.Count}]"))
+                        : "None";
 
-                    return new RAGFlatRecordDTO
+                    string embeddingText = $"RecordType: Mapping Catalog | {latest.Invoice.Supplier.Name} | {latest.Invoice.Supplier.TaxNumber} | {latest.Product.ProductName} | {latest.Product.Unit} | {latest.Product.Container ?? string.Empty}"
+                        + (mappedRmsProduct != null ? $" | RMSProduct: {mappedRmsProduct.Name} | MainUnit: {mappedRmsProduct.MainUnit}" : string.Empty)
+                        + (mappedRmsContainer != null ? $" | RMSContainer: {mappedRmsContainer.Name}" : string.Empty);
+
+
+
+                    return new RAGMappingRecordDTO
                     {
                         SupplierTaxNumber = latest.Invoice.Supplier.TaxNumber, // g.Key.SupplierTaxNumber,
                         SupplierName = latest.Invoice.Supplier.Name, // g.Key.SupplierName,
@@ -136,14 +146,42 @@ namespace UpRestEye3.Services.Recognition
                         InvoiceContainer = latest.Product.Container ?? string.Empty, // g.Key.Container ?? string.Empty,
                         MappedRmsProduct = mappedRmsProduct,
                         MappedRMSContainer = mappedRmsContainer,
-                        RecordType = "Mapping Catalog"
+                        RecordType = "Mapping Catalog",
+                        EmbeddingText = embeddingText
+
                     };
                 })
                 .ToList();
 
+            return flatRecords;
+        }
+
+
+        public async Task<List<RAGProductsRecordDTO>> GenerateProductsRAGFileAsync(string currentConsumerTaxId)
+        {
+
+            // Получаем единицы измерения
+            var units = await _dbContext.MeasureUnits
+            .AsNoTracking()
+            .Include(p => p.Consumer)
+            .Where(p => p.Consumer.TaxNumber == currentConsumerTaxId)
+            .ToListAsync();
+
+            var unitList = units.Select(p => new RMSMeasureUnitDTO()
+            {
+                Id = p.Id,
+                ConsumerId = p.ConsumerId,
+                ConsumerTaxId = p.Consumer.TaxNumber,
+                EntityExtGuid = p.EntityExtGuid,
+                RootType = p.RootType,
+                Code = p.Code,
+                Name = p.Name,
+                Description = p.Description,
+                Status = p.Status
+            }).ToList();
 
             // ---------------------------------------------------------------------
-            // НОВЫЙ БЛОК: добавляем полный каталог RMS-продуктов для Consumer
+            // Создаем полный каталог RMS-продуктов для Consumer
             // ---------------------------------------------------------------------
 
             // 1. Берем все RMS-продукты для текущего Consumer
@@ -152,56 +190,48 @@ namespace UpRestEye3.Services.Recognition
                 .Include(p => p.Containers) // если навигационное свойство называется иначе — поправьте
                 .ToListAsync();
 
-            // 2. Преобразуем каждую RMS-позицию в RAGFlatRecordDTO (без привязки к Supplier/Invoice)
+            // В методе GenerateProductsRAGFileAsync замените формирование EmbeddingText на следующее:
             var catalogRecords = rmsProducts
-                .Select(rms => new RAGFlatRecordDTO
+                .Select(rms =>
                 {
-                    // Для чистого RMS-каталога нет конкретного поставщика/инвойса
-                    SupplierName = string.Empty,
-                    SupplierTaxNumber = string.Empty,
-                    InvoiceProductName = string.Empty,
-                    InvoiceUnit = string.Empty,         // или другое поле, если MainUnit называется иначе
-                    InvoiceContainer = string.Empty,
+                    var mainUnit = unitList.FirstOrDefault(u => u.EntityExtGuid == rms.MainUnit)?.Name ?? string.Empty;
+                    var containers = rms.Containers?
+                        .Select(c => new RAGRMSContainerDTO
+                        {
+                            Id = (int)c.Id,
+                            Name = c.Name,
+                            Count = c.Count
+                        })
+                        .ToList() ?? new List<RAGRMSContainerDTO>();
 
-                    MappedRmsProduct = new RAGRMSProductDTO
+                    // Формируем строку с контейнерами
+                    var containersText = containers.Any()
+                        ? string.Join("; ", containers.Select(c => $"[Id: {c.Id}, Name: {c.Name}, Count: {c.Count}]"))
+                        : "None";
+
+                    var embeddingText = $"RecordType: RMS Product Catalog | " +
+                                        $"Id: {(int)rms.Id} | " +
+                                        $"Name: {rms.Name} | " +
+                                        $"MainUnit: {mainUnit} | " +
+                                        $"Containers: {containersText}";
+
+                    return new RAGProductsRecordDTO
                     {
                         Id = (int)rms.Id,
                         Name = rms.Name,
-                        MainUnit = unitList.FirstOrDefault(u => u.EntityExtGuid == rms.MainUnit)?.Name ?? string.Empty,
-
-                        Containers = rms.Containers?
-                            .Select(c => new RAGRMSContainerDTO
-                            {
-                                Id = (int)c.Id,
-                                Name = c.Name,
-                                Count = c.Count
-                            })
-                            .ToList() ?? new List<RAGRMSContainerDTO>()
-                    },
-
-                    MappedRMSContainer = null,
-                    RecordType = "RMS Product Catalog"
+                        MainUnit = mainUnit,
+                        Containers = containers,
+                        RecordType = "RMS Product Catalog",
+                        EmbeddingText = embeddingText
+                    };
                 }).ToList();
 
-            flatRecords.AddRange(catalogRecords);
+            
 
             // ---------------------------------------------------------------------
 
 
-            return flatRecords;
+            return catalogRecords;
         }
-
-
-
-        public async Task<List<RAGFlatRecordDTO>> LoadRAGFlatRecordsAsync(string path)
-        {
-            if (!File.Exists(path))
-                return [];
-
-            var json = await File.ReadAllTextAsync(path);
-            var records = JsonSerializer.Deserialize<List<RAGFlatRecordDTO>>(json);
-            return records ?? [];
-        }
-
     }
 }

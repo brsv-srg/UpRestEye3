@@ -280,7 +280,7 @@ namespace UpRestEye3.Services.BusinessLogic
             var conParam = await conParamService.GetConnectionParameterDTOByCustomerIdAsync((int)invoice.Consumer.Id);
             var ragVectorStoreId = await ragService.GetRagDTOByCustomerIdAsync((int)invoice.Consumer.Id);
 
-            var mappingResult = await invoiceProcessor.MappingToRMSProductsAsync(invoice, rmsProducts, conParam, measureUnits, storages, ragVectorStoreId.VectorStoreId);
+            var mappingResult = await invoiceProcessor.MappingToRMSProductsAsync(invoice, rmsProducts, conParam, measureUnits, storages, ragVectorStoreId.MappingVectorStoreId);
             var mappedInvoice = mappingResult.Item1;
             var newRmsProducts = mappingResult.Item2;
 

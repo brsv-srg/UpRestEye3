@@ -1,32 +1,14 @@
-﻿using Google.Protobuf.WellKnownTypes;
-using ImageMagick;
-using Microsoft.VisualBasic;
-using OpenCvSharp.ML;
-using OpenCvSharp;
-using System.Collections.Generic;
-using System.Numerics;
-using System.Reflection.Metadata;
-using System.Runtime.Intrinsics.X86;
-using System.Security.Principal;
+﻿
 using System.Text.Json;
 using System.Threading.Tasks;
 using UpRestEye3.Components.Pages;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.BusinessLogic;
-using static Google.Api.FieldInfo.Types;
-using static Google.Rpc.Context.AttributeContext.Types;
-using static System.Collections.Specialized.BitVector32;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using static Tensorflow.ApiDef.Types;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using UpRestEye3.Models.DAO;
-using Org.BouncyCastle.Asn1.Ocsp;
-using static Tensorflow.TensorSliceProto.Types;
-using System.Net.Http.Json;
-using System.Linq.Expressions;
+using OpenAI;
+using OpenAI.Responses;
+
+
 
 
 namespace UpRestEye3.Services.Recognition
@@ -35,8 +17,10 @@ namespace UpRestEye3.Services.Recognition
     {
         private readonly string _invoiceSchema;
         // TODO Убрать URL в параметры 
-        private static readonly string _url = "https://api.openai.com/v1/chat/completions";
-            // TODO Убрать ключ в параметры 
+        //private static readonly string _url = "https://api.openai.com/v1/chat/completions";
+        private static readonly string _url = "https://api.openai.com/v1/responses";
+
+        // TODO Убрать ключ в параметры 
         private static readonly string _apiKey = "sk-svcacct-NcF9TOe3CkWN0BHA0BDKjap-EDHI0abjP4Az40fjpw5QpqhQtStDuJWojvu9mOoKH6OT3BlbkFJHCJrfsShSxh4n365KhkW6fypNHJzq-qOrA8ulaFqjgM3qXUAFsbARJ0vWvF6JmnFSAA";
 
 
@@ -117,7 +101,20 @@ Extract the rows of words from this provided OCR invoice text: {invoiceText}.
                 n = 1,
                 messages = new object[]
                 {
-                        new { role = "system", content = GetSystemPrompt(currentInvoice) }, 
+                        new 
+                        {
+                            role = "system",
+                            content = new[]
+                            {
+                                new 
+                                {
+                                    type = "input_text",
+                                    text = GetSystemPrompt(currentInvoice),
+                                    cache_control = new { type = "ephemeral" }
+                                }
+                            }
+                        },
+        
                         new { role = "user", content = GetUserPrompt(JsonSerializer.Serialize(invoiceDocument, options)) },
                         new { role = "user", content = GetInvoiceDetails(currentInvoice) },
                 },
@@ -436,7 +433,6 @@ The document or separate pages can be skewed or mildly perspective-distorted.
   - Container = box/carton name
   - Count if stated, else null
 
-----------------------------------------------------------------
 ----------------------------------------------------------------
 ## F) LEVE MAIS PAGUE MENOS DISCOUNT LOGIC (DD + discount table)
 

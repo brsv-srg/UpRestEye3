@@ -36,8 +36,11 @@ namespace UpRestEye3.Services.DataLayer
             return raDao != null ? new RagManagementDTO
             {
                 Id = raDao.Id,
-                VectorStoreId = raDao.VectorStoreId,
-                FileId = raDao.FileId,
+                MappingVectorStoreId = raDao.MappingVectorStoreId,
+                MappingFileId = raDao.MappingFileId,
+
+                ProductsVectorStoreId = raDao.ProductsVectorStoreId,
+                ProductsFileId = raDao.ProductsFileId,
                 ConsumerTaxNumber = raDao.Consumer.TaxNumber,
                 UpdatedAt = raDao.UpdatedAt
             } : null;
@@ -78,15 +81,19 @@ namespace UpRestEye3.Services.DataLayer
                     ragData = new RagDataDAO
                     {
                         ConsumerId = consumerId,
-                        VectorStoreId = assistant.VectorStoreId,
-                        FileId = assistant.FileId
+                        MappingVectorStoreId = assistant.MappingVectorStoreId,
+                        MappingFileId = assistant.MappingFileId,
+                        ProductsVectorStoreId = assistant.ProductsVectorStoreId,
+                        ProductsFileId = assistant.ProductsFileId
                     };
                     _context.RagData.Add(ragData);
                 }
                 else
                 {
-                    ragData.VectorStoreId = assistant.VectorStoreId;
-                    ragData.FileId = assistant.FileId;
+                    ragData.MappingVectorStoreId = assistant.MappingVectorStoreId;
+                    ragData.MappingFileId = assistant.MappingFileId;
+                    ragData.ProductsVectorStoreId = assistant.ProductsVectorStoreId;
+                    ragData.ProductsFileId = assistant.ProductsFileId;
                     ragData.UpdatedAt = DateTime.UtcNow;
                     _context.Entry(ragData).State = EntityState.Modified;
                 }
@@ -97,8 +104,10 @@ namespace UpRestEye3.Services.DataLayer
                 return new RagManagementDTO
                 {
                     ConsumerTaxNumber = consumerTaxNumber,
-                    VectorStoreId = ragData.VectorStoreId,
-                    FileId = ragData.FileId,
+                    MappingVectorStoreId = ragData.MappingVectorStoreId,
+                    MappingFileId = ragData.MappingFileId,
+                    ProductsVectorStoreId = ragData.ProductsVectorStoreId,
+                    ProductsFileId = ragData.ProductsFileId,
                     UpdatedAt = ragData.UpdatedAt
                 };
             }
