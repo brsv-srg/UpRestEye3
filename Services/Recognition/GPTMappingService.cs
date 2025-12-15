@@ -34,15 +34,8 @@ namespace UpRestEye3.Services.Recognition
 
         public async Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages, string vectorStoreId)
         {
-
             try
             {
-                var jsonBody = _env.GetReceiptMappingRequestBody(currentInvoice, conParam, measUnits, storages, vectorStoreId);
-
-
-                // Сериализация тела запроса
-                var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");
-
                 // Конфигурация HTTP-клиента
                 using var httpClient = new HttpClient
                 {
@@ -51,44 +44,74 @@ namespace UpRestEye3.Services.Recognition
 
                 httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _env.GetApiKey());
 
-                Console.WriteLine($"Sending request to OpenAI API:..{httpContent.ToString()}");
+                //============================================================================
+                // MAPPING STAGE
+                //============================================================================
 
-                for (int attempt = 0; attempt < 3; attempt++)
+                var mappingJsonBody = _env.GetMappingRequestBody(currentInvoice, conParam, measUnits, storages, vectorStoreId);
+                // Сериализация тела запроса
+                var mappingHttpContent = new StringContent(mappingJsonBody, Encoding.UTF8, "application/json");
+                Console.WriteLine($"Sending request to OpenAI API:..{mappingHttpContent.ToString()}");
+
+                // Отправка POST-запроса
+                var mappingResponse = await httpClient.PostAsync(_env.GetURL(), mappingHttpContent);
+
+                // Проверка ответа
+                if (!mappingResponse.IsSuccessStatusCode)
                 {
-                    // Отправка POST-запроса
-                    var response = await httpClient.PostAsync(_env.GetURL(), httpContent);
+                    var errorContent = await mappingResponse.Content.ReadAsStringAsync();
 
-                    // Проверка ответа
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync();
-
-                        if (response.StatusCode == (HttpStatusCode)429) // Too Many Requests
-                        {
-                            var retryAfter = ExtractRetryAfterSeconds(errorContent);
-                            if (!retryAfter.HasValue)
-                                retryAfter = 30;
-
-                            Console.WriteLine($"Rate limit exceeded. Retrying after {retryAfter.Value} seconds.");
-                            await Task.Delay(retryAfter.Value * 1000);
-                            continue;
-                        }
-
-                        throw new Exception($"OpenAI API error: {errorContent}");
-                    }
-                    else
-                    {
-                        var options = JsonHelper.GetSerializerOptions();
-
-                        // Чтение и возврат результата
-                        var responseContent = await response.Content.ReadAsStringAsync();
-                        var result = ResponseParsing(responseContent);
-
-                        return result;
-                    }
+                    throw new Exception($"OpenAI API error: {errorContent}");
                 }
+                // Чтение и возврат результата
+                var mappingResponseContent = await mappingResponse.Content.ReadAsStringAsync();
+                var mappingResult = ResponseParsing(mappingResponseContent);
 
-                return new List<MatchedInvoiceProduct>();
+                // берем все замепленные Id продуктов
+                var mappingMappedIds = mappingResult
+                .Where(x => x?.RMSProduct != null && x.InvoiceProduct != null)
+                .Select(x => x.InvoiceProduct.Id)
+                .ToHashSet();
+
+                // и проверяем, есть ли ещё не замепленные продукты
+                var mappingUnmapped = currentInvoice.Products
+                .Where(p => !mappingMappedIds.Contains(p.Id))
+                .ToList();
+
+
+                if (!mappingUnmapped.Any())
+                    return mappingResult;
+
+
+                //============================================================================
+                // PRODUCT STAGE
+                //============================================================================
+
+                var productJsonBody = _env.GetProductRequestBody(currentInvoice, mappingUnmapped, conParam, measUnits, storages, vectorStoreId);
+                // Сериализация тела запроса
+                var productHttpContent = new StringContent(productJsonBody, Encoding.UTF8, "application/json");
+                Console.WriteLine($"Sending request to OpenAI API:..{productHttpContent.ToString()}");
+
+                // Отправка POST-запроса
+                var productResponse = await httpClient.PostAsync(_env.GetURL(), productHttpContent);
+
+                // Проверка ответа
+                if (!productResponse.IsSuccessStatusCode)
+                {
+                    var errorContent = await productResponse.Content.ReadAsStringAsync();
+
+                    throw new Exception($"OpenAI API error: {errorContent}");
+                }
+                // Чтение и возврат результата
+                var productResponseContent = await productResponse.Content.ReadAsStringAsync();
+                var productResult = ResponseParsing(productResponseContent);
+
+
+                var mergedResult = mappingResult
+                    .Concat(productResult)
+                    .ToList();
+
+                return mergedResult;
 
             }
             catch (Exception ex)

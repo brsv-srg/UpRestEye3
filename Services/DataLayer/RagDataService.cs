@@ -37,10 +37,8 @@ namespace UpRestEye3.Services.DataLayer
             {
                 Id = raDao.Id,
                 MappingVectorStoreId = raDao.MappingVectorStoreId,
-                MappingFileId = raDao.MappingFileId,
 
                 ProductsVectorStoreId = raDao.ProductsVectorStoreId,
-                ProductsFileId = raDao.ProductsFileId,
                 ConsumerTaxNumber = raDao.Consumer.TaxNumber,
                 UpdatedAt = raDao.UpdatedAt
             } : null;
@@ -82,18 +80,14 @@ namespace UpRestEye3.Services.DataLayer
                     {
                         ConsumerId = consumerId,
                         MappingVectorStoreId = assistant.MappingVectorStoreId,
-                        MappingFileId = assistant.MappingFileId,
                         ProductsVectorStoreId = assistant.ProductsVectorStoreId,
-                        ProductsFileId = assistant.ProductsFileId
                     };
                     _context.RagData.Add(ragData);
                 }
                 else
                 {
                     ragData.MappingVectorStoreId = assistant.MappingVectorStoreId;
-                    ragData.MappingFileId = assistant.MappingFileId;
                     ragData.ProductsVectorStoreId = assistant.ProductsVectorStoreId;
-                    ragData.ProductsFileId = assistant.ProductsFileId;
                     ragData.UpdatedAt = DateTime.UtcNow;
                     _context.Entry(ragData).State = EntityState.Modified;
                 }
@@ -105,9 +99,7 @@ namespace UpRestEye3.Services.DataLayer
                 {
                     ConsumerTaxNumber = consumerTaxNumber,
                     MappingVectorStoreId = ragData.MappingVectorStoreId,
-                    MappingFileId = ragData.MappingFileId,
                     ProductsVectorStoreId = ragData.ProductsVectorStoreId,
-                    ProductsFileId = ragData.ProductsFileId,
                     UpdatedAt = ragData.UpdatedAt
                 };
             }

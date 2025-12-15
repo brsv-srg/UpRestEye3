@@ -74,7 +74,6 @@ namespace UpRestEye3.Services.Controllers
                 }
                 // Используем mappingRagDTO для дальнейших действий, если необходимо
                 savedRagData.MappingVectorStoreId = mappingRagDTO.MappingVectorStoreId;
-                savedRagData.MappingFileId = mappingRagDTO.MappingFileId;
 
             }
 
@@ -96,8 +95,6 @@ namespace UpRestEye3.Services.Controllers
                 }
                 // Используем mappingRagDTO для дальнейших действий, если необходимо
                 savedRagData.ProductsVectorStoreId = mappingRagDTO.ProductsVectorStoreId;
-                savedRagData.ProductsFileId = mappingRagDTO.ProductsFileId;
-
             }
 
 

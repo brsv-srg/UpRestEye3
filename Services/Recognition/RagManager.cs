@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -23,23 +25,24 @@ namespace UpRestEye3.Services.Recognition
             string ragJson,
             RagManagementDTO? savedRagAssistantDTO,
             CancellationToken cancellationToken = default);
-
-
-
     }
 
     /// <summary>
-    /// Сервис для:
-    /// 1) загрузки RAG-файла (JSON) в Files API,
-    /// 2) создания/обновления Vector Store (обновление файлов),
-    /// 3) создания/обновления ассистента, использующего этот Vector Store через file_search.
+    /// Новый режим загрузки RAG:
+    /// - Mapping Catalog: 1 файл = 1 пара InvoiceProduct↔RMSProduct (один JSON-объект из массива)
+    /// - RMS Product Catalog: 1 файл = 1 RMSProduct (один JSON-объект из массива)
+    ///
+    /// Вектор-сторы раздельные: mapping / products.
     /// </summary>
-    public class RagManager : IRagManager
+    public sealed class RagManager : IRagManager
     {
         private readonly HttpClient _http;
-        private readonly string _model;
-        private readonly string _vectorStoreNamePrefix = "consumer-vs";
-        private readonly string _assistantNamePrefix = "consumer-assistant";
+
+        private const int UploadConcurrency = 6;
+        private const int FileBatchSize = 100;
+
+        private readonly string _vectorStoreNamePrefixMapping = "consumer-vs-mapping";
+        private readonly string _vectorStoreNamePrefixProducts = "consumer-vs-products";
 
         public RagManager(HttpClient httpClient, string apiKey)
         {
@@ -51,151 +54,247 @@ namespace UpRestEye3.Services.Recognition
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ArgumentNullException(nameof(apiKey));
 
+            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
-            _http.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", apiKey);
-
-            // Для ассистентов v2 обязателен заголовок:
+            // Assistants v2 / Vector stores
             _http.DefaultRequestHeaders.Remove("OpenAI-Beta");
             _http.DefaultRequestHeaders.Add("OpenAI-Beta", "assistants=v2");
         }
 
-        public async Task<RagManagementDTO> CreateMappingVectorAsync(string consumerTaxId, string ragJson, RagManagementDTO? savedRagAssistantDTO, CancellationToken cancellationToken = default)
+        public async Task<RagManagementDTO> CreateMappingVectorAsync(
+            string consumerTaxId,
+            string ragJson,
+            RagManagementDTO? saved,
+            CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(consumerTaxId))
-                throw new ArgumentException("consumerKey is required", nameof(consumerTaxId));
+                throw new ArgumentException("consumerTaxId is required", nameof(consumerTaxId));
             if (string.IsNullOrWhiteSpace(ragJson))
-                throw new ArgumentException("RAG json is empty", nameof(ragJson));
+                throw new ArgumentException("ragJson is empty", nameof(ragJson));
 
-            // 1. Всегда загружаем новый файл (полная замена RAG)
-            var newFileId = await UploadMappingRagAsync(consumerTaxId, ragJson, cancellationToken);
+            // 1) Split JSON строго под Mapping Catalog (массив объектов)
+            var mappingItems = SplitMappingCatalogJson(consumerTaxId, ragJson);
 
-            string vectorStoreId;
-            string assistantId;
-             
+            if (mappingItems.Count == 0)
+                throw new InvalidOperationException("No mapping records found in ragJson (RecordType=Mapping Catalog).");
 
-            // 2. Если vector store ранее не создавался — создаём новый, привязав к нему файл
-            if (savedRagAssistantDTO == null ||
-                string.IsNullOrWhiteSpace(savedRagAssistantDTO.MappingVectorStoreId))
-            {
-                vectorStoreId = await CreateVectorStoreAsync(consumerTaxId, newFileId, cancellationToken);
-                return new RagManagementDTO
-                {
-                    MappingVectorStoreId = vectorStoreId,
-                    MappingFileId = newFileId,
-                    ConsumerTaxNumber = consumerTaxId
-                };
+            // 2) Create/Reuse vector store
+            var vectorStoreId = await EnsureVectorStoreAsync(
+                consumerTaxId,
+                kind: "mapping",
+                existingVectorStoreId: saved?.MappingVectorStoreId,
+                cancellationToken);
 
-            }
-            else
-            {
-                // 3. Vector store уже есть — переиспользуем его
-                vectorStoreId = savedRagAssistantDTO.MappingVectorStoreId;
+            // 3) Очистить store (detach+delete), чтобы не копить мусор
+            await ClearVectorStoreAsync(vectorStoreId, cancellationToken);
 
-                // 3.1. Если был старый файл — удаляем из vector store и из Files API
-                if (!string.IsNullOrWhiteSpace(savedRagAssistantDTO.MappingFileId))
-                {
-                    await SafeDeleteVectorStoreFileAsync(vectorStoreId, savedRagAssistantDTO.MappingFileId, cancellationToken);
-                    await SafeDeleteFileAsync(savedRagAssistantDTO.MappingFileId, cancellationToken);
-                }
+            // 4) Upload files
+            var fileIds = await UploadManyFilesAsync(mappingItems, cancellationToken);
 
-                // 3.2. Привязываем новый файл к существующему vector store
-                await AddFileToVectorStoreAsync(vectorStoreId, newFileId, cancellationToken);
+            // 5) Attach via file_batches (батчами) + wait completed
+            await AddFilesToVectorStoreInBatchesAsync(vectorStoreId, fileIds, cancellationToken);
 
-                savedRagAssistantDTO.MappingVectorStoreId = vectorStoreId;
-                savedRagAssistantDTO.MappingFileId = newFileId;
-                return savedRagAssistantDTO;
+            saved ??= new RagManagementDTO();
+            saved.ConsumerTaxNumber = consumerTaxId;
+            saved.MappingVectorStoreId = vectorStoreId;
 
-            }
-
+            return saved;
         }
 
-
-        public async Task<RagManagementDTO> CreateProductsVectorAsync(string consumerTaxId, string ragJson, RagManagementDTO? savedRagAssistantDTO, CancellationToken cancellationToken = default)
+        public async Task<RagManagementDTO> CreateProductsVectorAsync(
+            string consumerTaxId,
+            string ragJson,
+            RagManagementDTO? saved,
+            CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(consumerTaxId))
-                throw new ArgumentException("consumerKey is required", nameof(consumerTaxId));
+                throw new ArgumentException("consumerTaxId is required", nameof(consumerTaxId));
             if (string.IsNullOrWhiteSpace(ragJson))
-                throw new ArgumentException("RAG json is empty", nameof(ragJson));
+                throw new ArgumentException("ragJson is empty", nameof(ragJson));
 
-            // 1. Всегда загружаем новый файл (полная замена RAG)
-            var newFileId = await UploadProductsRagAsync(consumerTaxId, ragJson, cancellationToken);
+            // 1) Split JSON строго под RMS Product Catalog (массив объектов)
+            var productItems = SplitProductsCatalogJson(consumerTaxId, ragJson);
 
-            string vectorStoreId;
-            string assistantId;
+            if (productItems.Count == 0)
+                throw new InvalidOperationException("No product records found in ragJson (RecordType=RMS Product Catalog).");
 
-            // 2. Если vector store ранее не создавался — создаём новый, привязав к нему файл
-            if (savedRagAssistantDTO == null ||
-                string.IsNullOrWhiteSpace(savedRagAssistantDTO.ProductsVectorStoreId))
-            {
-                vectorStoreId = await CreateVectorStoreAsync(consumerTaxId, newFileId, cancellationToken);
-                return new RagManagementDTO
-                {
-                    ProductsVectorStoreId = vectorStoreId,
-                    ProductsFileId = newFileId,
-                    ConsumerTaxNumber = consumerTaxId
-                };
+            // 2) Create/Reuse vector store
+            var vectorStoreId = await EnsureVectorStoreAsync(
+                consumerTaxId,
+                kind: "products",
+                existingVectorStoreId: saved?.ProductsVectorStoreId,
+                cancellationToken);
 
-            }
-            else
-            {
-                // 3. Vector store уже есть — переиспользуем его
-                vectorStoreId = savedRagAssistantDTO.ProductsVectorStoreId;
+            // 3) Очистить store
+            await ClearVectorStoreAsync(vectorStoreId, cancellationToken);
 
-                // 3.1. Если был старый файл — удаляем из vector store и из Files API
-                if (!string.IsNullOrWhiteSpace(savedRagAssistantDTO.ProductsFileId))
-                {
-                    await SafeDeleteVectorStoreFileAsync(vectorStoreId, savedRagAssistantDTO.ProductsFileId, cancellationToken);
-                    await SafeDeleteFileAsync(savedRagAssistantDTO.ProductsFileId, cancellationToken);
-                }
+            // 4) Upload files
+            var fileIds = await UploadManyFilesAsync(productItems, cancellationToken);
 
-                // 3.2. Привязываем новый файл к существующему vector store
-                await AddFileToVectorStoreAsync(vectorStoreId, newFileId, cancellationToken);
+            // 5) Attach via file_batches + wait completed
+            await AddFilesToVectorStoreInBatchesAsync(vectorStoreId, fileIds, cancellationToken);
 
-                savedRagAssistantDTO.ProductsVectorStoreId = vectorStoreId;
-                savedRagAssistantDTO.ProductsFileId = newFileId;
-                return savedRagAssistantDTO;
+            saved ??= new RagManagementDTO();
+            saved.ConsumerTaxNumber = consumerTaxId;
+            saved.ProductsVectorStoreId = vectorStoreId;
 
-            }
-
+            return saved;
         }
 
-        #region Files API
+        // =========================
+        // JSON splitting utilities
+        // =========================
 
         /// <summary>
-        /// Загрузка JSON-строки в Files API с purpose=assistants.
+        /// Mapping-файл: массив объектов вида как в RAG_Mapping_*.json
+        /// (RecordType, EmbeddingText, SupplierName, SupplierTaxNumber, InvoiceProductId, ...).
+        /// 1 объект => 1 файл.
         /// </summary>
-        private async Task<string> UploadMappingRagAsync(string consumerKey, string ragJson, CancellationToken ct)
+        private static List<RagFileToUpload> SplitMappingCatalogJson(string consumerTaxId, string ragJson)
         {
-            using var content = new MultipartFormDataContent();
+            using var doc = JsonDocument.Parse(ragJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                throw new InvalidOperationException("Mapping ragJson must be a JSON array.");
 
-            var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(ragJson));
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            var result = new List<RagFileToUpload>();
+            int index = 0;
 
-            var fileName = $"{consumerKey}-mapping-rag.json";
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                if (el.ValueKind != JsonValueKind.Object)
+                    continue;
 
-            content.Add(fileContent, "file", fileName);
-            content.Add(new StringContent("assistants"), "purpose");
+                var recordType = GetString(el, "RecordType");
+                if (!string.Equals(recordType, "Mapping Catalog", StringComparison.OrdinalIgnoreCase))
+                    continue;
 
-            using var response = await _http.PostAsync("files", content, ct);
-            await EnsureSuccessWithDetails(response);
+                var supplierTax = GetString(el, "SupplierTaxNumber");
+                var invoiceProductId = GetInt32Nullable(el, "InvoiceProductId");
+                var invoiceName = GetString(el, "InvoiceProductName");
 
-            var json = await response.Content.ReadAsStringAsync(ct);
+                index++;
 
-            var fileResponse = JsonSerializer.Deserialize<FileUploadResponse>(json)
-                               ?? throw new InvalidOperationException("File upload response is null");
+                // Имя файла делаем устойчивым и диагностичным
+                var safeSupplierTax = SanitizeFilePart(string.IsNullOrWhiteSpace(supplierTax) ? "unknown" : supplierTax);
+                var safeInvoiceId = invoiceProductId?.ToString() ?? $"idx{index}";
+                var safeNamePart = SanitizeFilePart(Shorten(invoiceName, 40));
 
-            return fileResponse.Id ?? throw new InvalidOperationException("FileId is null");
+                var fileName = $"{consumerTaxId}-map-{safeSupplierTax}-{safeInvoiceId}-{safeNamePart}.json";
+
+                var json = JsonSerializer.Serialize(el, new JsonSerializerOptions { WriteIndented = true });
+                result.Add(new RagFileToUpload(fileName, json));
+            }
+
+            return result;
         }
 
-        private async Task<string> UploadProductsRagAsync(string consumerKey, string ragJson, CancellationToken ct)
+        /// <summary>
+        /// Products-файл: массив объектов вида как в RAG_Products_*.json
+        /// (RecordType, EmbeddingText, Id, Name, MainUnit, Containers[]).
+        /// 1 объект => 1 файл.
+        /// </summary>
+        private static List<RagFileToUpload> SplitProductsCatalogJson(string consumerTaxId, string ragJson)
+        {
+            using var doc = JsonDocument.Parse(ragJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                throw new InvalidOperationException("Products ragJson must be a JSON array.");
+
+            var result = new List<RagFileToUpload>();
+            int index = 0;
+
+            foreach (var el in doc.RootElement.EnumerateArray())
+            {
+                if (el.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                var recordType = GetString(el, "RecordType");
+                if (!string.Equals(recordType, "RMS Product Catalog", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var id = GetInt32Nullable(el, "Id");
+                var name = GetString(el, "Name");
+
+                index++;
+
+                var safeId = id?.ToString() ?? $"idx{index}";
+                var safeName = SanitizeFilePart(Shorten(name, 60));
+
+                var fileName = $"{consumerTaxId}-prod-{safeId}-{safeName}.json";
+
+                var json = JsonSerializer.Serialize(el, new JsonSerializerOptions { WriteIndented = true });
+                result.Add(new RagFileToUpload(fileName, json));
+            }
+
+            return result;
+        }
+
+        private static string GetString(JsonElement obj, string propName)
+        {
+            if (obj.ValueKind != JsonValueKind.Object) return string.Empty;
+            if (!obj.TryGetProperty(propName, out var p)) return string.Empty;
+            return p.ValueKind == JsonValueKind.String ? (p.GetString() ?? string.Empty) : string.Empty;
+        }
+
+        private static int? GetInt32Nullable(JsonElement obj, string propName)
+        {
+            if (obj.ValueKind != JsonValueKind.Object) return null;
+            if (!obj.TryGetProperty(propName, out var p)) return null;
+            if (p.ValueKind == JsonValueKind.Number && p.TryGetInt32(out var v)) return v;
+            return null;
+        }
+
+        private static string Shorten(string? s, int maxLen)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return "noname";
+            s = s.Trim();
+            return s.Length <= maxLen ? s : s.Substring(0, maxLen);
+        }
+
+        private static string SanitizeFilePart(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return "x";
+            var sb = new StringBuilder(s.Length);
+            foreach (var ch in s)
+            {
+                if (char.IsLetterOrDigit(ch)) sb.Append(ch);
+                else if (ch == '-' || ch == '_') sb.Append(ch);
+                else sb.Append('_');
+            }
+            return sb.ToString().Trim('_');
+        }
+
+        // =========================
+        // Files API
+        // =========================
+
+        private async Task<List<string>> UploadManyFilesAsync(List<RagFileToUpload> files, CancellationToken ct)
+        {
+            var result = new string[files.Count];
+            using var sem = new SemaphoreSlim(UploadConcurrency);
+
+            var tasks = files.Select(async (f, idx) =>
+            {
+                await sem.WaitAsync(ct);
+                try
+                {
+                    result[idx] = await UploadFileAsync(f.FileName, f.Content, ct);
+                }
+                finally
+                {
+                    sem.Release();
+                }
+            });
+
+            await Task.WhenAll(tasks);
+            return result.ToList();
+        }
+
+        private async Task<string> UploadFileAsync(string fileName, string json, CancellationToken ct)
         {
             using var content = new MultipartFormDataContent();
 
-            var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(ragJson));
+            var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(json));
             fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
-            var fileName = $"{consumerKey}-products-rag.json";
 
             content.Add(fileContent, "file", fileName);
             content.Add(new StringContent("assistants"), "purpose");
@@ -203,10 +302,9 @@ namespace UpRestEye3.Services.Recognition
             using var response = await _http.PostAsync("files", content, ct);
             await EnsureSuccessWithDetails(response);
 
-            var json = await response.Content.ReadAsStringAsync(ct);
-
-            var fileResponse = JsonSerializer.Deserialize<FileUploadResponse>(json)
-                               ?? throw new InvalidOperationException("File upload response is null");
+            var respJson = await response.Content.ReadAsStringAsync(ct);
+            var fileResponse = JsonSerializer.Deserialize<FileUploadResponse>(respJson)
+                              ?? throw new InvalidOperationException("File upload response is null");
 
             return fileResponse.Id ?? throw new InvalidOperationException("FileId is null");
         }
@@ -216,34 +314,29 @@ namespace UpRestEye3.Services.Recognition
             if (string.IsNullOrWhiteSpace(fileId))
                 return;
 
-            try
-            {
-                using var response = await _http.DeleteAsync($"files/{fileId}", ct);
-                // Если уже удалён или не найден — игнорируем
-            }
-            catch
-            {
-                // логировать при необходимости
-            }
+            try { using var _ = await _http.DeleteAsync($"files/{fileId}", ct); }
+            catch { /* log if needed */ }
         }
 
-        #endregion
+        // =========================
+        // Vector Stores
+        // =========================
 
-        #region Vector Stores
-
-        /// <summary>
-        /// Создание Vector Store и привязка к файлу.
-        /// </summary>
-        private async Task<string> CreateVectorStoreAsync(string consumerKey, string fileId, CancellationToken ct)
+        private async Task<string> EnsureVectorStoreAsync(
+            string consumerKey,
+            string kind,
+            string? existingVectorStoreId,
+            CancellationToken ct)
         {
-            var body = new
-            {
-                name = $"{_vectorStoreNamePrefix}-{consumerKey}",
-                file_ids = new[] { fileId }
-            };
+            if (!string.IsNullOrWhiteSpace(existingVectorStoreId))
+                return existingVectorStoreId;
 
-            var jsonBody = JsonSerializer.Serialize(body);
-            using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+            var name = kind.Equals("mapping", StringComparison.OrdinalIgnoreCase)
+                ? $"{_vectorStoreNamePrefixMapping}-{consumerKey}"
+                : $"{_vectorStoreNamePrefixProducts}-{consumerKey}";
+
+            var body = new { name };
+            using var content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 
             using var response = await _http.PostAsync("vector_stores", content, ct);
             await EnsureSuccessWithDetails(response);
@@ -256,171 +349,161 @@ namespace UpRestEye3.Services.Recognition
         }
 
         /// <summary>
-        /// Добавление файла в существующий Vector Store.
-        /// POST /vector_stores/{vector_store_id}/files { file_id = "..." }
+        /// Полная очистка store:
+        /// - list all files in store
+        /// - detach each file from store
+        /// - delete file from Files API
         /// </summary>
-        private async Task AddFileToVectorStoreAsync(string vectorStoreId, string fileId, CancellationToken ct)
+        private async Task ClearVectorStoreAsync(string vectorStoreId, CancellationToken ct)
         {
-            var body = new { file_id = fileId };
-            var jsonBody = JsonSerializer.Serialize(body);
+            var fileIds = await ListAllVectorStoreFileIdsAsync(vectorStoreId, ct);
 
-            using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
-            using var response = await _http.PostAsync($"vector_stores/{vectorStoreId}/files", content, ct);
-            await EnsureSuccessWithDetails(response);
+            foreach (var fileId in fileIds)
+            {
+                await SafeDeleteVectorStoreFileAsync(vectorStoreId, fileId, ct);
+                await SafeDeleteFileAsync(fileId, ct);
+            }
         }
 
-        /// <summary>
-        /// Удаляем файл из vector store (но не сам файл).
-        /// </summary>
+        private async Task<List<string>> ListAllVectorStoreFileIdsAsync(string vectorStoreId, CancellationToken ct)
+        {
+            var ids = new List<string>();
+            string? after = null;
+
+            while (true)
+            {
+                var url = $"vector_stores/{vectorStoreId}/files?limit=100";
+                if (!string.IsNullOrWhiteSpace(after))
+                    url += $"&after={Uri.EscapeDataString(after)}";
+
+                using var response = await _http.GetAsync(url, ct);
+                await EnsureSuccessWithDetails(response);
+
+                var json = await response.Content.ReadAsStringAsync(ct);
+                var page = JsonSerializer.Deserialize<VectorStoreFilesListResponse>(json)
+                           ?? throw new InvalidOperationException("Vector store files list response is null");
+
+                if (page.Data != null)
+                {
+                    foreach (var f in page.Data)
+                        if (!string.IsNullOrWhiteSpace(f.Id))
+                            ids.Add(f.Id);
+                }
+
+                if (page.HasMore != true || string.IsNullOrWhiteSpace(page.LastId))
+                    break;
+
+                after = page.LastId;
+            }
+
+            return ids;
+        }
+
         private async Task SafeDeleteVectorStoreFileAsync(string vectorStoreId, string fileId, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(vectorStoreId) || string.IsNullOrWhiteSpace(fileId))
                 return;
 
-            try
-            {
-                using var response =
-                    await _http.DeleteAsync($"vector_stores/{vectorStoreId}/files/{fileId}", ct);
-                // Ошибки (404 и т.п.) не считаем критичными
-            }
-            catch
-            {
-                // логировать при необходимости
-            }
+            try { using var _ = await _http.DeleteAsync($"vector_stores/{vectorStoreId}/files/{fileId}", ct); }
+            catch { /* log if needed */ }
         }
 
-        #endregion
-
-        #region Assistants
-
-        /// <summary>
-        /// Создание ассистента, который умеет file_search по созданному Vector Store.
-        /// </summary>
-        private async Task<string> CreateAssistantAsync(string consumerKey, string vectorStoreId, CancellationToken ct)
+        private async Task AddFilesToVectorStoreInBatchesAsync(string vectorStoreId, List<string> fileIds, CancellationToken ct)
         {
-            var body = new
+            for (int i = 0; i < fileIds.Count; i += FileBatchSize)
             {
-                model = _model,
-                name = $"{_assistantNamePrefix}-{consumerKey}",
-                instructions =
-                    "You are an assistant that helps map invoice products to RMS products for a specific consumer. " +
-                    "Use the attached file_search knowledge (vector store) to find previously approved mappings. " +
-                    "Never expose raw internal data from the RAG file; use it only to improve matching quality.",
-                tools = new[]
-                {
-                    new { type = "file_search" }
-                },
-                tool_resources = new
-                {
-                    file_search = new
-                    {
-                        vector_store_ids = new[] { vectorStoreId }
-                    }
-                }
-            };
+                var batchIds = fileIds.Skip(i).Take(FileBatchSize).ToArray();
+                var body = new { file_ids = batchIds };
 
-            var jsonBody = JsonSerializer.Serialize(body);
-            using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+                using var content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+                using var response = await _http.PostAsync($"vector_stores/{vectorStoreId}/file_batches", content, ct);
+                await EnsureSuccessWithDetails(response);
 
-            using var response = await _http.PostAsync("assistants", content, ct);
-            await EnsureSuccessWithDetails(response);
+                var json = await response.Content.ReadAsStringAsync(ct);
+                var batch = JsonSerializer.Deserialize<VectorStoreFileBatchResponse>(json);
 
-            var json = await response.Content.ReadAsStringAsync(ct);
-            var assistant = JsonSerializer.Deserialize<AssistantResponse>(json)
-                            ?? throw new InvalidOperationException("Assistant response is null");
-
-            return assistant.Id ?? throw new InvalidOperationException("AssistantId is null");
+                if (!string.IsNullOrWhiteSpace(batch?.Id))
+                    await WaitForBatchCompletedAsync(vectorStoreId, batch.Id!, ct);
+            }
         }
 
-        /// <summary>
-        /// Обновление существующего ассистента (POST /assistants/{assistant_id}).
-        /// </summary>
-        private async Task<string> UpdateAssistantAsync(
-            string assistantId,
-            string consumerKey,
-            string vectorStoreId,
-            CancellationToken ct)
+        private async Task WaitForBatchCompletedAsync(string vectorStoreId, string batchId, CancellationToken ct)
         {
-            var body = new
+            while (true)
             {
-                model = _model,
-                name = $"{_assistantNamePrefix}-{consumerKey}",
-                instructions =
-                    "You are an assistant that helps map invoice products to RMS products for a specific consumer. " +
-                    "Use the attached file_search knowledge (vector store) to find previously approved mappings. " +
-                    "Never expose raw internal data from the RAG file; use it only to improve matching quality.",
-                tools = new[]
-                {
-                    new { type = "file_search" }
-                },
-                tool_resources = new
-                {
-                    file_search = new
-                    {
-                        vector_store_ids = new[] { vectorStoreId }
-                    }
-                }
-            };
+                using var response = await _http.GetAsync($"vector_stores/{vectorStoreId}/file_batches/{batchId}", ct);
+                await EnsureSuccessWithDetails(response);
 
-            var jsonBody = JsonSerializer.Serialize(body);
-            using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+                var json = await response.Content.ReadAsStringAsync(ct);
+                var batch = JsonSerializer.Deserialize<VectorStoreFileBatchResponse>(json)
+                            ?? throw new InvalidOperationException("Vector store file batch response is null");
 
-            using var response = await _http.PostAsync($"assistants/{assistantId}", content, ct);
-            await EnsureSuccessWithDetails(response);
+                if (string.Equals(batch.Status, "completed", StringComparison.OrdinalIgnoreCase))
+                    return;
 
-            var json = await response.Content.ReadAsStringAsync(ct);
-            var assistant = JsonSerializer.Deserialize<AssistantResponse>(json)
-                            ?? throw new InvalidOperationException("Assistant response is null");
+                if (string.Equals(batch.Status, "failed", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(batch.Status, "cancelled", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"Vector store batch {batchId} finished with status={batch.Status}");
 
-            return assistant.Id ?? assistantId;
+                await Task.Delay(TimeSpan.FromSeconds(1.5), ct);
+            }
         }
 
-        #endregion
+        // =========================
+        // Helpers / DTOs
+        // =========================
 
-        /// <summary>
-        /// Вспомогательная проверка, чтобы при 400 увидеть текст ошибки от OpenAI, а не просто HttpRequestException.
-        /// </summary>
         private static async Task EnsureSuccessWithDetails(HttpResponseMessage response)
         {
             if (response.IsSuccessStatusCode)
                 return;
 
-            string body = await response.Content.ReadAsStringAsync();
+            var body = await response.Content.ReadAsStringAsync();
             throw new HttpRequestException(
                 $"OpenAI API returned {(int)response.StatusCode} ({response.StatusCode}). Body: {body}",
                 null,
                 response.StatusCode);
         }
 
-        #region DTOs для ответов OpenAI
+        private sealed record RagFileToUpload(string FileName, string Content);
 
         private sealed class FileUploadResponse
         {
             [JsonPropertyName("id")]
-            public string Id { get; set; }
-
-            [JsonPropertyName("object")]
-            public string Object { get; set; }
+            public string? Id { get; set; }
         }
 
         private sealed class VectorStoreResponse
         {
             [JsonPropertyName("id")]
-            public string Id { get; set; }
-
-            [JsonPropertyName("object")]
-            public string Object { get; set; }
+            public string? Id { get; set; }
         }
 
-        private sealed class AssistantResponse
+        private sealed class VectorStoreFilesListResponse
+        {
+            [JsonPropertyName("data")]
+            public List<VectorStoreFileObject>? Data { get; set; }
+
+            [JsonPropertyName("has_more")]
+            public bool? HasMore { get; set; }
+
+            [JsonPropertyName("last_id")]
+            public string? LastId { get; set; }
+        }
+
+        private sealed class VectorStoreFileObject
         {
             [JsonPropertyName("id")]
-            public string Id { get; set; }
-
-            [JsonPropertyName("object")]
-            public string Object { get; set; }
+            public string? Id { get; set; }
         }
 
-        #endregion
+        private sealed class VectorStoreFileBatchResponse
+        {
+            [JsonPropertyName("id")]
+            public string? Id { get; set; }
+
+            [JsonPropertyName("status")]
+            public string? Status { get; set; }
+        }
     }
 }
