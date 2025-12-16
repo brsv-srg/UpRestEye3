@@ -51,16 +51,10 @@ namespace UpRestEye3.Services.Recognition
             var _storages = storages.Select(s => new
             {
                 s.Id,
-                s.Name,
-                s.Description
+                s.Name
             }).ToList();
 
-            var _deliveryService = new
-            {
-                conParam.DeliveryServiceId,
-                conParam.DeliveryServiceName
-            };
-
+            
 
             // Формируем запрос
             // Формируем тело запроса для /v1/responses
@@ -82,37 +76,21 @@ namespace UpRestEye3.Services.Recognition
                 // CHANGED: вместо messages[] → input[]
                 input = new object[]
                 {
-                new
-                {
-                    role = "user",
-                    content =
-@"Match the following invoice products with the most appropriate RMS products and packaging from the restaurant system.
-Use:
-- name and tax number of current supplier;
-- current invoice lines from JSON below;
-- measure units, storages from JSON below;
-- RAG knowledge of previous product mappings via file_search.
-Return strictly the JSON defined by text.format json_schema."
+                
+                    new
+                    {
+                        role = "user",
+                        content = JsonSerializer.Serialize(
+                            new
+                            {
+                                CurrentSupplierTaxNumber = currentInvoice.Supplier.TaxNumber,
+                                MeasureUnits = _measUnits,
+                                StorageList  = _storages,
+                                InvoiceProducts = _invoiceProducts
+                            },
+                            options)
+                    }
                 },
-                new
-                {
-                    role = "user",
-                    content = JsonSerializer.Serialize(
-                        new
-                        {
-                            CurrentSupplierTaxNumber = currentInvoice.Supplier.TaxNumber,
-                            CurrentSupplierName = currentInvoice.Supplier.Name,
-                            InvoiceProducts = _invoiceProducts,
-                            DeliveryService = _deliveryService,
-                            // CHANGED: по желанию можно удалить отсюда MeasureUnits/StorageList,
-                            // если они уже положены в RAG.
-                            MeasureUnits = _measUnits,
-                            StorageList  = _storages
-                        },
-                        options)
-                }
-                },
-
 
 
                 // Описание инструмента file_search по спецификации Responses API
@@ -199,35 +177,23 @@ Return strictly the JSON defined by text.format json_schema."
                 // CHANGED: вместо messages[] → input[]
                 input = new object[]
                 {
-                new
-                {
-                    role = "user",
-                    content =
-@"Match the following invoice products with the most appropriate RMS products and packaging from the restaurant system.
-Use:
-- name and tax number of current supplier;
-- current invoice lines from JSON below;
-- measure units, storages from JSON below;
-- RAG knowledge via file_search (previous product mappings, RMS product catalog).
-Return strictly the JSON defined by text.format json_schema."
-                },
-                new
-                {
-                    role = "user",
-                    content = JsonSerializer.Serialize(
-                        new
-                        {
-                            CurrentSupplierTaxNumber = currentInvoice.Supplier.TaxNumber,
-                            CurrentSupplierName = currentInvoice.Supplier.Name,
-                            InvoiceProducts = _invoiceProducts,
-                            DeliveryService = _deliveryService,
-                            // CHANGED: по желанию можно удалить отсюда MeasureUnits/StorageList,
-                            // если они уже положены в RAG.
-                            MeasureUnits = _measUnits,
-                            StorageList  = _storages
-                        },
-                        options)
-                }
+                
+                    new
+                    {
+                        role = "user",
+                        content = JsonSerializer.Serialize(
+                            new
+                            {
+                                CurrentSupplierTaxNumber = currentInvoice.Supplier.TaxNumber,
+                                MeasureUnits = _measUnits,
+                                StorageList  = _storages,
+                                InvoiceProducts = _invoiceProducts,
+                                DeliveryService = _deliveryService,
+                                // CHANGED: по желанию можно удалить отсюда MeasureUnits/StorageList,
+                                // если они уже положены в RAG.
+                            },
+                            options)
+                    }
                 },
 
 
@@ -266,29 +232,26 @@ Return strictly the JSON defined by text.format json_schema."
 
 
         private const string _mappingSystemMessage = @"
-You perform deterministic mapping of InvoiceProducts → RMSProducts using a strict algorithm.
+You perform deterministic mapping of InvoiceProducts → RMSProducts using a Mapping Catalog only.
 Your task is NOT creative. Always choose an existing product if it exists. 
 
 ============================================================
 1) STRICT INVOICE NAME MATCH (MAPPING CATALOG)
 ============================================================
 
-Goal: find a previously mapped invoice product with the **same supplier** and the **same invoice product name**.
-
 Matching keys:
+- For each invoice product, call file_search exactly once
 - Use ONLY Mapping Catalog RAG.
-- Match by SupplierTaxNumber + InvoiceProductName.
-- Normalize OCR noise only (spacing, accents, duplicated chars).
-- Do NOT generalize, do NOT infer product types.
-- Do NOT generalize, do NOT remove brand words, do NOT change word order, do NOT alter meaning;
-- This is a literal match after OCR normalization, not semantic matching.
+- Query format MUST be:
+  ""<SupplierTaxNumber> | <InvoiceProductName>""
 
 If a Mapping Catalog record matches:
+- A mapping is valid only if supplier tax matches AND InvoiceProductName matches exactly.
 - Reuse exactly the same MappedRmsProduct
 - NewRMSProduct = false
 - Determine RMSContainer:
     • if packaging corresponds to a previously used container → reuse it  
-    • otherwise reuse another existing matching container, or create a new one  
+    • otherwise reuse another existing matching container, or create a new one according to container logic (below) 
 - NewRMSContainer = false unless a new container is created
 
 - If no mapping exists → return InvoiceProduct with RMSProduct = null.
@@ -297,7 +260,10 @@ If a Mapping Catalog record matches:
 2) CONTAINER LOGIC (DETERMINISTIC)
 ============================================================
 
-A container converts invoice packaging into the RMSProduct MainUnit.
+Container selection:
+- If RMSProduct has a container with identical Count → reuse it  
+- Otherwise create a new container (NewRMSContainer = true)
+- Never create duplicates (same Count + same MainUnit)
 
 Determine Count:
 1) No container:
@@ -312,22 +278,9 @@ Determine Count:
    - Detect patterns (6x1L, 24x33cl, 8x0.5kg, Box 6kg, etc.)
    - Compute Count in MainUnit
 
-Container selection:
-- If RMSProduct has a container with identical Count → reuse it  
-- Otherwise create a new container (NewRMSContainer = true)
-- Never create duplicates (same Count + same MainUnit)
 
 ============================================================
-3) DELIVERY PRODUCTS
-============================================================
-
-If invoice text indicates a delivery fee (Entrega, Portes, Delivery, Transport):
-- Map to the provided DeliveryService
-- NewRMSProduct = false
-- NewRMSContainer = false
-
-============================================================
-4) STORAGE ASSIGNMENT
+3) STORAGE ASSIGNMENT
 ============================================================
 
 Select storage by meaning:
@@ -338,64 +291,14 @@ Select storage by meaning:
 
 Use only values from StorageList.
 
-============================================================
-5) CRITICAL RESTRICTIONS (STRICT)
-============================================================
-
-- NEVER map across product types (fruit ≠ juice, mozzarella ≠ cream cheese, fresh ≠ frozen, dairy ≠ plant-based)
-- NEVER create a new product if a correct TYPE exists in RMS catalog
-- NEVER treat brand, supplier text, packaging, or numeric text as defining the product type
-- ALWAYS include all invoice products in output in the input order
-- NEVER merge lines, skip lines, or reinterpret meaning
 
 ============================================================
-6) OUTPUT
+4) OUTPUT
 ============================================================
 
 Return JSON with 'MatchedInvoiceProducts' following schema exactly.
 No explanations, comments, or extra text.
 
-```json
-{
-  ""MatchedInvoiceProducts"": [
-    {
-      ""InvoiceProduct"": {
-        ""Id"": 1,
-        ""ProductCode"": ""123456"",
-        ""ProductName"": ""CERVEJA SUPER BOCK 24X33CL"",
-        ""Unit"": ""btl"",
-        ""Quantity"": 1,
-        ""Container"": ""Box 24x33cl"",
-        ""Count"": 24
-      },
-      ""RMSProduct"": {
-        ""Id"": 321,
-        ""Name"": ""SUPER BOCK CERVEJA"",
-        ""Description"": ""Cerveja portuguesa 33cl"",
-        ""Num"": ""PRD-00992"",
-        ""MainUnit"": ""btl"",
-        ""Containers"": [
-          {
-            ""Id"": 102,
-            ""Num"": ""CONT-0054"",
-            ""Name"": ""Box 24x33cl"",
-            ""Count"": 24
-          }
-        ]
-      },
-      ""RMSContainer"": {
-        ""Id"": 102,
-        ""Num"": ""CONT-0054"",
-        ""Name"": ""Box 24x33cl"",
-        ""Count"": 24
-      },
-      ""NewRMSProduct"": false,
-      ""NewRMSContainer"": false,
-      ""Storage"": ""Bar"",
-      ""Comments"": ""Matched by name and packaging""
-    }
-  ]
-}
 
 ";
 

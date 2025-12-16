@@ -9,6 +9,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using UpRestEye3.Models.DTO;
+using UpRestEye3.Services.BusinessLogic;
 
 namespace UpRestEye3.Services.Recognition
 {
@@ -152,6 +153,8 @@ namespace UpRestEye3.Services.Recognition
         /// </summary>
         private static List<RagFileToUpload> SplitMappingCatalogJson(string consumerTaxId, string ragJson)
         {
+            var options = JsonHelper.GetSerializerOptions();
+
             using var doc = JsonDocument.Parse(ragJson);
             if (doc.RootElement.ValueKind != JsonValueKind.Array)
                 throw new InvalidOperationException("Mapping ragJson must be a JSON array.");
@@ -181,7 +184,7 @@ namespace UpRestEye3.Services.Recognition
 
                 var fileName = $"{consumerTaxId}-map-{safeSupplierTax}-{safeInvoiceId}-{safeNamePart}.json";
 
-                var json = JsonSerializer.Serialize(el, new JsonSerializerOptions { WriteIndented = true });
+                var json = JsonSerializer.Serialize(el, options);
                 result.Add(new RagFileToUpload(fileName, json));
             }
 
@@ -195,6 +198,8 @@ namespace UpRestEye3.Services.Recognition
         /// </summary>
         private static List<RagFileToUpload> SplitProductsCatalogJson(string consumerTaxId, string ragJson)
         {
+            var options = JsonHelper.GetSerializerOptions();
+
             using var doc = JsonDocument.Parse(ragJson);
             if (doc.RootElement.ValueKind != JsonValueKind.Array)
                 throw new InvalidOperationException("Products ragJson must be a JSON array.");
@@ -221,7 +226,7 @@ namespace UpRestEye3.Services.Recognition
 
                 var fileName = $"{consumerTaxId}-prod-{safeId}-{safeName}.json";
 
-                var json = JsonSerializer.Serialize(el, new JsonSerializerOptions { WriteIndented = true });
+                var json = JsonSerializer.Serialize(el, options);
                 result.Add(new RagFileToUpload(fileName, json));
             }
 

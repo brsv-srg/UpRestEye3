@@ -29,12 +29,14 @@ namespace UpRestEye3.Services.Controllers
         [HttpPost("create")]
         public async Task<IActionResult> Create([FromBody] string ConsumerTaxId)
         {
+            var options = JsonHelper.GetSerializerOptions();
+
             if (string.IsNullOrEmpty(ConsumerTaxId))
                 return BadRequest("Invalid request");
 
             // 1. Генерация RAG файла для мапинга
             var mappingRecords = await _ragFileService.GenerateMappingRAGFileAsync(ConsumerTaxId);
-            var mappingRagJson = JsonSerializer.Serialize(mappingRecords);
+            var mappingRagJson = JsonSerializer.Serialize(mappingRecords, options);
 
             // Сохранение ragJson в файл для анализа
             var mappingFileName = $"RAG_Mapping_{ConsumerTaxId}_{DateTime.UtcNow:yyyyMMddHHmmss}.json";
@@ -45,7 +47,7 @@ namespace UpRestEye3.Services.Controllers
 
             // 2. Генерация RAG файла с продуктами 
             var productsRecords = await _ragFileService.GenerateProductsRAGFileAsync(ConsumerTaxId);
-            var productsRagJson = JsonSerializer.Serialize(productsRecords);
+            var productsRagJson = JsonSerializer.Serialize(productsRecords, options);
 
             // Сохранение ragJson в файл для анализа
             var productFileName = $"RAG_Products_{ConsumerTaxId}_{DateTime.UtcNow:yyyyMMddHHmmss}.json";
@@ -94,7 +96,7 @@ namespace UpRestEye3.Services.Controllers
                     };
                 }
                 // Используем mappingRagDTO для дальнейших действий, если необходимо
-                savedRagData.ProductsVectorStoreId = mappingRagDTO.ProductsVectorStoreId;
+                savedRagData.ProductsVectorStoreId = productsRagDTO.ProductsVectorStoreId;
             }
 
 

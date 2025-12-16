@@ -146,7 +146,6 @@ namespace UpRestEye3.Services.Recognition
                         InvoiceContainer = latest.Product.Container ?? string.Empty, // g.Key.Container ?? string.Empty,
                         MappedRmsProduct = mappedRmsProduct,
                         MappedRMSContainer = mappedRmsContainer,
-                        RecordType = "Mapping Catalog",
                         EmbeddingText = embeddingText
 
                     };
@@ -221,7 +220,6 @@ namespace UpRestEye3.Services.Recognition
                         Name = rms.Name,
                         MainUnit = mainUnit,
                         Containers = containers,
-                        RecordType = "RMS Product Catalog",
                         EmbeddingText = embeddingText
                     };
                 }).ToList();

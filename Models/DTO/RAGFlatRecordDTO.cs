@@ -2,7 +2,6 @@ namespace UpRestEye3.Models.DTO
 {
     public class RAGMappingRecordDTO
     {
-        public string RecordType { get; set; } = string.Empty;
         public string EmbeddingText { get; set; } = string.Empty;
         public string SupplierName { get; set; } = string.Empty;
         public string SupplierTaxNumber { get; set; } = string.Empty;
@@ -17,7 +16,6 @@ namespace UpRestEye3.Models.DTO
 
     public class RAGProductsRecordDTO: RAGRMSProductDTO
     {
-        public string RecordType { get; set; } = string.Empty;
         public string EmbeddingText { get; set; } = string.Empty;
     }
 
