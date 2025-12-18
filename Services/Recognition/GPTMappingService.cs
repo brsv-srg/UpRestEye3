@@ -69,7 +69,7 @@ namespace UpRestEye3.Services.Recognition
 
                 // берем все замепленные Id продуктов
                 var mappingMappedIds = mappingResult
-                .Where(x => x?.RMSProduct != null && x.InvoiceProduct != null)
+                .Where(x => x?.RMSProduct != null && x?.RMSProduct.Id != null && x.InvoiceProduct != null)
                 .Select(x => x.InvoiceProduct.Id)
                 .ToHashSet();
 

@@ -79,6 +79,10 @@ namespace UpRestEye3.Services.Recognition
             if (mappingItems.Count == 0)
                 throw new InvalidOperationException("No mapping records found in ragJson (RecordType=Mapping Catalog).");
 
+            // удаление всего
+            await DeleteAllFilesAsync(cancellationToken);
+            // закоментировать выше после 
+
             // 2) Create/Reuse vector store
             var vectorStoreId = await EnsureVectorStoreAsync(
                 consumerTaxId,
@@ -93,7 +97,9 @@ namespace UpRestEye3.Services.Recognition
             var fileIds = await UploadManyFilesAsync(mappingItems, cancellationToken);
 
             // 5) Attach via file_batches (батчами) + wait completed
-            await AddFilesToVectorStoreInBatchesAsync(vectorStoreId, fileIds, cancellationToken);
+            //await AddFilesToVectorStoreWithMetaAsync (vectorStoreId, fileIds, cancellationToken);
+            await AddFilesToVectorStoreInBatchesWithAttributesAsync(vectorStoreId, fileIds, cancellationToken);
+
 
             saved ??= new RagManagementDTO();
             saved.ConsumerTaxNumber = consumerTaxId;
@@ -133,7 +139,8 @@ namespace UpRestEye3.Services.Recognition
             var fileIds = await UploadManyFilesAsync(productItems, cancellationToken);
 
             // 5) Attach via file_batches + wait completed
-            await AddFilesToVectorStoreInBatchesAsync(vectorStoreId, fileIds, cancellationToken);
+            //await AddFilesToVectorStoreInBatchesAsync(vectorStoreId, fileIds, cancellationToken);
+            await AddFilesToVectorStoreInBatchesWithAttributesAsync(vectorStoreId, fileIds, cancellationToken);
 
             saved ??= new RagManagementDTO();
             saved.ConsumerTaxNumber = consumerTaxId;
@@ -167,10 +174,6 @@ namespace UpRestEye3.Services.Recognition
                 if (el.ValueKind != JsonValueKind.Object)
                     continue;
 
-                var recordType = GetString(el, "RecordType");
-                if (!string.Equals(recordType, "Mapping Catalog", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
                 var supplierTax = GetString(el, "SupplierTaxNumber");
                 var invoiceProductId = GetInt32Nullable(el, "InvoiceProductId");
                 var invoiceName = GetString(el, "InvoiceProductName");
@@ -185,7 +188,7 @@ namespace UpRestEye3.Services.Recognition
                 var fileName = $"{consumerTaxId}-map-{safeSupplierTax}-{safeInvoiceId}-{safeNamePart}.json";
 
                 var json = JsonSerializer.Serialize(el, options);
-                result.Add(new RagFileToUpload(fileName, json));
+                result.Add(new RagFileToUpload(fileName, json, supplierTax));
             }
 
             return result;
@@ -212,10 +215,6 @@ namespace UpRestEye3.Services.Recognition
                 if (el.ValueKind != JsonValueKind.Object)
                     continue;
 
-                var recordType = GetString(el, "RecordType");
-                if (!string.Equals(recordType, "RMS Product Catalog", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
                 var id = GetInt32Nullable(el, "Id");
                 var name = GetString(el, "Name");
 
@@ -227,7 +226,7 @@ namespace UpRestEye3.Services.Recognition
                 var fileName = $"{consumerTaxId}-prod-{safeId}-{safeName}.json";
 
                 var json = JsonSerializer.Serialize(el, options);
-                result.Add(new RagFileToUpload(fileName, json));
+                result.Add(new RagFileToUpload(fileName, json, null));
             }
 
             return result;
@@ -272,9 +271,9 @@ namespace UpRestEye3.Services.Recognition
         // Files API
         // =========================
 
-        private async Task<List<string>> UploadManyFilesAsync(List<RagFileToUpload> files, CancellationToken ct)
+        private async Task<List<RagFileToConnectToVector>> UploadManyFilesAsync(List<RagFileToUpload> files, CancellationToken ct)
         {
-            var result = new string[files.Count];
+            var result = new List<RagFileToConnectToVector>();
             using var sem = new SemaphoreSlim(UploadConcurrency);
 
             var tasks = files.Select(async (f, idx) =>
@@ -282,7 +281,13 @@ namespace UpRestEye3.Services.Recognition
                 await sem.WaitAsync(ct);
                 try
                 {
-                    result[idx] = await UploadFileAsync(f.FileName, f.Content, ct);
+                    result.Add(new RagFileToConnectToVector(await UploadFileAsync(f.FileName, f.Content, ct), f.SupplierTaxNumber));
+
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Unexpected error in DeleteAllFilesAsync: {ex.Message}");
+                    throw;
                 }
                 finally
                 {
@@ -291,7 +296,7 @@ namespace UpRestEye3.Services.Recognition
             });
 
             await Task.WhenAll(tasks);
-            return result.ToList();
+            return result;
         }
 
         private async Task<string> UploadFileAsync(string fileName, string json, CancellationToken ct)
@@ -413,7 +418,7 @@ namespace UpRestEye3.Services.Recognition
             catch { /* log if needed */ }
         }
 
-        private async Task AddFilesToVectorStoreInBatchesAsync(string vectorStoreId, List<string> fileIds, CancellationToken ct)
+        private async Task AddFilesToVectorStoreInBatchesAsync(string vectorStoreId, List<RagFileToConnectToVector> fileIds, CancellationToken ct)
         {
             for (int i = 0; i < fileIds.Count; i += FileBatchSize)
             {
@@ -431,6 +436,155 @@ namespace UpRestEye3.Services.Recognition
                     await WaitForBatchCompletedAsync(vectorStoreId, batch.Id!, ct);
             }
         }
+
+        private async Task AddFilesToVectorStoreInBatchesWithAttributesAsync( string vectorStoreId, List<RagFileToConnectToVector> fileIds, CancellationToken ct)
+        {
+            for (int i = 0; i < fileIds.Count; i += FileBatchSize)
+            {
+                var batch = fileIds.Skip(i).Take(FileBatchSize)
+                    .Select(x => new
+                    {
+                        file_id = x.FileId,
+                        attributes = new Dictionary<string, string>
+                            {
+                                { "SupplierTaxNumber", x.SupplierTaxNumber ?? string.Empty }
+                            },
+                    })
+                    .ToArray();
+
+                var body = new { files = batch };
+
+                using var content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+
+                using var response = await _http.PostAsync($"vector_stores/{vectorStoreId}/file_batches", content, ct);
+
+                await EnsureSuccessWithDetails(response);
+
+                var json = await response.Content.ReadAsStringAsync(ct);
+                var batchResp = JsonSerializer.Deserialize<VectorStoreFileBatchResponse>(json);
+
+                if (!string.IsNullOrWhiteSpace(batchResp?.Id))
+                    await WaitForBatchCompletedAsync(vectorStoreId, batchResp.Id!, ct);
+            }
+        }
+
+
+
+
+        private async Task AddFilesToVectorStoreWithMetaAsync(string vectorStoreId, List<RagFileToConnectToVector> fileIds, CancellationToken ct)
+        {
+            const int concurrency = 6;
+            using var sem = new SemaphoreSlim(concurrency);
+            var tasks = new List<Task>();
+
+            foreach (var file in fileIds)
+            {
+                await sem.WaitAsync(ct);
+                tasks.Add(Task.Run(async () =>
+                {
+                    try
+                    {
+                        await AddFileToVectorStoreAsync(
+                            vectorStoreId,
+                            file.FileId,
+                            new Dictionary<string, string>
+                            {
+                                { "SupplierTaxNumber", file.SupplierTaxNumber ?? string.Empty }
+                            },
+                            ct);
+                    }
+                    catch(Exception ex)
+                    {
+                        Console.Error.WriteLine($"Unexpected error in DeleteAllFilesAsync: {ex.Message}");
+                        throw;
+                    }
+                    finally
+                    {
+                        sem.Release();
+                    }
+                }, ct));
+            }
+
+            await Task.WhenAll(tasks);
+        }
+
+        private async Task AddFileToVectorStoreAsync(
+            string vectorStoreId,
+            string fileId,
+            Dictionary<string, string> metadata,
+            CancellationToken ct)
+        {
+            var body = new
+            {
+                file_id = fileId,
+                attributes = metadata
+            };
+
+            using var content = new StringContent(
+                JsonSerializer.Serialize(body),
+                Encoding.UTF8,
+                "application/json");
+
+            using var response = await _http.PostAsync(
+                $"vector_stores/{vectorStoreId}/files",
+                content,
+                ct);
+
+            await EnsureSuccessWithDetails(response);
+        }
+
+        public async Task DeleteAllFilesAsync(CancellationToken ct)
+        {
+            try
+            {
+                string? last = null;
+
+                do
+                {
+                    // 1) Получаем страницу файлов
+                    var url = "files?limit=100";
+                        //+(last != null ? $"&after={Uri.EscapeDataString(last)}" : "");
+
+                    using var response = await _http.GetAsync(url, ct);
+                    await EnsureSuccessWithDetails(response);
+
+                    var json = await response.Content.ReadAsStringAsync(ct);
+                    var page = JsonSerializer.Deserialize<FileListResponse>(json);
+
+                    if (page?.Data == null || page.Data.Count == 0)
+                        break;
+
+                    // 2) Удаляем каждый файл
+                    foreach (var file in page.Data)
+                    {
+                        try
+                        {
+                            if (string.IsNullOrWhiteSpace(file.Id))
+                                continue;
+
+                            using var deleteResponse =
+                                await _http.DeleteAsync($"files/{file.Id}", ct);
+
+                            await EnsureSuccessWithDetails(deleteResponse);
+                        }
+                        catch
+                        { }
+                    }
+
+                    // 3) Следующая страница
+                    last = page.LastId; // или LastId / NextCursor — как в вашем JSON
+                }
+                while (!string.IsNullOrEmpty(last));
+            }
+            catch (Exception ex)
+            {
+                // Логирование всех остальных ошибок
+                Console.Error.WriteLine($"Unexpected error in DeleteAllFilesAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+
 
         private async Task WaitForBatchCompletedAsync(string vectorStoreId, string batchId, CancellationToken ct)
         {
@@ -470,7 +624,8 @@ namespace UpRestEye3.Services.Recognition
                 response.StatusCode);
         }
 
-        private sealed record RagFileToUpload(string FileName, string Content);
+        private sealed record RagFileToUpload(string FileName, string Content, string? SupplierTaxNumber);
+        private sealed record RagFileToConnectToVector(string FileId, string? SupplierTaxNumber);
 
         private sealed class FileUploadResponse
         {
@@ -495,6 +650,29 @@ namespace UpRestEye3.Services.Recognition
             [JsonPropertyName("last_id")]
             public string? LastId { get; set; }
         }
+
+        public sealed class FileListResponse
+        {
+            [JsonPropertyName("data")]
+            public List<FileItem> Data { get; set; } = new();
+
+            [JsonPropertyName("has_more")]
+            public bool HasMore { get; set; }
+
+            [JsonPropertyName("last_id")]
+            public string? LastId { get; set; }
+        }
+
+        public sealed class FileItem
+        {
+            [JsonPropertyName("id")]
+            public string Id { get; set; } = "";
+
+            [JsonPropertyName("filename")]
+            public string FileName { get; set; } = "";
+        }
+
+
 
         private sealed class VectorStoreFileObject
         {

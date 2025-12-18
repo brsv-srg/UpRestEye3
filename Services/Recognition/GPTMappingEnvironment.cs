@@ -100,11 +100,19 @@ namespace UpRestEye3.Services.Recognition
                     {
                         type = "file_search",
                         vector_store_ids = new[] { mappingVectorStoreId },
-                        max_num_results = 10,
+                        max_num_results = 20,
                         ranking_options = new
                         {
                             ranker = "auto",
                             score_threshold = 0.2
+                        },
+                        filters = new
+                        {
+                            type = "and",
+                            filters = new object[]
+                            {
+                                new { type = "eq", key = "SupplierTaxNumber", value = currentInvoice.Supplier.TaxNumber }
+                            }
                         }
                     }
                 },
@@ -242,11 +250,10 @@ Your task is NOT creative. Always choose an existing product if it exists.
 Matching keys:
 - For each invoice product, call file_search exactly once
 - Use ONLY Mapping Catalog RAG.
-- Query format MUST be:
-  ""<SupplierTaxNumber> | <InvoiceProductName>""
+- You MUST search only the ""InvoiceProductName"" field, looking for records in RAG with a full match.
 
 If a Mapping Catalog record matches:
-- A mapping is valid only if supplier tax matches AND InvoiceProductName matches exactly.
+- A mapping is valid only if InvoiceProductName matches exactly.
 - Reuse exactly the same MappedRmsProduct
 - NewRMSProduct = false
 - Determine RMSContainer:

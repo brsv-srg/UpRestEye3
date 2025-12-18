@@ -125,15 +125,8 @@ namespace UpRestEye3.Services.Recognition
 
                         };
                     }
-                    // Формируем строку с контейнерами
-                    var containersText = mappedRmsProduct != null && mappedRmsProduct.Containers.Any()
-                        ? string.Join("; ", mappedRmsProduct.Containers.Select(c => $"[Id: {c.Id}, Name: {c.Name}, Count: {c.Count}]"))
-                        : "None";
 
-                    string embeddingText = $"RecordType: Mapping Catalog | {latest.Invoice.Supplier.Name} | {latest.Invoice.Supplier.TaxNumber} | {latest.Product.ProductName} | {latest.Product.Unit} | {latest.Product.Container ?? string.Empty}"
-                        + (mappedRmsProduct != null ? $" | RMSProduct: {mappedRmsProduct.Name} | MainUnit: {mappedRmsProduct.MainUnit}" : string.Empty)
-                        + (mappedRmsContainer != null ? $" | RMSContainer: {mappedRmsContainer.Name}" : string.Empty);
-
+                    string embeddingText = $"SupplierTaxNumber: {latest.Invoice.Supplier.TaxNumber} | InvoiceProductName: {latest.Product.ProductName}";
 
 
                     return new RAGMappingRecordDTO
@@ -203,16 +196,8 @@ namespace UpRestEye3.Services.Recognition
                         })
                         .ToList() ?? new List<RAGRMSContainerDTO>();
 
-                    // Формируем строку с контейнерами
-                    var containersText = containers.Any()
-                        ? string.Join("; ", containers.Select(c => $"[Id: {c.Id}, Name: {c.Name}, Count: {c.Count}]"))
-                        : "None";
-
-                    var embeddingText = $"RecordType: RMS Product Catalog | " +
-                                        $"Id: {(int)rms.Id} | " +
-                                        $"Name: {rms.Name} | " +
-                                        $"MainUnit: {mainUnit} | " +
-                                        $"Containers: {containersText}";
+                  
+                    var embeddingText = $"RMS Product Name: {rms.Name}";
 
                     return new RAGProductsRecordDTO
                     {
