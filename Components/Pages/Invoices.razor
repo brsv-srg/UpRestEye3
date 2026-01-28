@@ -39,10 +39,6 @@
 				<i class="fa fa-upload"></i>
 			</button>
 
-			<button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => await CreateRagDataAsync()" title="RAG File">
-				<i class="fa fa-arrows-rotate"></i>
-			</button>
-
 			<button class="btn btn-outline-primary ml-auto me-3" style="width: auto; margin-left: auto;" @onclick="async () => ShowDeleteConfirmation()" title="Delete selected Invoices from DB">
 				<i class="fa fa-trash"></i>
 			</button>
@@ -454,30 +450,45 @@
 																}
 															</tr>
 														}
+
 														@if (isAddingNewTaxCategory)
 														{
-														<td class="p-1">
-															<select class="form-control form-control-sm" @bind="newTaxCategory.TaxCategory">
-																@foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
-																{
-																	<option value="@taxCategory">@taxCategory</option>
-																}
-															</select>
-														</td>
-														<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newTaxCategory.Base" /></td>
-														<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newTaxCategory.IVA" /></td>
-														<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newTaxCategory.Total" /></td>
-														<td class="p-1 align-middle">
-															<div class="d-flex justify-content-around align-items-center">
-																<button class="custom-btn" @onclick="async () => SaveNewTaxCategory()">
-																	<i class="fa fa-save" aria-hidden="true"></i>
-																</button>
-																<button class="custom-btn" @onclick="async () => CancelNewTaxCategory()">
-																	<i class="fa fa-undo" aria-hidden="true"></i>
-																</button>
-															</div>
-														</td>
-													}
+															<td class="p-1">
+																<select class="form-control form-control-sm" @bind="newTaxCategory.TaxCategory">
+																	@foreach (var taxCategory in Enum.GetValues(typeof(TaxCategoryEnum)))
+																	{
+																		<option value="@taxCategory">@taxCategory</option>
+																	}
+																</select>
+															</td>
+															<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newTaxCategory.Base" /></td>
+															<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newTaxCategory.IVA" /></td>
+															<td class="p-1"><input type="number" step="any" class="form-control form-control-sm nospin" @bind="newTaxCategory.Total" /></td>
+															<td class="p-1 align-middle">
+																<div class="d-flex justify-content-around align-items-center">
+																	<button class="custom-btn" @onclick="async () => SaveNewTaxCategory()">
+																		<i class="fa fa-save" aria-hidden="true"></i>
+																	</button>
+																	<button class="custom-btn" @onclick="async () => CancelNewTaxCategory()">
+																		<i class="fa fa-undo" aria-hidden="true"></i>
+																	</button>
+																</div>
+															</td>
+														}
+
+														<!-- Итоговая строка -->
+														@if (editInvoice.TaxCategories.Any())
+														{
+															var (baseSum, ivaSum, totalSum) = GetTaxCategorySums();
+															<tr style="font-weight: bold; background-color: #f8f9fa;">
+																<td class="p-1">Total</td>
+																<td class="p-1">@baseSum</td>
+																<td class="p-1">@ivaSum</td>
+																<td class="p-1">@totalSum</td>
+																<td class="p-1"></td>
+															</tr>
+														}
+
 													</tbody>
 												</table>
 											</div>
@@ -979,6 +990,19 @@
 			await InitializeSignalRAsync(); // Добавлено: Инициализация SignalR
 			isInitialized = true;
 		}
+	}
+
+
+	private (decimal BaseSum, decimal IVASum, decimal TotalSum) GetTaxCategorySums()
+	{
+		if (editInvoice?.TaxCategories == null || !editInvoice.TaxCategories.Any())
+			return (0, 0, 0);
+
+		var baseSum = editInvoice.TaxCategories.Sum(t => t.Base);
+		var ivaSum = editInvoice.TaxCategories.Sum(t => t.IVA);
+		var totalSum = editInvoice.TaxCategories.Sum(t => t.Total);
+
+		return (baseSum, ivaSum, totalSum);
 	}
 
 

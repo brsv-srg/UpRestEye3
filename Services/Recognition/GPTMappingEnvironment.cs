@@ -1,356 +1,426 @@
-﻿
-using Google.Protobuf;
-using OpenAI.Responses;
+﻿using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
-using UpRestEye3.Components.Pages;
+using System.Text.RegularExpressions;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.BusinessLogic;
 
-
-
 namespace UpRestEye3.Services.Recognition
 {
-    public class GPTMappingEnvironment
+    public sealed class GPTMappingEnvironment
     {
-        private readonly string _invoiceAndRmsProductsSchema2;
-        // TODO Убрать URL в параметры 
-        //private static readonly string _url = "https://api.openai.com/v1/chat/completions";
+        private readonly string _schema;
         private static readonly string _url = "https://api.openai.com/v1/responses";
-
-        // TODO Убрать ключ в параметры 
         private static readonly string _apiKey = "sk-svcacct-NcF9TOe3CkWN0BHA0BDKjap-EDHI0abjP4Az40fjpw5QpqhQtStDuJWojvu9mOoKH6OT3BlbkFJHCJrfsShSxh4n365KhkW6fypNHJzq-qOrA8ulaFqjgM3qXUAFsbARJ0vWvF6JmnFSAA";
 
         public GPTMappingEnvironment()
         {
-            _invoiceAndRmsProductsSchema2 = JsonHelper.GetMappedProductSchema();
+            _schema = JsonHelper.GetMappedProductSchema();
         }
 
-        public string GetInvoiceAndRmsProductsSchema2() => _invoiceAndRmsProductsSchema2;
         public string GetURL() => _url;
         public string GetApiKey() => _apiKey;
 
 
-        public string GetMappingRequestBody(InvoiceDTO currentInvoice, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> _measUnits, List<RMSAccountDTO> storages, string mappingVectorStoreId)
+        // -----------------------------
+        // BUILD OUTPUT HELPERS (DB exact path)
+        // -----------------------------
+        public MatchedInvoiceProduct BuildMatchedFromStored(InvoiceProductDTO p, StoredExactHit hit,  List<RMSMeasureUnitDTO> measUnits)
+
         {
-            var options = JsonHelper.GetSerializerOptions();
-
-
-            var _invoiceProducts = new List<InvoiceProductMappingDTO>(currentInvoice.Products.Select(p => new InvoiceProductMappingDTO()
+            // Ваша схема output не содержит TaxCategory, поэтому:
+            // - либо вы расширяете MatchedInvoiceProduct DTO,
+            // - либо храните TaxCategory отдельно (в вашем пайплайне).
+            // Здесь: Comments содержит указание, что TaxCategory взята из истории.
+            return new MatchedInvoiceProduct
             {
-                Id = p.Id,
-                ProductCode = p.ProductCode,
-                ProductName = p.ProductName,
-                Unit = p.Unit,
-                Container = p.Container,
-                Count = p.Count,
-                Quantity = p.Quantity
-            }));
-           
-
-            // Проекция для выбора только нужных полей
-            var _storages = storages.Select(s => new
-            {
-                s.Id,
-                s.Name
-            }).ToList();
-
-            
-
-            // Формируем запрос
-            // Формируем тело запроса для /v1/responses
-            var requestData = new
-            {
-                model = "gpt-5.1",
-                include = new[] { "file_search_call.results" },
-                tool_choice = "required",
-
-                // Просим модель тратить нормальные усилия на рассуждения 
-                reasoning = new         
+                InvoiceProduct = new InvoiceProductMappingDTO
                 {
-                    effort = "medium"   // варианты: "low", "medium", "high"
+                    Id = p.Id,
+                    ProductCode = p.ProductCode,
+                    ProductName = p.ProductName,
+                    Unit = p.Unit,
+                    Quantity = p.Quantity,
+                    Container = p.Container ?? "",
+                    Count = p.Count ?? 0
+                },
+                RMSProduct = new RMSProductMappingDTO
+                {
+                    Id = hit.RmsProduct.Id,
+                    Name = hit.RmsProduct.Name,
+                    Description = hit.RmsProduct.Description,
+                    Num = hit.RmsProduct.Num,
+                    MainUnit = measUnits.FirstOrDefault(u => u.EntityExtGuid == hit.RmsProduct.MainUnit)?.Name ?? string.Empty,
+
+                    Containers = hit.RmsProduct.Containers?.Select(c => new RMSContainerMappingDTO
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        Num = c.Num,
+                        Count = c.Count
+                    }).ToList() ?? new List<RMSContainerMappingDTO>()
                 },
 
-                // Основной «developer/system» промпт:
-                instructions = _mappingSystemMessage,
-
-                // CHANGED: вместо messages[] → input[]
-                input = new object[]
+                RMSContainer = new RMSContainerMappingDTO
                 {
+                    Id = hit.RmsContainer?.Id,
+                    Name = hit.RmsContainer?.Name,
+                    Num = hit.RmsContainer?.Num,
+                    Count = hit.RmsContainer?.Count ?? 0
+                },
                 
-                    new
-                    {
-                        role = "user",
-                        content = JsonSerializer.Serialize(
-                            new
-                            {
-                                CurrentSupplierTaxNumber = currentInvoice.Supplier.TaxNumber,
-                                MeasureUnits = _measUnits,
-                                StorageList  = _storages,
-                                InvoiceProducts = _invoiceProducts
-                            },
-                            options)
-                    }
-                },
-
-
-                // Описание инструмента file_search по спецификации Responses API
-                tools = new object[]
-                {
-                    new
-                    {
-                        type = "file_search",
-                        vector_store_ids = new[] { mappingVectorStoreId },
-                        max_num_results = 20,
-                        ranking_options = new
-                        {
-                            ranker = "auto",
-                            score_threshold = 0.2
-                        },
-                        filters = new
-                        {
-                            type = "and",
-                            filters = new object[]
-                            {
-                                new { type = "eq", key = "SupplierTaxNumber", value = currentInvoice.Supplier.TaxNumber }
-                            }
-                        }
-                    }
-                },
-
-
-                // Исправленный блок structured outputs для Responses API
-                text = new
-                {
-                    format = new
-                    {
-                        type = "json_schema",             
-                        name = "MatchedInvoiceProducts",   
-                        schema = JsonDocument.Parse(GetInvoiceAndRmsProductsSchema2()).RootElement,            
-                        strict = true                      
-                    }
-                }
+                NewRMSProduct = false,
+                NewRMSContainer = false,
+                Storage = hit.StorageName ?? InferStorageFallback(p),
+                Comments = $"DB exact hit (incl. storage/tax if available). Tax={hit.TaxCategoryCodeOrName ?? "n/a"}"
             };
-            return JsonSerializer.Serialize(requestData, options);
         }
 
-        public string GetProductRequestBody(InvoiceDTO currentInvoice, List<InvoiceProductDTO> unmappedProducts, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> _measUnits, List<RMSAccountDTO> storages, string productVectorStoreId)
+        public MatchedInvoiceProduct BuildEmptyMatched(InvoiceProductDTO p, List<RMSAccountDTO> storages)
+        {
+            return new MatchedInvoiceProduct
+            {
+                InvoiceProduct = new InvoiceProductMappingDTO
+                {
+                    Id = p.Id,
+                    ProductCode = p.ProductCode,
+                    ProductName = p.ProductName,
+                    Unit = p.Unit,
+                    Quantity = p.Quantity,
+                    Container = p.Container ?? "",
+                    Count = p.Count ?? 0
+                },
+                RMSProduct = new RMSProductMappingDTO
+
+                {
+                    Id = null,
+                    Name = "",
+                    Description = "",
+                    Num = null,
+                    MainUnit = "",
+                    Containers = new List<RMSContainerMappingDTO>()
+
+                },
+                RMSContainer = new RMSContainerMappingDTO { Id = null, Name = "", Count = 0, Num = null },
+                NewRMSProduct = false,
+                NewRMSContainer = false,
+                Storage = InferStorageFallback(p),
+                Comments = "No mapping found (fallback empty)"
+            };
+        }
+
+        private string InferStorageFallback(InvoiceProductDTO p)
+        {
+            // простой fallback; реальную логику у вас уже есть в промптах
+            var name = (p.ProductName ?? "").ToUpperInvariant();
+            if (name.Contains("CERVEJA") || name.Contains("COLA") || name.Contains("VINHO") || name.Contains("BEB"))
+                return "Bar";
+            return "Kitchen";
+        }
+
+        // -----------------------------
+        // REQUEST BUILDERS
+        // -----------------------------
+
+        /// <summary>
+        /// Stage 3: LLM chooses RMS+Container+Storage from DB candidates.
+        /// No file_search tools used (deterministic candidate set).
+        /// </summary>
+        public string BuildResolveFromDbCandidatesRequestBody(
+            InvoiceDTO currentInvoice,
+            List<InvoiceProductDTO> invoiceProducts,
+            Dictionary<int, List<StoredCandidate>> candidatesByProductId,
+            ConnectionParameterDTO conParam,
+            List<RMSMeasureUnitDTO> measUnits,
+            List<RMSAccountDTO> storages)
         {
             var options = JsonHelper.GetSerializerOptions();
 
+            var storageList = storages.Select(s => new { s.Id, s.Name }).ToList();
 
-            var _invoiceProducts = new List<InvoiceProductMappingDTO>(currentInvoice.Products.Select(p => new InvoiceProductMappingDTO()
+            // компактный input: только нужные поля
+            var inputPayload = new
             {
-                Id = p.Id,
-                ProductCode = p.ProductCode,
-                ProductName = p.ProductName,
-                Unit = p.Unit,
-                Container = p.Container,
-                Count = p.Count,
-                Quantity = p.Quantity
-            }));
-
-
-            // Проекция для выбора только нужных полей
-            var _storages = storages.Select(s => new
-            {
-                s.Id,
-                s.Name,
-                s.Description
-            }).ToList();
-
-            var _deliveryService = new
-            {
-                conParam.DeliveryServiceId,
-                conParam.DeliveryServiceName
+                CurrentSupplierTaxNumber = currentInvoice.Supplier?.TaxNumber,
+                MeasureUnits = measUnits.Select(mu => new { mu.Id, mu.Name }).ToList(),
+                StorageList = storageList,
+                InvoiceProducts = invoiceProducts.Select(p => new
+                {
+                    p.Id,
+                    p.ProductCode,
+                    p.ProductName,
+                    p.Unit,
+                    p.Quantity,
+                    p.Container,
+                    p.Count
+                }).ToList(),
+                Candidates = invoiceProducts.Select(p => new
+                {
+                    InvoiceProductId = p.Id,
+                    InvoiceNameNormalized = InvoiceHelper.NormalizeName(p.ProductName ?? ""),
+                    CandidateRmsProducts = (candidatesByProductId.TryGetValue((int)p.Id, out var cands) ? cands : new List<StoredCandidate>())
+                        .GroupBy(x => x.RmsProduct.Id) // unique RMS
+                        .Select(g =>
+                        {
+                            var first = g.First();
+                            return new
+                            {
+                                RMSProduct = first.RmsProduct,
+                                Containers = first.Containers,
+                                LastChosenContainer = first.LastChosenContainer,
+                                LastChosenStorage = first.LastChosenStorage,
+                                LastChosenTaxCategory = first.LastChosenTaxCategory
+                            };
+                        })
+                        .ToList()
+                }).ToList()
             };
 
-
-            // Формируем запрос
-            // Формируем тело запроса для /v1/responses
             var requestData = new
             {
                 model = "gpt-5.1",
-                include = new[] { "file_search_call.results" },
-                tool_choice = "required",
+                tool_choice = "none",
+                reasoning = new { effort = "low" },
 
-                // Просим модель тратить нормальные усилия на рассуждения 
-                reasoning = new
-                {
-                    effort = "medium"   // варианты: "low", "medium", "high"
-                },
+                instructions = BuildResolveFromCandidatesSystemPrompt(),
 
-                // Основной «developer/system» промпт:
-                instructions = _productSystemMessage,
-
-                // CHANGED: вместо messages[] → input[]
                 input = new object[]
                 {
-                
-                    new
-                    {
-                        role = "user",
-                        content = JsonSerializer.Serialize(
-                            new
-                            {
-                                CurrentSupplierTaxNumber = currentInvoice.Supplier.TaxNumber,
-                                MeasureUnits = _measUnits,
-                                StorageList  = _storages,
-                                InvoiceProducts = _invoiceProducts,
-                                DeliveryService = _deliveryService,
-                                // CHANGED: по желанию можно удалить отсюда MeasureUnits/StorageList,
-                                // если они уже положены в RAG.
-                            },
-                            options)
-                    }
+                    new { role = "user", content = JsonSerializer.Serialize(inputPayload, options) }
                 },
 
-
-
-                // Описание инструмента file_search по спецификации Responses API
-                tools = new object[]
-                {
-                    new
-                    {
-                        type = "file_search",
-                        vector_store_ids = new[] { productVectorStoreId },
-                        max_num_results = 10,
-                        ranking_options = new
-                        {
-                            ranker = "auto",
-                            score_threshold = 0.2
-                        }
-                    }
-                },
-
-
-                // Исправленный блок structured outputs для Responses API
                 text = new
                 {
                     format = new
                     {
                         type = "json_schema",
                         name = "MatchedInvoiceProducts",
-                        schema = JsonDocument.Parse(GetInvoiceAndRmsProductsSchema2()).RootElement,
+                        schema = JsonDocument.Parse(_schema).RootElement,
                         strict = true
                     }
                 }
             };
+
             return JsonSerializer.Serialize(requestData, options);
         }
 
+        /// <summary>
+        /// Stage 4: LLM search in product catalog embedded in system prompt. Enables prompt caching.
+        /// </summary>
+        public string BuildProductCatalogSearchRequestBody(
+            InvoiceDTO currentInvoice,
+            List<InvoiceProductDTO> invoiceProducts,
+            ConnectionParameterDTO conParam,
+            List<RMSMeasureUnitDTO> measUnits,
+            List<RMSAccountDTO> storages,
+            string productCatalogText)
+        {
+            var options = JsonHelper.GetSerializerOptions();
 
-        private const string _mappingSystemMessage = @"
-You perform deterministic mapping of InvoiceProducts → RMSProducts using a Mapping Catalog only.
-Your task is NOT creative. Always choose an existing product if it exists. 
+            var storageList = storages.Select(s => new { s.Id, s.Name }).ToList();
+
+            var deliveryService = new
+            {
+                conParam.DeliveryServiceId,
+                conParam.DeliveryServiceName
+            };
+
+            // Каталог строго в instructions (для кеша), input — только инвойс-линии и справочники
+            var inputPayload = new
+            {
+                CurrentSupplierTaxNumber = currentInvoice.Supplier?.TaxNumber,
+                DeliveryService = deliveryService,
+                MeasureUnits = measUnits.Select(mu => new { mu.Id, mu.Name }).ToList(),
+                StorageList = storageList,
+                InvoiceProducts = invoiceProducts.Select(p => new
+                {
+                    p.Id,
+                    p.ProductCode,
+                    p.ProductName,
+                    p.Unit,
+                    p.Quantity,
+                    p.Container,
+                    p.Count
+                }).ToList()
+            };
+
+            var cacheKey = BuildCatalogCacheKey(currentInvoice, productCatalogText);
+
+            var requestData = new
+            {
+                model = "gpt-5.1",
+                tool_choice = "none",
+                reasoning = new { effort = "low" },
+
+                // prompt caching (если ваша версия Responses API поддерживает)
+                prompt_cache_key = cacheKey,
+                prompt_cache_retention = "24h",
+
+                instructions = BuildCatalogSystemPrompt(productCatalogText),
+
+                input = new object[]
+                {
+                    new { role = "user", content = JsonSerializer.Serialize(inputPayload, options) }
+                },
+
+                text = new
+                {
+                    format = new
+                    {
+                        type = "json_schema",
+                        name = "MatchedInvoiceProducts",
+                        schema = JsonDocument.Parse(_schema).RootElement,
+                        strict = true
+                    }
+                }
+            };
+
+            return JsonSerializer.Serialize(requestData, options);
+        }
+
+        private string BuildCatalogCacheKey(InvoiceDTO invoice, string catalogText)
+        {
+            // ключ должен быть стабильным
+            var consumer = invoice.Consumer?.TaxNumber ?? "unknown";
+
+            // Формируем логический источник ключа
+            var rawKey = $"prodcat|{consumer}|{catalogText}";
+            var hash = Sha256Hex(rawKey);
+
+            return hash[..64];
+
+        }
+
+        private static string Sha256Hex(string s)
+        {
+            using var sha = SHA256.Create();
+            var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(s));
+            var sb = new StringBuilder(bytes.Length * 2);
+            foreach (var b in bytes) sb.Append(b.ToString("x2"));
+            return sb.ToString();
+        }
+
+        private static string BuildResolveFromCandidatesSystemPrompt()
+        {
+            return @"
+You perform DETERMINISTIC resolution of invoice products
+using ONLY the provided CandidateRmsProducts (from DB history).
+
+STRICT RULES:
+- You MUST NOT invent products.
+- You MUST NOT use file_search or any external knowledge.
+- Selection is deterministic, not creative.
 
 ============================================================
-1) STRICT INVOICE NAME MATCH (MAPPING CATALOG)
+1) RMS PRODUCT SELECTION
 ============================================================
 
-Matching keys:
-- For each invoice product, call file_search exactly once
-- Use ONLY Mapping Catalog RAG.
-- You MUST search only the ""InvoiceProductName"" field, looking for records in RAG with a full match.
-
-If a Mapping Catalog record matches:
-- A mapping is valid only if InvoiceProductName matches exactly.
-- Reuse exactly the same MappedRmsProduct
-- NewRMSProduct = false
-- Determine RMSContainer:
-    • if packaging corresponds to a previously used container → reuse it  
-    • otherwise reuse another existing matching container, or create a new one according to container logic (below) 
-- NewRMSContainer = false unless a new container is created
-
-- If no mapping exists → return InvoiceProduct with RMSProduct = null.
+For each InvoiceProduct:
+- Choose the single best RMSProduct from CandidateRmsProducts.
+- Selection must be based on the closest PRODUCT TYPE and historical usage.
+- If several candidates exist, choose the one most frequently or most recently used.
+- Do NOT create new RMSProducts in this stage.
+- NewRMSProduct = false always.
 
 ============================================================
-2) CONTAINER LOGIC (DETERMINISTIC)
+2) CONTAINER SELECTION / CREATION
 ============================================================
 
-Container selection:
-- If RMSProduct has a container with identical Count → reuse it  
-- Otherwise create a new container (NewRMSContainer = true)
-- Never create duplicates (same Count + same MainUnit)
+Container logic is deterministic and based on invoice packaging.
 
-Determine Count:
-1) No container:
-   - Invoice Unit matches MainUnit AND packaging is irrelevant  
-   → RMSContainer = null, NewRMSContainer = false
+Selection:
+- If invoice specifies container/count:
+  - Reuse RMSProduct.Containers with identical Count (preferred).
+- If no matching container exists:
+  - Create a new container using deterministic container logic
+  - Id = null, Num = null
+  - NewRMSContainer = true
 
-2) Implied packaging:
-   - Extract size from the name (50g, 250g, 0.75l, 330ml)
-   - Convert to MainUnit to obtain Count
-
-3) Explicit packaging:
-   - Detect patterns (6x1L, 24x33cl, 8x0.5kg, Box 6kg, etc.)
-   - Compute Count in MainUnit
-
+If invoice has no relevant packaging:
+- RMSContainer = null
+- NewRMSContainer = false
 
 ============================================================
-3) STORAGE ASSIGNMENT
+3) STORAGE SELECTION
 ============================================================
 
-Select storage by meaning:
-- Food → Kitchen  
-- Drinks/alcohol/coffee → Bar  
-- Retail goods → Retail  
-- Cleaning/technical/disposables → Household  
-
-Use only values from StorageList.
-
+- Prefer LastChosenStorage for this RMSProduct if provided AND logically applicable.
+- Otherwise infer storage by meaning using StorageList
+  (Food→Kitchen, Drinks→Bar, Retail→Retail, Cleaning/technical→Household).
+- Use ONLY values from StorageList.
 
 ============================================================
-4) OUTPUT
+4) TAX CATEGORY
 ============================================================
 
-Return JSON with 'MatchedInvoiceProducts' following schema exactly.
-No explanations, comments, or extra text.
+- Reuse the LastChosenTaxCategory associated with the selected RMSProduct.
+- Do NOT infer, change, or invent tax categories.
 
+============================================================
+OUTPUT
+============================================================
 
+Return STRICT JSON following the schema.
+No explanations, comments, or extra text outside JSON.
 ";
 
+        }
 
-        private const string _productSystemMessage = @"
-You perform TYPE-FIRST mapping of InvoiceProducts → RMSProducts.
-Always choose an existing product if it exists. Create new products only when absolutely necessary.
+        private static string BuildCatalogSystemPrompt(string catalogText)
+        {
 
-============================================================
-1) TYPE-FIRST LOGIC (RMS PRODUCT CATALOG)
-============================================================
+            string systemRequest = $@"
+You perform DETERMINISTIC mapping of InvoiceProducts → RMSProducts
+using ONLY the provided RMS PRODUCT CATALOG below.
 
-Goal: find a RMS product with the **same PRODUCT TYPE**.
-
-Matching rules:
-- Use ONLY RMS Product Catalog RAG.
-- Extract PRODUCT TYPE from the invoice product (potato, avocado, mozzarella, honey, oat milk, microgreens, etc.);
-- Ignore brand, packaging, quantity, word order in product name.
-- Ignore PRODUCT FORM and PROPERTIES (full-fat/skimmed, fresh/frozen, liquid/solid, whole/sliced, raw/cooked);
-
-- If not found, use common or restaurant synonyms of PRODUCT TYPE (nachos, pickles, etc.) and search again.
-
-- If several products match: use PRODUCT FORM and PROPERTIES to find the closest in hierarchy of restaurant product.
-    • use FORM and PROPERTIES **only if several products match**. Ignore in other cases. 
-
-
-If a product of the same TYPE exists:
-- You MUST reuse it;
-- NewRMSProduct = false;
-- Select or create RMSContainer using container logic (below);
-
-- You MUST NOT create a new RMSProduct of the same type.
-
+RMS PRODUCT CATALOG (authoritative):
+{catalogText}
 
 ============================================================
-2) PRODUCT CREATION RULE
+CORE PRINCIPLES (STRICT)
 ============================================================
 
-Create a new RMSProduct only if:
-- Previous stage do not found any RMSProduct of the same TYPE (or required FORM differs and FORM is essential)
+- REUSE > CREATE. If a correct PRODUCT TYPE exists, you MUST reuse it.
+- In the case of several InvoiceProducts of the same type, and only one suitable RMSProducts, reuse it several times
+- Create a new RMSProduct ONLY if NO product of the same TYPE exists at all.
+- NEVER map across incompatible types
+  (fruit ≠ juice, dairy ≠ plant-based, fresh ≠ frozen, mozzarella ≠ cream cheese).
+- This task is NOT creative.
+
+============================================================
+1) TYPE-FIRST MATCHING
+============================================================
+
+- Extract PRODUCT TYPE from invoice name
+  (e.g. potato, avocado, mozzarella, honey, oat milk, microgreens).
+- Ignore brand, supplier text, packaging, quantities, numeric values, and word order.
+- Search catalog by TYPE only.
+
+If no direct TYPE match:
+- Retry using common / restaurant synonyms of the same TYPE.
+
+If MULTIPLE RMS products match the same TYPE:
+- Use FORM / PROPERTIES ONLY as a tie-breaker to select the closest one.
+- FORM / PROPERTIES MUST NOT be used to justify creating a new product.
+
+If a TYPE match exists:
+- Reuse that RMSProduct.
+- NewRMSProduct = false.
+
+============================================================
+2) PRODUCT CREATION (LAST RESORT)
+============================================================
+
+Create a new RMSProduct ONLY if:
+- No RMSProduct of the same TYPE exists in the catalog.
 
 Creation rules:
-- Name = generic English type (""potato"", ""avocado"", ""white wine"", ""oat milk"", ""microgreens"")
-- Do NOT include brand, supplier text, packaging, numeric values, or size indicators
-- MainUnit = inferred from typical products of the same general category
+- Name = generic English TYPE (""potato"", ""avocado"", ""oat milk"", etc.)
+- Exclude brand, supplier text, packaging, numeric values, size indicators.
+- MainUnit = typical unit for this TYPE
+  (kg for food solids, l for liquids, pcs for countable items;
+   prefer units already used by similar catalog products).
 - Id = null, Num = null
 - NewRMSProduct = true
 
@@ -358,108 +428,56 @@ Creation rules:
 3) CONTAINER LOGIC (DETERMINISTIC)
 ============================================================
 
-A container converts invoice packaging into the RMSProduct MainUnit.
+A container converts invoice packaging into RMSProduct.MainUnit.
+
+Container selection rules:
+- If RMSProduct has a container with identical Count → reuse it (NewRMSContainer = false)
+- Otherwise create a new container (NewRMSContainer = true)
+  Id = null, Num = null, generic Name allowed (e.g. ""Pack {{Count}}{{MainUnit}}"").
+- Never create duplicates (same Count + same MainUnit)
 
 Determine Count:
+
 1) No container:
-   - Invoice Unit matches MainUnit AND packaging is irrelevant  
+   - Invoice Unit == MainUnit AND packaging irrelevant
    → RMSContainer = null, NewRMSContainer = false
 
 2) Implied packaging:
-   - Extract size from the name (50g, 250g, 0.75l, 330ml)
-   - Convert to MainUnit to obtain Count
+   - Extract size from name (50g, 250g, 0.75l, 330ml)
+   - Convert to MainUnit → Count
 
 3) Explicit packaging:
    - Detect patterns (6x1L, 24x33cl, 8x0.5kg, Box 6kg, etc.)
    - Compute Count in MainUnit
 
-Container selection:
-- If RMSProduct has a container with identical Count → reuse it  
-- Otherwise create a new container (NewRMSContainer = true)
-- Never create duplicates (same Count + same MainUnit)
-
 ============================================================
-4) DELIVERY PRODUCTS
+4) STORAGE ASSIGNMENT
 ============================================================
 
-If invoice text indicates a delivery fee (Entrega, Portes, Delivery, Transport):
-- Map to the provided DeliveryService
+Select Storage strictly from StorageList:
+- Food → Kitchen
+- Drinks / alcohol / coffee → Bar
+- Retail goods → Retail
+- Cleaning / technical / disposables → Household
+
+============================================================
+5) DELIVERY LINES
+============================================================
+
+If invoice line indicates delivery
+(Entrega, Portes, Delivery, Transport):
+- Map to provided DeliveryService
 - NewRMSProduct = false
 - NewRMSContainer = false
 
 ============================================================
-5) STORAGE ASSIGNMENT
+OUTPUT
 ============================================================
 
-Select storage by meaning:
-- Food → Kitchen  
-- Drinks/alcohol/coffee → Bar  
-- Retail goods → Retail  
-- Cleaning/technical/disposables → Household  
-
-Use only values from StorageList.
-
-============================================================
-6) CRITICAL RESTRICTIONS (STRICT)
-============================================================
-
-- NEVER map across product types (fruit ≠ juice, mozzarella ≠ cream cheese, fresh ≠ frozen, dairy ≠ plant-based)
-- NEVER create a new product if a correct TYPE exists in RMS catalog
-- NEVER treat brand, supplier text, packaging, or numeric text as defining the product type
-- ALWAYS include all invoice products in output in the input order
-- NEVER merge lines, skip lines, or reinterpret meaning
-
-============================================================
-7) OUTPUT
-============================================================
-
-Return JSON with 'MatchedInvoiceProducts' following schema exactly.
+Return STRICT JSON following the schema.
 No explanations, comments, or extra text.
-
-```json
-{
-  ""MatchedInvoiceProducts"": [
-    {
-      ""InvoiceProduct"": {
-        ""Id"": 1,
-        ""ProductCode"": ""123456"",
-        ""ProductName"": ""CERVEJA SUPER BOCK 24X33CL"",
-        ""Unit"": ""btl"",
-        ""Quantity"": 1,
-        ""Container"": ""Box 24x33cl"",
-        ""Count"": 24
-      },
-      ""RMSProduct"": {
-        ""Id"": 321,
-        ""Name"": ""SUPER BOCK CERVEJA"",
-        ""Description"": ""Cerveja portuguesa 33cl"",
-        ""Num"": ""PRD-00992"",
-        ""MainUnit"": ""btl"",
-        ""Containers"": [
-          {
-            ""Id"": 102,
-            ""Num"": ""CONT-0054"",
-            ""Name"": ""Box 24x33cl"",
-            ""Count"": 24
-          }
-        ]
-      },
-      ""RMSContainer"": {
-        ""Id"": 102,
-        ""Num"": ""CONT-0054"",
-        ""Name"": ""Box 24x33cl"",
-        ""Count"": 24
-      },
-      ""NewRMSProduct"": false,
-      ""NewRMSContainer"": false,
-      ""Storage"": ""Bar"",
-      ""Comments"": ""Matched by name and packaging""
-    }
-  ]
-}
-
 ";
-
-
+            return systemRequest;
+        }
     }
 }

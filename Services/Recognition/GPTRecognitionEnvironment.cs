@@ -85,47 +85,41 @@ Extract the rows of words from this provided OCR invoice text: {invoiceText}.
         public string GetRecognitionRequestBody(SimpleDocument invoiceDocument, InvoiceDTO currentInvoice)
         {
             var options = JsonHelper.GetSerializerOptions();
-            
+
 
             // Формируем запрос
             var requestBody = new
             {
                 model = "gpt-5.1",
-                
-                //model = "gpt-4.1",
-                //model = "gpt-4o",
-                //model = "gpt-4o-mini",
+                tool_choice = "none",
+                reasoning = new { effort = "low" },
 
-                temperature = 0.0,
-                top_p = 1.0,
-                n = 1,
-                messages = new object[]
+                input = new object[]
                 {
-                        new 
-                        {
-                            role = "system",
-                            content = new[]
-                            {
-                                new 
-                                {
-                                    type = "input_text",
-                                    text = GetSystemPrompt(currentInvoice),
-                                    cache_control = new { type = "ephemeral" }
-                                }
-                            }
-                        },
-        
-                        new { role = "user", content = GetUserPrompt(JsonSerializer.Serialize(invoiceDocument, options)) },
-                        new { role = "user", content = GetInvoiceDetails(currentInvoice) },
-                },
-                response_format = new
-                {
-                    type = "json_schema",
-                    json_schema = new
+                    new
                     {
-                        name = "Invoice",
-                        schema = JsonDocument.Parse(GetInvoiceSchema()).RootElement
+                        role = "system",
+                        content = new[]
+                            {
+                            new
+                            {
+                                type = "input_text",
+                                text = GetSystemPrompt(currentInvoice)
+                            }
+                        }
+                    },
 
+                    new { role = "user", content = GetUserPrompt(JsonSerializer.Serialize(invoiceDocument, options)) },
+                    new { role = "user", content = GetInvoiceDetails(currentInvoice) },
+                },
+                text = new
+                {
+                    format = new
+                    {
+                        type = "json_schema",
+                        name = "Invoice",
+                        schema = JsonDocument.Parse(GetInvoiceSchema()).RootElement,
+                        strict = true
                     }
                 }
             };

@@ -4,8 +4,10 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Linq.Expressions;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Tensorflow;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DAO;
@@ -477,6 +479,63 @@ namespace UpRestEye3.Services.BusinessLogic
             };
             return integrationInvoice;
         }
+
+
+
+
+        // -----------------------------
+        // NORMALIZATION (универсальная, детерминированная)
+        // -----------------------------
+        public static string NormalizeName(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+
+            var s = input.Trim();
+
+            // Unicode normalize (compat)
+            s = s.Normalize(NormalizationForm.FormKC);
+
+            // Upper (stable)
+            s = s.ToUpperInvariant();
+
+            // Replace multiply variants with X
+            s = s.Replace("×", "X").Replace("*", "X");
+
+            // Normalize latin x to X (после ToUpper уже X, но оставим для надёжности)
+            s = s.Replace("x", "X");
+
+            // Remove quotes/backslashes
+            s = s.Replace("\\", " ").Replace("\"", " ").Replace("'", " ");
+
+            // Unify separators
+            s = s.Replace(" / ", " ").Replace("/", " ");
+            s = s.Replace("-", " ").Replace("_", " ");
+
+            // Remove punctuation (keep letters/digits/X)
+            s = Regex.Replace(s, @"[^\p{L}\p{Nd}\sX]", " ");
+
+            // Remove spaces around X (23 X 21 -> 23X21)
+            s = Regex.Replace(s, @"\s*X\s*", "X");
+
+            // Collapse whitespace
+            s = Regex.Replace(s, @"\s+", " ").Trim();
+
+            return s;
+        }
+
+        public static string NormalizeContainer(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+            return NormalizeName(input);
+        }
+
+        public static decimal? NormalizeCount(decimal? count)
+        {
+            if (count is null) return null;
+            // округление до 3 знаков для стабильности сравнения, если у вас float/decimal пляшет
+            return Math.Round(count.Value, 3, MidpointRounding.AwayFromZero);
+        }
+
 
     }
 

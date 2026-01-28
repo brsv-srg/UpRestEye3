@@ -119,6 +119,11 @@ builder.Services.AddScoped<IRMSAccountsService, RMSAccountsService>();
 
 builder.Services.AddScoped<IRAGFileService, RAGFileService>();
 
+builder.Services.AddScoped<IInvoiceMappingHistoryRepository, InvoiceMappingHistoryRepository>();
+builder.Services.AddScoped<IProductCatalogProvider, ProductCatalogProvider>();
+
+
+
 var apiKey = builder.Configuration["OpenAI:ApiKey"];
 builder.Services.AddScoped<IRagManager>(provider =>
     new RagManager(new HttpClient(), apiKey));

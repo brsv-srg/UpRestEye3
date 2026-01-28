@@ -145,9 +145,99 @@ namespace UpRestEye3.Services.BusinessLogic
                     invoice.Comments += "; ";
                 invoice.Comments += "Tax category mismatch.";
             }
+
+            // --- Tax validation step ---
+            // 1. Group products by tax category and sum their IVA
+            //var productTaxSums = invoice.Products
+            //    .Where(p => p.TaxCategory != null)
+            //    .GroupBy(p => p.TaxCategory)
+            //    .ToDictionary(
+            //        g => g.Key,
+            //        g => g.Sum(p => p.ProductTotalValue / 100 * InvoiceHelper.GetTaxCategoryPercent(p.TaxCategory))
+            //    );
+
+            // Подсчет сумм налогов по продуктам с группировкой по категориям
+            // В зависимости от invoice.ProductsTaxIncluded считаем по-разному:
+            Dictionary<TaxCategoryEnum, decimal> productTaxSums;
+            if (invoice.ProductsTaxIncluded)
+            {
+                // Налог включен в сумму по продукту: выделяем налог из общей суммы
+                productTaxSums = invoice.Products
+                    .Where(p => p.TaxCategory != null)
+                    .GroupBy(p => p.TaxCategory)
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var percent = InvoiceHelper.GetTaxCategoryPercent(g.Key);
+                            // Сумма налога = сумма_продуктов * (percent / (100 + percent))
+                            return g.Sum(p =>
+                            {
+                                var taxPercent = InvoiceHelper.GetTaxCategoryPercent(p.TaxCategory);
+                                return p.ProductTotalValue * (taxPercent / (100m + taxPercent));
+                            });
+                        }
+                    );
+            }
+            else
+            {
+                // Налог НЕ включен в сумму по продукту: считаем налог как процент от суммы
+                productTaxSums = invoice.Products
+                    .Where(p => p.TaxCategory != null)
+                    .GroupBy(p => p.TaxCategory)
+                    .ToDictionary(
+                        g => g.Key,
+                        g =>
+                        {
+                            var percent = InvoiceHelper.GetTaxCategoryPercent(g.Key);
+                            // Сумма налога = сумма_продуктов * (percent / 100)
+                            return g.Sum(p =>
+                            {
+                                var taxPercent = InvoiceHelper.GetTaxCategoryPercent(p.TaxCategory);
+                                return p.ProductTotalValue * (taxPercent / 100m);
+                            });
+                        }
+                    );
+            }
+
+
+            // 2. Group invoice tax categories and sum their IVA
+            var invoiceTaxSums = invoice.TaxCategories
+                .GroupBy(tc => tc.TaxCategory)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Sum(tc => tc.IVA)
+                );
+
+            // 3. Compare sums by category
+            bool taxMismatch = false;
+            foreach (var kvp in productTaxSums)
+            {
+                if (!invoiceTaxSums.TryGetValue(kvp.Key, out var invoiceSum) ||
+                    Math.Abs(invoiceSum - kvp.Value) > 0.03m)
+                {
+                    taxMismatch = true;
+                    break;
+                }
+            }
+
+            // 4. Compare total tax
+            var totalProductTax = productTaxSums.Values.Sum();
+            var totalInvoiceTax = invoiceTaxSums.Values.Sum();
+            if (Math.Abs(totalProductTax - totalInvoiceTax) > 0.03m)
+            {
+                taxMismatch = true;
+            }
+
+            if (taxMismatch)
+            {
+                invoice.StageStatus = InvoiceStatusEnum.Manual;
+                if (!string.IsNullOrEmpty(invoice.Comments))
+                    invoice.Comments += "; ";
+                invoice.Comments += "Tax sums by category or total tax mismatch.";
+            }
         }
     }
-
 
     public class ProductsMappedValidator : TextProcessedValidator
     {
@@ -179,9 +269,6 @@ namespace UpRestEye3.Services.BusinessLogic
                     invoice.Comments += "; ";
                 invoice.Comments += "There are some new RMSProducts in the Invoice.";
             }
-
-
-
         }
     }
 

@@ -1,171 +1,242 @@
-﻿using OpenAI.VectorStores;
-using System.Drawing;
-using System.Net;
+﻿using System.Linq;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using UpRestEye3.Components.Pages;
 using UpRestEye3.Models.BLO;
 using UpRestEye3.Models.DTO;
 using UpRestEye3.Services.BusinessLogic;
-using static Google.Apis.Requests.BatchRequest;
 
 namespace UpRestEye3.Services.Recognition
 {
-
     public interface IGPTMappingService
     {
-        Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages, string vectorStoreId);
-
+        Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, ConnectionParameterDTO conParam,
+            List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages, CancellationToken ct = default);
     }
 
-    public class GPTMappingService : IGPTMappingService
+    /// <summary>
+    /// DB-first mapping:
+    /// 1) Exact DB match: Name+Container+Count + ok stage statuses
+    /// 2) DB name match: candidates RMS+containers
+    /// 3) LLM chooses from candidates (no RAG)
+    /// 4) Remaining -> LLM searches in product catalog embedded in system prompt (cached)
+    /// 5) Merge all results
+    /// </summary>
+    public sealed class GPTMappingService : IGPTMappingService
     {
-
         private readonly GPTMappingEnvironment _env;
+        private readonly HttpClient _http;
 
-        public GPTMappingService()
+        // Эти интерфейсы вы подключите к вашей БД (EF/ADO/Dapper)
+        private readonly IInvoiceMappingHistoryRepository _historyRepo;
+        private readonly IProductCatalogProvider _catalogProvider;
+
+        public GPTMappingService(
+            IInvoiceMappingHistoryRepository historyRepo,
+            IProductCatalogProvider catalogProvider,
+            HttpClient? httpClient = null,
+            GPTMappingEnvironment? env = null)
         {
-            _env = new GPTMappingEnvironment();
+            _env = env ?? new GPTMappingEnvironment();
+            _historyRepo = historyRepo;
+            _catalogProvider = catalogProvider;
+
+            _http = httpClient ?? new HttpClient
+            {
+                Timeout = TimeSpan.FromMinutes(7)
+            };
+            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _env.GetApiKey());
         }
 
-
-
-        public async Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(InvoiceDTO currentInvoice, ConnectionParameterDTO conParam, List<RMSMeasureUnitDTO> measUnits, List<RMSAccountDTO> storages, string vectorStoreId)
+        public async Task<List<MatchedInvoiceProduct>> ReceiptMappingByLLM(
+            InvoiceDTO currentInvoice,
+            ConnectionParameterDTO conParam,
+            List<RMSMeasureUnitDTO> measUnits,
+            List<RMSAccountDTO> storages,
+            CancellationToken ct = default)
         {
             try
             {
-                // Конфигурация HTTP-клиента
-                using var httpClient = new HttpClient
+                var all = new List<MatchedInvoiceProduct>();
+
+                // -----------------------------
+                // 0) Подготовка
+                // -----------------------------
+                var invoiceProducts = currentInvoice.Products?.ToList() ?? new List<InvoiceProductDTO>();
+                if (invoiceProducts.Count == 0)
+                    return all;
+
+                var supplierTax = currentInvoice.Supplier?.TaxNumber ?? string.Empty;
+                var consumerId = currentInvoice.Consumer.Id;
+
+                // Нормализуем инвойс-строки один раз
+                var normalized = invoiceProducts.ToDictionary(
+                    p => p.Id,
+                    p => new NormalizedInvoiceKey(
+                        ProductId: (int)p.Id,
+                        SupplierTaxNumber: supplierTax,
+                        NameNorm: InvoiceHelper.NormalizeName(p.ProductName ?? ""),
+                        ContainerNorm: InvoiceHelper.NormalizeContainer(p.Container ?? ""),
+                        CountNorm: InvoiceHelper.NormalizeCount(p.Count ?? 0m)));
+
+                // -----------------------------
+                // 1) DB exact: name+container+count + успешные стадии
+                // -----------------------------
+                var exactHits = await _historyRepo.FindLatestExactMatchesAsync(
+                    (int)consumerId,
+                    supplierTax,
+                    normalized.Values.ToList(),
+                    ct);
+
+                // exactHits: productId -> StoredMapping (RMS, container, storage, taxCategory)
+                foreach (var hit in exactHits)
                 {
-                    Timeout = TimeSpan.FromMinutes(5) // Increase timeout to 5 minutes
-                };
+                    var p = invoiceProducts.First(x => x.Id == hit.ProductId);
 
-                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _env.GetApiKey());
-
-                //============================================================================
-                // MAPPING STAGE
-                //============================================================================
-
-                var mappingJsonBody = _env.GetMappingRequestBody(currentInvoice, conParam, measUnits, storages, vectorStoreId);
-                // Сериализация тела запроса
-                var mappingHttpContent = new StringContent(mappingJsonBody, Encoding.UTF8, "application/json");
-                Console.WriteLine($"Sending request to OpenAI API:..{mappingHttpContent.ToString()}");
-
-                // Отправка POST-запроса
-                var mappingResponse = await httpClient.PostAsync(_env.GetURL(), mappingHttpContent);
-
-                // Проверка ответа
-                if (!mappingResponse.IsSuccessStatusCode)
-                {
-                    var errorContent = await mappingResponse.Content.ReadAsStringAsync();
-
-                    throw new Exception($"OpenAI API error: {errorContent}");
+                    all.Add(_env.BuildMatchedFromStored(p, hit, measUnits));
                 }
-                // Чтение и возврат результата
-                var mappingResponseContent = await mappingResponse.Content.ReadAsStringAsync();
-                var mappingResult = ResponseParsing(mappingResponseContent);
 
-                // берем все замепленные Id продуктов
-                var mappingMappedIds = mappingResult
-                .Where(x => x?.RMSProduct != null && x?.RMSProduct.Id != null && x.InvoiceProduct != null)
-                .Select(x => x.InvoiceProduct.Id)
-                .ToHashSet();
+                var exactMappedIds = exactHits.Select(x => x.ProductId).ToHashSet();
 
-                // и проверяем, есть ли ещё не замепленные продукты
-                var mappingUnmapped = currentInvoice.Products
-                .Where(p => !mappingMappedIds.Contains(p.Id))
-                .ToList();
+                // -----------------------------
+                // 2) DB by name only -> candidates for LLM resolve
+                // -----------------------------
+                var remainingAfterExact = invoiceProducts.Where(p => !exactMappedIds.Contains((int)p.Id)).ToList();
+                if (remainingAfterExact.Count == 0)
+                    return all;
 
-
-                if (!mappingUnmapped.Any())
-                    return mappingResult;
-
-
-                //============================================================================
-                // PRODUCT STAGE
-                //============================================================================
-
-                var productJsonBody = _env.GetProductRequestBody(currentInvoice, mappingUnmapped, conParam, measUnits, storages, vectorStoreId);
-                // Сериализация тела запроса
-                var productHttpContent = new StringContent(productJsonBody, Encoding.UTF8, "application/json");
-                Console.WriteLine($"Sending request to OpenAI API:..{productHttpContent.ToString()}");
-
-                // Отправка POST-запроса
-                var productResponse = await httpClient.PostAsync(_env.GetURL(), productHttpContent);
-
-                // Проверка ответа
-                if (!productResponse.IsSuccessStatusCode)
-                {
-                    var errorContent = await productResponse.Content.ReadAsStringAsync();
-
-                    throw new Exception($"OpenAI API error: {errorContent}");
-                }
-                // Чтение и возврат результата
-                var productResponseContent = await productResponse.Content.ReadAsStringAsync();
-                var productResult = ResponseParsing(productResponseContent);
-
-
-                var mergedResult = mappingResult
-                    .Concat(productResult)
+                var normalized2 = remainingAfterExact
+                    .Select(p => new NormalizedInvoiceKey(
+                        ProductId: (int)p.Id,
+                        SupplierTaxNumber: supplierTax,
+                        NameNorm: InvoiceHelper.NormalizeName(p.ProductName ?? ""),
+                        ContainerNorm: InvoiceHelper.NormalizeContainer(p.Container ?? ""),
+                        CountNorm: InvoiceHelper.NormalizeCount(p.Count ?? 0m)
+                    ))
                     .ToList();
 
-                return mergedResult;
 
+                var nameCandidates = await _historyRepo.FindNameCandidatesAsync(
+                    (int)consumerId,
+                    supplierTax,
+                    normalized2,
+                    ct);
+
+                // nameCandidates: productId -> list of StoredMappingCandidate (RMS + containers + storage + taxCategory maybe)
+                // Берём только те, где есть хотя бы 1 кандидат RMS
+                var needResolveFromCandidates = remainingAfterExact
+                    .Where(p => nameCandidates.TryGetValue((int)p.Id, out var c) && c != null && c.Count > 0)
+                    .ToList();
+
+                if (needResolveFromCandidates.Count > 0)
+                {
+                    var resolveBody = _env.BuildResolveFromDbCandidatesRequestBody(
+                        currentInvoice,
+                        needResolveFromCandidates,
+                        nameCandidates,
+                        conParam,
+                        measUnits,
+                        storages);
+
+                    var resolved = await CallOpenAIAndParseAsync(resolveBody, ct);
+
+                    // Мержим и отмечаем какие закрыли
+                    all.AddRange(resolved);
+
+                    var resolvedIds = resolved
+                        .Where(x => x?.InvoiceProduct != null)
+                        .Select(x => x.InvoiceProduct.Id)
+                        .ToHashSet();
+
+                    remainingAfterExact = remainingAfterExact.Where(p => !resolvedIds.Contains(p.Id)).ToList();
+                }
+
+                // -----------------------------
+                // 3) Remaining -> LLM search in product catalog in system prompt (cached)
+                // -----------------------------
+                if (remainingAfterExact.Count > 0)
+                {
+                    var catalogText = await _catalogProvider.GetProductCatalogTextAsync(currentInvoice, ct);
+
+                    var catalogBody = _env.BuildProductCatalogSearchRequestBody(
+                        currentInvoice,
+                        remainingAfterExact,
+                        conParam,
+                        measUnits,
+                        storages,
+                        catalogText);
+
+                    var catalogMapped = await CallOpenAIAndParseAsync(catalogBody, ct);
+
+                    all.AddRange(catalogMapped);
+                }
+
+                // -----------------------------
+                // 4) Финальный merge (сохраняем порядок инвойса)
+                // -----------------------------
+                var byId = all
+                    .Where(x => x?.InvoiceProduct != null)
+                    .GroupBy(x => x.InvoiceProduct.Id)
+                    .ToDictionary(g => g.Key, g => g.First()); // при конфликте — берём первый (exact > resolve > catalog, т.к. мы так добавляли)
+
+                var ordered = new List<MatchedInvoiceProduct>(invoiceProducts.Count);
+                foreach (var p in invoiceProducts)
+                {
+                    if (byId.TryGetValue(p.Id, out var mapped))
+                    {
+                        ordered.Add(mapped);
+                        continue;
+                        continue;
+                    }
+
+                    // fallback: если вообще ничего — пустой ответ для строки
+                    ordered.Add(_env.BuildEmptyMatched(p, storages));
+                }
+
+                return ordered;
             }
             catch (Exception ex)
             {
                 currentInvoice.StageStatus = InvoiceStatusEnum.Error;
-
-                throw new Exception("Error mapping invoice products to RMS products", ex);
+                throw new Exception("Error mapping invoice products to RMS products (DB-first pipeline)", ex);
             }
         }
 
-        private int? ExtractRetryAfterSeconds(string errorContent)
+        // -----------------------------
+        // OpenAI call + parse (ваш парсер сохранён по сути)
+        // -----------------------------
+        private async Task<List<MatchedInvoiceProduct>> CallOpenAIAndParseAsync(string requestJson, CancellationToken ct)
         {
-            try
-            {
-                using var document = JsonDocument.Parse(errorContent);
-                var root = document.RootElement;
+            using var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+            using var resp = await _http.PostAsync(_env.GetURL(), content, ct);
 
-                if (root.TryGetProperty("error", out JsonElement errorElement) &&
-                    errorElement.TryGetProperty("message", out JsonElement messageElement))
-                {
-                    var message = messageElement.GetString();
-                    var match = Regex.Match(message, @"Please try again in (\d+(\.\d+)?)s", RegexOptions.IgnoreCase);
-                    if (match.Success && double.TryParse(match.Groups[1].Value, out double retryAfter))
-                    {
-                        return (int)Math.Ceiling(retryAfter);
-                    }
-                }
-            }
-            catch (Exception ex)
+            if (!resp.IsSuccessStatusCode)
             {
-                Console.WriteLine($"Error parsing retry-after seconds: {ex.Message}");
+                var error = await resp.Content.ReadAsStringAsync(ct);
+                throw new Exception($"OpenAI API returned {(int)resp.StatusCode} ({resp.ReasonPhrase}). Body: {error}");
             }
 
-            return null;
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            var parsed = ResponseParsing(body);
+            return parsed;
         }
 
-
-
-        private MatchedInvoiceProducts ResponseParsing(string responseContent)
+        private List<MatchedInvoiceProduct> ResponseParsing(string responseContent)
         {
+            // Взято из вашей текущей реализации, адаптировано на List<>
+            // :contentReference[oaicite:2]{index=2}
             try
             {
                 using var document = JsonDocument.Parse(responseContent);
                 var root = document.RootElement;
 
-                // 1. Берём массив output
                 if (!root.TryGetProperty("output", out var outputArray) ||
                     outputArray.ValueKind != JsonValueKind.Array ||
                     outputArray.GetArrayLength() == 0)
-                {
                     throw new Exception("OpenAI response does not contain non-empty 'output' array.");
-                }
 
-                // 2. Ищем объект типа message
                 JsonElement? messageElement = null;
                 foreach (var item in outputArray.EnumerateArray())
                 {
@@ -177,7 +248,6 @@ namespace UpRestEye3.Services.Recognition
                         break;
                     }
                 }
-
                 if (messageElement is null)
                     throw new Exception("OpenAI response does not contain 'message' output.");
 
@@ -186,11 +256,8 @@ namespace UpRestEye3.Services.Recognition
                 if (!msg.TryGetProperty("content", out var contentArray) ||
                     contentArray.ValueKind != JsonValueKind.Array ||
                     contentArray.GetArrayLength() == 0)
-                {
                     throw new Exception("OpenAI response 'message' does not contain non-empty 'content' array.");
-                }
 
-                // 3. Внутри content ищем блок с type == "output_text"
                 JsonElement? outputTextElement = null;
                 foreach (var contentItem in contentArray.EnumerateArray())
                 {
@@ -202,58 +269,33 @@ namespace UpRestEye3.Services.Recognition
                         break;
                     }
                 }
-
                 if (outputTextElement is null)
                     throw new Exception("OpenAI response 'content' does not contain 'output_text' item.");
 
                 var ot = outputTextElement.Value;
-
                 if (!ot.TryGetProperty("text", out var textElement))
-                {
                     throw new Exception("OpenAI 'output_text' does not contain 'text' field.");
-                }
 
-                string? jsonPayload;
-
-                if (textElement.ValueKind == JsonValueKind.String)
-                {
-                    // текущий формат Response API — text сразу строка с JSON
-                    jsonPayload = textElement.GetString();
-                }
-                else if (textElement.ValueKind == JsonValueKind.Object &&
-                         textElement.TryGetProperty("text", out var innerText) &&
-                         innerText.ValueKind == JsonValueKind.String)
-                {
-                    // запасной вариант, если когда-то будет обёртка { "text": "..." }
-                    jsonPayload = innerText.GetString();
-                }
-                else
-                {
-                    throw new Exception("OpenAI 'output_text.text' is not a string.");
-                }
+                string? jsonPayload = textElement.ValueKind == JsonValueKind.String
+                    ? textElement.GetString()
+                    : null;
 
                 if (string.IsNullOrWhiteSpace(jsonPayload))
-                {
                     throw new Exception("OpenAI 'output_text.text' is null or empty.");
-                }
 
-                // 4. Парсим JSON, который вернула модель (это уже наш payload по схеме)
                 using var payloadDoc = JsonDocument.Parse(jsonPayload);
                 var payloadRoot = payloadDoc.RootElement;
 
                 if (!payloadRoot.TryGetProperty("MatchedInvoiceProducts", out var matchedArray) ||
                     matchedArray.ValueKind != JsonValueKind.Array)
-                {
                     throw new Exception("Parsed payload JSON does not contain 'MatchedInvoiceProducts' array.");
-                }
 
                 var options = JsonHelper.GetSerializerOptions();
 
-                // 5. Десериализуем массив в ваш тип-список
-                var list = JsonSerializer.Deserialize<MatchedInvoiceProducts>(
-                               matchedArray.GetRawText(), // только массив
+                var list = JsonSerializer.Deserialize<List<MatchedInvoiceProduct>>(
+                               matchedArray.GetRawText(),
                                options)
-                           ?? new MatchedInvoiceProducts();
+                           ?? new List<MatchedInvoiceProduct>();
 
                 return list;
             }
@@ -262,118 +304,27 @@ namespace UpRestEye3.Services.Recognition
                 throw new Exception("Error parsing JSON response to MatchedInvoiceProducts object", ex);
             }
         }
-
-
-
-
-        private MatchedInvoiceProducts ResponseParsingOld(string responseContent)
-        {
-            try
-            {
-                using var document = JsonDocument.Parse(responseContent);
-                var root = document.RootElement;
-
-                // CHANGED: схема ответа Responses, а не ChatCompletions
-                // Ожидаем:
-                // output[0].content[0].text – строка с JSON по JSON Schema
-                if (!root.TryGetProperty("output", out var outputArray) ||
-                    outputArray.ValueKind != JsonValueKind.Array ||
-                    outputArray.GetArrayLength() == 0)
-                {
-                    throw new Exception("No output in Responses API response");
-                }
-
-                var firstOutput = outputArray[0];
-
-                if (!firstOutput.TryGetProperty("content", out var contentArray) ||
-                    contentArray.ValueKind != JsonValueKind.Array ||
-                    contentArray.GetArrayLength() == 0)
-                {
-                    throw new Exception("No content in Responses API output");
-                }
-
-                var firstContent = contentArray[0];
-
-                if (!firstContent.TryGetProperty("text", out var textElement) ||
-                    !textElement.TryGetProperty("text", out var innerTextElement))
-                {
-                    throw new Exception("Structured text not found in Responses API output");
-                }
-
-                var jsonText = innerTextElement.GetString();
-                if (string.IsNullOrWhiteSpace(jsonText))
-                    throw new Exception("Empty JSON text in Responses API output");
-
-                using var contentDoc = JsonDocument.Parse(jsonText);
-                var rootContent = contentDoc.RootElement;
-
-                if (!rootContent.TryGetProperty("MatchedInvoiceProducts", out _))
-                {
-                    throw new Exception("MatchedInvoiceProducts property not found in structured JSON");
-                }
-
-                var options = JsonHelper.GetSerializerOptions();
-                var matched = JsonSerializer.Deserialize<MatchedInvoiceProducts>(rootContent, options);
-
-                return matched ?? new MatchedInvoiceProducts();
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error parsing Responses API structured JSON", ex);
-            }
-        }
-
-
-        private MatchedInvoiceProducts ResponseParsingOld2(string responseContent)
-        {
-            try
-            {
-                // Разбор JSON-ответа
-                using var document = JsonDocument.Parse(responseContent);
-                var root = document.RootElement;
-
-                // Извлечение элемента, содержащего данные Invoice
-                if (root.TryGetProperty("choices", out JsonElement choicesElement) &&
-                    choicesElement[0].TryGetProperty("message", out JsonElement messageElement) &&
-                    messageElement.TryGetProperty("content", out JsonElement contentElement) &&
-                    contentElement.ValueKind == JsonValueKind.String)
-                {
-
-
-
-                    using var contentDocument = JsonDocument.Parse(contentElement.GetString());
-                    var rootContent = contentDocument.RootElement;
-
-                    if (rootContent.TryGetProperty("MatchedInvoiceProducts", out contentElement))
-                    {
-                        var options = JsonHelper.GetSerializerOptions();
-
-                        Console.WriteLine($"Received response from OpenAI API: {rootContent.GetRawText()}");
-
-                        using var matchedProductsDocument = JsonDocument.Parse(rootContent.GetRawText());
-                        var matchedProducts = JsonSerializer.Deserialize<MatchedInvoiceProducts>(contentElement, options);
-
-                        return matchedProducts ?? new MatchedInvoiceProducts();
-
-                    }
-                    else
-                    {
-                        throw new Exception("Invoice element not found in JSON response");
-                    }
-                }
-                else
-                {
-                    throw new Exception("Invalid JSON structure");
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error parsing JSON response to Invoice object", ex);
-            }
-        }
-
-
     }
+
+
+    // -----------------------------
+    // DTOs for DB hits
+    // -----------------------------
+    public sealed record NormalizedInvoiceKey(int ProductId, string SupplierTaxNumber, string NameNorm, string ContainerNorm, decimal? CountNorm);
+
+    public sealed record StoredExactHit(
+        int ProductId,
+        RMSProductDTO RmsProduct,
+        RMSContainerDTO? RmsContainer,
+        string? StorageName,
+        string? TaxCategoryCodeOrName);
+
+    public sealed record StoredCandidate(
+        int ProductId,
+        RMSProductDTO RmsProduct,
+        List<RMSContainerDTO> Containers,
+        // optional "last chosen" hints:
+        RMSContainerDTO? LastChosenContainer,
+        string? LastChosenStorage,
+        string? LastChosenTaxCategory);
 }
-
-

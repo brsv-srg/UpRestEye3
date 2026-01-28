@@ -172,7 +172,13 @@ namespace UpRestEye3.Services.BusinessLogic
             await invoiceService.SaveInvoiceAsync(invoice);
             await hubContext.Clients.All.SendAsync("ReceiveMessage", "QR-code recognizing started..");
 
-            var imagesQR = images.Select(i => (i.Item1, i.Item2, new QRCodeData())).ToList();
+            var consumer = await consumerService.GetConsumerDTOByIdAsync((int)invoice.Consumer.Id);
+            if (consumer == null)
+                throw new Exception("ConsumerId not found");
+
+            var imagesQR = images.Select(i => (i.Item1, i.Item2)).ToList();
+            QRCodeData basicQRCode = null;
+
 
             for (int i = 0; i < imagesQR.Count; i++)
             {
@@ -181,40 +187,36 @@ namespace UpRestEye3.Services.BusinessLogic
 
                 var basicQRResult = await imageProcessor.BasicQRRecognitionAsync(image, filePath);
 
-
-                if (basicQRResult.Item1 == null)
+                if (basicQRResult.Item1 != null)
+                {
+                    if (basicQRResult.Item1.CustomerTaxNumber == consumer.TaxNumber)
+                    {
+                        basicQRCode = basicQRResult.Item1;
+                        break;
+                    }
+                }
+                else
                 {
                     var deepQRResult = await imageProcessor.DeepQRRecognitionAsync(image, filePath);
-
-
                     if (deepQRResult.Item1 != null)
-                        basicQRResult = deepQRResult;
+                    {
+                        if (deepQRResult.Item1.CustomerTaxNumber == consumer.TaxNumber)
+                        {
+                            basicQRCode = deepQRResult.Item1;
+                            break;
+                        }
+                    }
                 }
-
-                imagesQR[i] = (imagesQR[i].Item1, imagesQR[i].Item2, basicQRResult.Item1);
             }
 
-            var basicQRCodes = imagesQR.Where(i => i.Item3 != null).Select(i => i.Item3).Distinct().ToList();
 
-            if (basicQRCodes.Count > 1)
+            if (basicQRCode == null)
             {
-                throw new Exception("Failed to recognize: multiple QR codes have been detected.");
-
+                throw new Exception("Failed to recognize QR code.");
             }
 
-            var consumer = await consumerService.GetConsumerDTOByIdAsync((int)invoice.Consumer.Id);
-            if (consumer == null)
-                throw new Exception("ConsumerId not found");
 
-            if (basicQRCodes.Count != 0)
-            {
-
-                var basicQRCode = basicQRCodes.FirstOrDefault();
-                if (basicQRCode.CustomerTaxNumber != consumer.TaxNumber)
-                    throw new Exception("ConsumerId not match");
-
-                InvoiceHelper.UpdateInvoiceByQR(invoice, basicQRCode, invoice.FilePath);
-            }
+            InvoiceHelper.UpdateInvoiceByQR(invoice, basicQRCode, invoice.FilePath);
 
             // Валидация накладной после QR
             var validatorQR = InvoiceValidatorBase.CreateValidator(InvoiceStageEnum.QRCodeRecognition);
