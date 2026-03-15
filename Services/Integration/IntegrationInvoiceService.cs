@@ -86,6 +86,7 @@ namespace UpRestEye3.Services.Integration
 
                 if (!response.IsSuccessStatusCode)
                 {
+                    //5d986966 - e060 - 48af - 94c5 - 41a84424d460
                     var errorContent = await response.Content.ReadAsStringAsync();
                     Console.WriteLine($"Error response: {errorContent}");
                     response.EnsureSuccessStatusCode();

@@ -188,7 +188,6 @@ namespace UpRestEye3.Services.Recognition
                     {
                         ordered.Add(mapped);
                         continue;
-                        continue;
                     }
 
                     // fallback: если вообще ничего — пустой ответ для строки
